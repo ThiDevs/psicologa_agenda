@@ -54,3 +54,4 @@ backend/**/obj/
 /ios
 /android
 .env.prod
+/actions-runner

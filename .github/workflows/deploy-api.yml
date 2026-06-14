@@ -7,7 +7,7 @@ on:
 
 jobs:
   verify-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Checkout
@@ -33,17 +33,11 @@ jobs:
       - name: Build backend
         run: dotnet build backend/src/PsiAgenda.Api/PsiAgenda.Api.csproj --configuration Release
 
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          username: ${{ secrets.PROD_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          port: ${{ secrets.PROD_PORT }}
-          script: |
-            set -euo pipefail
-            cd /opt/psi-agenda
-            set -a
-            source .env.prod
-            set +a
-            ./deploy-prod.sh
+      - name: Execute Local Deploy Script
+        run: |
+          set -euo pipefail
+          cd /home/prod/.gemini/antigravity/scratch/psi-agenda
+          set -a
+          source .env.prod
+          set +a
+          sudo bash ./deploy-prod.sh

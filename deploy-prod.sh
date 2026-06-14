@@ -2,7 +2,7 @@
 # deploy-prod.sh - Automatic deployment script executed on the server by GitHub Actions.
 set -euo pipefail
 
-APP_DIR="/opt/psi-agenda"
+APP_DIR="/home/prod/.gemini/antigravity/scratch/psi-agenda"
 BRANCH="main"
 COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env.prod"
