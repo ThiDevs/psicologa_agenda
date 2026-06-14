@@ -53,3 +53,4 @@ backend/**/obj/
 # generated native folders
 /ios
 /android
+.env.prod
