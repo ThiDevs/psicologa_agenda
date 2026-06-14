@@ -5,7 +5,7 @@ import type { OnboardingItem, User, UserRole } from '@/types/domain';
 
 const ACCESS_TOKEN_KEY = 'psi_agenda_online.access_token';
 const REFRESH_TOKEN_KEY = 'psi_agenda_online.refresh_token';
-const LOCAL_API_PORT = 3001;
+const DEFAULT_API_BASE_URL = 'https://felicio.app';
 
 export const API_BASE_URL = resolveApiBaseUrl();
 
@@ -27,7 +27,7 @@ type ApiAuthResponse = {
   user: ApiUser;
 };
 
-type ApiUser = {
+export type ApiUser = {
   id: string;
   name: string;
   email: string;
@@ -245,11 +245,14 @@ export type ApiAppointment = {
   subtotal: number;
   serviceFee: number;
   total: number;
-  status: 'reserved' | 'pending_payment' | 'pending_confirmation' | 'confirmed' | 'expired' | 'cancelled' | 'completed' | 'no_show';
+  status: 'reserved' | 'pending_payment' | 'pending_confirmation' | 'confirmed' | 'expired' | 'cancelled' | 'completed' | 'no_show' | 'rejected';
   paymentMethodId: 'pix' | 'credit_card' | 'debit_card' | 'pay_on_site';
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded' | 'not_required';
   createdAt: string;
   expiresAt?: string | null;
+  ownerDecisionReason?: string | null;
+  ownerDecisionAt?: string | null;
+  onlineRoomUrl?: string | null;
 };
 
 export type ApiAppointmentDetails = {
@@ -257,6 +260,7 @@ export type ApiAppointmentDetails = {
   space: ApiSpace;
   professional: ApiProfessional;
   services: ApiService[];
+  customer: ApiUser;
   review?: ApiReview | null;
 };
 
@@ -618,6 +622,14 @@ export async function confirmOwnerAppointment(spaceId: string, appointmentId: st
   return request<ApiAppointment>(`/spaces/${spaceId}/appointments/${appointmentId}/confirm`, {
     method: 'POST',
     authenticated: true,
+  });
+}
+
+export async function rejectOwnerAppointment(spaceId: string, appointmentId: string, reason: string) {
+  return request<ApiAppointment>(`/spaces/${spaceId}/appointments/${appointmentId}/reject`, {
+    method: 'POST',
+    authenticated: true,
+    body: { reason },
   });
 }
 
@@ -1110,9 +1122,5 @@ function resolveApiBaseUrl() {
     return configuredUrl.replace(/\/$/, '');
   }
 
-  if (Platform.OS === 'android') {
-    return `http://10.0.2.2:${LOCAL_API_PORT}`;
-  }
-
-  return `http://localhost:${LOCAL_API_PORT}`;
+  return DEFAULT_API_BASE_URL;
 }

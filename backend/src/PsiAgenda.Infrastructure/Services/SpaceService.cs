@@ -1,7 +1,9 @@
 using System.Data;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using PsiAgenda.Application.Auth;
 using PsiAgenda.Application.Spaces;
 using PsiAgenda.Domain.Entities;
 using PsiAgenda.Domain.Enums;
@@ -11,7 +13,8 @@ namespace PsiAgenda.Infrastructure.Services;
 
 public sealed class SpaceService(
     PsiAgendaDbContext dbContext,
-    IOptions<BusinessClockOptions> businessClockOptions) : ISpaceService
+    IOptions<BusinessClockOptions> businessClockOptions,
+    IOptions<MeetingRoomOptions> meetingRoomOptions) : ISpaceService
 {
     private const int DefaultSlotGranularityMinutes = 30;
     private const string DefaultPolicyText = "Cancelamentos gratuitos até 24h antes do atendimento.";
@@ -204,14 +207,16 @@ public sealed class SpaceService(
                 appointment.StartDateTime >= today &&
                 appointment.StartDateTime < tomorrow &&
                 appointment.Status != AppointmentStatus.Cancelled &&
-                appointment.Status != AppointmentStatus.Expired)
+                appointment.Status != AppointmentStatus.Expired &&
+                appointment.Status != AppointmentStatus.Rejected)
             .ToListAsync(cancellationToken);
         var futureRevenue = await dbContext.Appointments
             .Where(appointment =>
                 appointment.SpaceId == space.Id &&
                 appointment.StartDateTime >= DateTimeOffset.UtcNow &&
                 appointment.Status != AppointmentStatus.Cancelled &&
-                appointment.Status != AppointmentStatus.Expired)
+                appointment.Status != AppointmentStatus.Expired &&
+                appointment.Status != AppointmentStatus.Rejected)
             .SumAsync(appointment => appointment.Total, cancellationToken);
         var pendingPaymentCount = await dbContext.Appointments
             .CountAsync(
@@ -793,6 +798,9 @@ public sealed class SpaceService(
         }
 
         appointment.Status = AppointmentStatus.Confirmed;
+        appointment.OwnerDecisionReason = null;
+        appointment.OwnerDecisionAt = DateTimeOffset.UtcNow;
+        appointment.OnlineRoomUrl ??= CreateOnlineRoomUrl();
         appointment.UpdatedAt = DateTimeOffset.UtcNow;
 
         dbContext.AuditLogs.Add(new AuditLog
@@ -812,7 +820,7 @@ public sealed class SpaceService(
                 appointment,
                 appointment.CustomerId,
                 "Agendamento confirmado",
-                $"Seu agendamento {appointment.Code} foi confirmado pelo espaço.",
+                $"Seu agendamento {appointment.Code} foi confirmado. A sala online já está disponível no app.",
                 cancellationToken);
         }
 
@@ -821,7 +829,62 @@ public sealed class SpaceService(
             await QueueProfessionalNotificationAsync(
                 appointment,
                 "Novo atendimento confirmado",
-                $"Você tem um novo atendimento confirmado no agendamento {appointment.Code}.",
+                $"Você tem um novo atendimento confirmado no agendamento {appointment.Code}. A sala online já está disponível.",
+                cancellationToken);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(appointment);
+    }
+
+    public async Task<AppointmentDto> RejectSpaceAppointmentAsync(
+        Guid userId,
+        Guid spaceId,
+        Guid appointmentId,
+        RejectAppointmentRequest request,
+        CancellationToken cancellationToken)
+    {
+        var space = await GetOwnedSpaceAsync(userId, spaceId, cancellationToken);
+        var appointment = await GetAppointmentForMutationAsync(appointmentId, cancellationToken);
+
+        if (appointment.SpaceId != space.Id)
+        {
+            throw new KeyNotFoundException("Agendamento não encontrado.");
+        }
+
+        if (appointment.Status != AppointmentStatus.PendingConfirmation)
+        {
+            throw new InvalidOperationException("Apenas agendamentos aguardando confirmação podem ser recusados.");
+        }
+
+        var reason = ValidateOwnerDecisionReason(request.Reason);
+        var now = DateTimeOffset.UtcNow;
+
+        appointment.Status = AppointmentStatus.Rejected;
+        appointment.OwnerDecisionReason = reason;
+        appointment.OwnerDecisionAt = now;
+        appointment.OnlineRoomUrl = null;
+        appointment.UpdatedAt = now;
+
+        dbContext.AuditLogs.Add(new AuditLog
+        {
+            UserId = userId,
+            SpaceId = appointment.SpaceId,
+            Action = "appointment.rejected",
+            Entity = nameof(Appointment),
+            EntityId = appointment.Id.ToString(),
+            MetadataJson = JsonSerializer.Serialize(new { appointment.Code, Reason = reason })
+        });
+
+        var settings = await GetOrCreateNotificationSettingsAsync(appointment.SpaceId, cancellationToken);
+        if (settings.NotifyCustomerOnBooking)
+        {
+            await QueueAppointmentNotificationAsync(
+                appointment,
+                appointment.CustomerId,
+                "Agendamento recusado",
+                $"Seu agendamento {appointment.Code} foi recusado. Motivo: {reason}",
                 cancellationToken);
         }
 
@@ -1388,6 +1451,11 @@ public sealed class SpaceService(
             ExpiresAt = onlinePayment ? now.AddMinutes(paymentSettings.ReservationExpirationMinutes) : null
         };
 
+        if (appointment.Status == AppointmentStatus.Confirmed)
+        {
+            appointment.OnlineRoomUrl = CreateOnlineRoomUrl();
+        }
+
         foreach (var service in services)
         {
             appointment.AppointmentServices.Add(new AppointmentService
@@ -1890,6 +1958,7 @@ public sealed class SpaceService(
     {
         var appointment = await dbContext.Appointments
             .AsNoTracking()
+            .Include(item => item.Customer)
             .Include(item => item.Space)
             .Include(item => item.Professional)
                 .ThenInclude(professional => professional!.ProfessionalServices)
@@ -1898,7 +1967,7 @@ public sealed class SpaceService(
             .Include(item => item.Review)
             .FirstOrDefaultAsync(item => item.Id == appointmentId, cancellationToken);
 
-        if (appointment is null || appointment.Space is null || appointment.Professional is null)
+        if (appointment is null || appointment.Customer is null || appointment.Space is null || appointment.Professional is null)
         {
             throw new KeyNotFoundException("Agendamento não encontrado.");
         }
@@ -2545,6 +2614,18 @@ public sealed class SpaceService(
         }
     }
 
+    private static string ValidateOwnerDecisionReason(string? reason)
+    {
+        var trimmed = reason?.Trim() ?? string.Empty;
+
+        if (trimmed.Length is < 3 or > 500)
+        {
+            throw new InvalidOperationException("Informe um motivo entre 3 e 500 caracteres.");
+        }
+
+        return trimmed;
+    }
+
     private static void ValidateSpaceFields(
         string name,
         string category,
@@ -2649,7 +2730,7 @@ public sealed class SpaceService(
 
     private void EnsureAppointmentCanChange(Appointment appointment)
     {
-        if (appointment.Status is AppointmentStatus.Cancelled or AppointmentStatus.Expired or AppointmentStatus.Completed or AppointmentStatus.NoShow)
+        if (appointment.Status is AppointmentStatus.Cancelled or AppointmentStatus.Expired or AppointmentStatus.Completed or AppointmentStatus.NoShow or AppointmentStatus.Rejected)
         {
             throw new InvalidOperationException("Este agendamento não pode mais ser alterado.");
         }
@@ -2662,9 +2743,9 @@ public sealed class SpaceService(
 
     private static void EnsureAppointmentCanClose(Appointment appointment)
     {
-        if (appointment.Status is AppointmentStatus.Cancelled or AppointmentStatus.Expired)
+        if (appointment.Status is AppointmentStatus.Cancelled or AppointmentStatus.Expired or AppointmentStatus.Rejected)
         {
-            throw new InvalidOperationException("Agendamentos cancelados ou expirados não podem ser finalizados.");
+            throw new InvalidOperationException("Agendamentos cancelados, expirados ou recusados não podem ser finalizados.");
         }
 
         if (appointment.Status is AppointmentStatus.Completed or AppointmentStatus.NoShow)
@@ -2681,6 +2762,14 @@ public sealed class SpaceService(
     private bool IsInsidePolicyWindow(DateTimeOffset startDateTime, int freeBeforeHours)
     {
         return startDateTime.DateTime <= LocalNow().AddHours(freeBeforeHours);
+    }
+
+    private string CreateOnlineRoomUrl()
+    {
+        var random = Convert.ToHexString(RandomNumberGenerator.GetBytes(10)).ToLowerInvariant();
+        var slug = $"psi-agenda-{random}";
+
+        return $"{meetingRoomOptions.Value.GetNormalizedBaseUrl()}/{slug}";
     }
 
     private static SpaceDto ToDto(Space space)
@@ -2873,12 +2962,15 @@ public sealed class SpaceService(
             appointment.PaymentMethodId,
             ToSnakeCase(appointment.PaymentStatus.ToString()),
             appointment.CreatedAt,
-            appointment.ExpiresAt);
+            appointment.ExpiresAt,
+            appointment.OwnerDecisionReason,
+            appointment.OwnerDecisionAt,
+            appointment.OnlineRoomUrl);
     }
 
     private static AppointmentDetailsDto ToDetailsDto(Appointment appointment)
     {
-        if (appointment.Space is null || appointment.Professional is null)
+        if (appointment.Customer is null || appointment.Space is null || appointment.Professional is null)
         {
             throw new InvalidOperationException("Agendamento sem dados relacionados.");
         }
@@ -2894,7 +2986,18 @@ public sealed class SpaceService(
             ToDto(appointment.Space),
             ToDto(appointment.Professional),
             services,
+            ToUserDto(appointment.Customer),
             appointment.Review is null ? null : ToDto(appointment.Review));
+    }
+
+    private static UserDto ToUserDto(User user)
+    {
+        return new UserDto(
+            user.Id,
+            user.Name,
+            user.Email,
+            user.Phone,
+            user.Role);
     }
 
     private static bool HasValue(string value)

@@ -26,6 +26,7 @@ import {
   type ApiAppointmentDetails,
   type ApiTimeSlot,
 } from '@/services/api-client';
+import { openOnlineRoom } from '@/utils/open-online-room';
 import { buildDateOptions, formatCurrency, formatDateLabel, formatDuration } from '@/utils/format';
 
 export function AppointmentDetailsScreen() {
@@ -106,6 +107,14 @@ export function AppointmentDetailsScreen() {
 
       {details && appointment ? (
         <>
+          {appointment.status === 'rejected' && appointment.ownerDecisionReason ? (
+            <InfoStrip
+              icon="close-circle-outline"
+              title="Agendamento recusado"
+              text={appointment.ownerDecisionReason}
+              tone="warning"
+            />
+          ) : null}
           <View style={styles.detailCard}>
             <DetailRow icon="business-outline" label="Consultório" value={details.space.name} />
             <DetailRow icon="person-outline" label="Psicóloga" value={details.professional.name} />
@@ -132,6 +141,13 @@ export function AppointmentDetailsScreen() {
           ) : null}
 
           <View style={styles.actionStack}>
+            {appointment.status === 'confirmed' && appointment.onlineRoomUrl ? (
+              <PrimaryButton
+                label="Entrar na sala"
+                icon="videocam-outline"
+                onPress={() => openOnlineRoom(appointment.onlineRoomUrl!)}
+              />
+            ) : null}
             {canChange && (
               <>
                 <PrimaryButton label="Reagendar" icon="calendar-outline" variant="secondary" onPress={() => router.push({ pathname: '/reschedule-appointment', params: { appointmentId: appointment.id } })} />
@@ -358,6 +374,7 @@ function statusLabel(status: string) {
     cancelled: 'Cancelado',
     completed: 'Concluído',
     no_show: 'Falta',
+    rejected: 'Recusado',
   };
 
   return labels[status] ?? status;

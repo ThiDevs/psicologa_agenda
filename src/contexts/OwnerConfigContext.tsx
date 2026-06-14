@@ -889,6 +889,9 @@ function mapApiAppointment(appointment: ApiAppointment): Appointment {
     paymentStatus: appointment.paymentStatus,
     createdAt: appointment.createdAt,
     expiresAt: appointment.expiresAt ?? undefined,
+    ownerDecisionReason: appointment.ownerDecisionReason ?? undefined,
+    ownerDecisionAt: appointment.ownerDecisionAt ?? undefined,
+    onlineRoomUrl: appointment.onlineRoomUrl ?? undefined,
   };
 }
 

@@ -1,3 +1,5 @@
+using PsiAgenda.Application.Auth;
+
 namespace PsiAgenda.Application.Spaces;
 
 public sealed record CreateSpaceRequest(
@@ -260,6 +262,8 @@ public sealed record CreateReviewRequest(int Rating, string? Comment);
 
 public sealed record CancelAppointmentRequest(string? Reason);
 
+public sealed record RejectAppointmentRequest(string? Reason);
+
 public sealed record RescheduleAppointmentRequest(
     Guid? ProfessionalId,
     bool AnyProfessional,
@@ -338,13 +342,17 @@ public sealed record AppointmentDto(
     string PaymentMethodId,
     string PaymentStatus,
     DateTimeOffset CreatedAt,
-    DateTimeOffset? ExpiresAt);
+    DateTimeOffset? ExpiresAt,
+    string? OwnerDecisionReason,
+    DateTimeOffset? OwnerDecisionAt,
+    string? OnlineRoomUrl);
 
 public sealed record AppointmentDetailsDto(
     AppointmentDto Appointment,
     SpaceDto Space,
     ProfessionalDto Professional,
     IReadOnlyList<ServiceDto> Services,
+    UserDto Customer,
     ReviewDto? Review);
 
 public sealed record StarterSetupDto(
@@ -395,6 +403,7 @@ public interface ISpaceService
     Task<IReadOnlyList<AppointmentDto>> GetSpaceAppointmentsAsync(Guid userId, Guid spaceId, CancellationToken cancellationToken);
     Task<AppointmentDetailsDto> GetSpaceAppointmentDetailsAsync(Guid userId, Guid spaceId, Guid appointmentId, CancellationToken cancellationToken);
     Task<AppointmentDto> ConfirmSpaceAppointmentAsync(Guid userId, Guid spaceId, Guid appointmentId, CancellationToken cancellationToken);
+    Task<AppointmentDto> RejectSpaceAppointmentAsync(Guid userId, Guid spaceId, Guid appointmentId, RejectAppointmentRequest request, CancellationToken cancellationToken);
     Task<AppointmentDto> CompleteSpaceAppointmentAsync(Guid userId, Guid spaceId, Guid appointmentId, CancellationToken cancellationToken);
     Task<AppointmentDto> MarkSpaceAppointmentNoShowAsync(Guid userId, Guid spaceId, Guid appointmentId, CancellationToken cancellationToken);
     Task<IReadOnlyList<SpacePhotoDto>> GetSpacePhotosAsync(Guid userId, Guid spaceId, CancellationToken cancellationToken);

@@ -544,7 +544,9 @@ export function OwnerDashboardScreen() {
   const spaceServices = services.filter((service) => service.spaceId === ownerSpace?.id);
   const spaceProfessionals = professionals.filter((professional) => professional.spaceId === ownerSpace?.id);
   const spaceAppointments = appointments.filter((appointment) => appointment.spaceId === ownerSpace?.id);
-  const todaysRevenue = spaceAppointments.reduce((total, appointment) => total + appointment.total, 0);
+  const todaysRevenue = spaceAppointments
+    .filter((appointment) => !['cancelled', 'expired', 'rejected'].includes(appointment.status))
+    .reduce((total, appointment) => total + appointment.total, 0);
   const checklist = getOnboardingItems(ownerSpace?.id ?? null);
   const checklistDone = remoteDashboard?.checklistComplete ?? checklist.every((item) => item.complete);
   const metrics = useMemo(

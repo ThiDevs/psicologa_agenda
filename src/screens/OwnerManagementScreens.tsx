@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
@@ -38,12 +38,14 @@ import {
   getMySpaces,
   getOpeningHours,
   getOwnerAppointments,
+  getOwnerAppointmentDetails,
   getOwnerProfessionals,
   getOwnerServices,
   getPaymentSettings,
   getProfessionalSchedule,
   getSpacePhotos,
   markOwnerAppointmentNoShow,
+  rejectOwnerAppointment,
   updateBookingSettings,
   updateCancellationPolicy,
   updateNotificationSettings,
@@ -51,6 +53,7 @@ import {
   updatePaymentSettings,
   updateProfessionalSchedule,
   uploadSpacePhoto,
+  type ApiAppointmentDetails,
   type ApiNotificationSettings,
   type ApiSpacePhoto,
 } from '@/services/api-client';
@@ -61,6 +64,7 @@ import type {
   SpacePaymentSettings,
   SpaceSettings,
 } from '@/types/domain';
+import { openOnlineRoom } from '@/utils/open-online-room';
 import { buildDateOptions, formatCurrency, formatDateLabel, formatDuration, getIsoDate } from '@/utils/format';
 
 const weekdays = [
@@ -1390,7 +1394,9 @@ export function OwnerAgendaScreen() {
 
   const totals = useMemo(
     () => ({
-      revenue: spaceAppointments.reduce((sum, appointment) => sum + appointment.total, 0),
+      revenue: spaceAppointments
+        .filter((appointment) => !['cancelled', 'expired', 'rejected'].includes(appointment.status))
+        .reduce((sum, appointment) => sum + appointment.total, 0),
       reserved: spaceAppointments.filter((appointment) => appointment.status === 'pending_payment').length,
       pendingConfirmation: spaceAppointments.filter((appointment) => appointment.status === 'pending_confirmation').length,
     }),
@@ -1492,6 +1498,7 @@ export function OwnerAgendaScreen() {
               key={appointment.id}
               appointment={appointment}
               updating={updatingId === appointment.id}
+              onOpen={() => router.push({ pathname: '/owner-appointment-details', params: { appointmentId: appointment.id } })}
               onConfirm={() => confirmAppointment(appointment.id)}
               onComplete={() => updateStatus(appointment.id, 'complete')}
               onNoShow={() => updateStatus(appointment.id, 'no_show')}
@@ -1503,6 +1510,240 @@ export function OwnerAgendaScreen() {
       </View>
       <PrimaryButton label="Bloquear horário" variant="secondary" onPress={() => router.push('/blocked-times')} />
       <PrimaryButton label="Notificações" variant="secondary" onPress={() => router.push('/notification-settings')} />
+    </ScreenScaffold>
+  );
+}
+
+export function OwnerAppointmentDetailsScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams<{ appointmentId?: string }>();
+  const {
+    selectedOwnerSpace,
+    syncSpacesFromApi,
+    syncAppointmentsFromApi,
+  } = useOwnerConfig();
+  const space = selectedOwnerSpace;
+  const [details, setDetails] = useState<ApiAppointmentDetails | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [loadingAction, setLoadingAction] = useState<'confirm' | 'reject' | null>(null);
+  const [rejectFormVisible, setRejectFormVisible] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const appointment = details?.appointment ?? null;
+
+  useOwnerBootstrap(space?.id ?? null, syncSpacesFromApi);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      if (!space?.id || !params.appointmentId) {
+        return;
+      }
+
+      try {
+        const result = await getOwnerAppointmentDetails(space.id, params.appointmentId);
+
+        if (mounted) {
+          setDetails(result);
+          setMessage(null);
+        }
+      } catch (error) {
+        if (mounted) {
+          setMessage(getApiErrorMessage(error));
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [params.appointmentId, space?.id]);
+
+  async function refreshAppointments() {
+    if (!space?.id) {
+      return;
+    }
+
+    syncAppointmentsFromApi(await getOwnerAppointments(space.id));
+  }
+
+  async function confirmAppointment() {
+    if (!space?.id || !appointment) {
+      return;
+    }
+
+    setLoadingAction('confirm');
+    setMessage(null);
+
+    try {
+      const updated = await confirmOwnerAppointment(space.id, appointment.id);
+      setDetails((current) => current ? { ...current, appointment: updated } : current);
+      await refreshAppointments();
+      setRejectFormVisible(false);
+      setRejectReason('');
+      setMessage('Agendamento aceito. A sala online já está disponível.');
+    } catch (error) {
+      setMessage(getApiErrorMessage(error));
+    } finally {
+      setLoadingAction(null);
+    }
+  }
+
+  async function rejectAppointment() {
+    if (!space?.id || !appointment) {
+      return;
+    }
+
+    const reason = rejectReason.trim();
+
+    if (reason.length < 3 || reason.length > 500) {
+      setMessage('Informe um motivo entre 3 e 500 caracteres.');
+      return;
+    }
+
+    setLoadingAction('reject');
+    setMessage(null);
+
+    try {
+      const updated = await rejectOwnerAppointment(space.id, appointment.id, reason);
+      setDetails((current) => current ? { ...current, appointment: updated } : current);
+      await refreshAppointments();
+      setRejectFormVisible(false);
+      setMessage('Agendamento recusado. A cliente receberá o motivo no app.');
+    } catch (error) {
+      setMessage(getApiErrorMessage(error));
+    } finally {
+      setLoadingAction(null);
+    }
+  }
+
+  if (!params.appointmentId) {
+    return (
+      <ScreenScaffold>
+        <HeaderBar title="Agendamento" onBack={() => router.back()} />
+        <EmptyState icon="calendar-outline" title="Agendamento não encontrado" text="Abra o detalhe a partir da agenda." />
+      </ScreenScaffold>
+    );
+  }
+
+  if (!space) {
+    return (
+      <ScreenScaffold>
+        <HeaderBar title="Agendamento" onBack={() => router.back()} />
+        <NoSpaceState />
+      </ScreenScaffold>
+    );
+  }
+
+  const needsConfirmation = appointment?.status === 'pending_confirmation';
+  const roomAvailable = appointment?.status === 'confirmed' && appointment.onlineRoomUrl;
+
+  return (
+    <ScreenScaffold>
+      <HeaderBar
+        title="Detalhe do pedido"
+        subtitle={appointment ? `Pedido ${appointment.code}` : 'Carregando agendamento'}
+        onBack={() => router.back()}
+      />
+
+      {message && <InfoStrip icon="information-circle-outline" title="Agendamento" text={message} tone="warning" />}
+
+      {details && appointment ? (
+        <>
+          {appointment.status === 'rejected' && appointment.ownerDecisionReason ? (
+            <InfoStrip
+              icon="close-circle-outline"
+              title="Agendamento recusado"
+              text={appointment.ownerDecisionReason}
+              tone="warning"
+            />
+          ) : null}
+
+          {roomAvailable ? (
+            <InfoStrip
+              icon="videocam-outline"
+              title="Sala online disponível"
+              text="Cliente, proprietária e profissional podem entrar por este link."
+              tone="success"
+            />
+          ) : null}
+
+          <View style={styles.formCard}>
+            <OwnerDetailRow icon="person-outline" label="Cliente" value={details.customer.name} />
+            <OwnerDetailRow icon="mail-outline" label="Contato" value={details.customer.phone ?? details.customer.email} />
+            <OwnerDetailRow icon="business-outline" label="Consultório" value={details.space.name} />
+            <OwnerDetailRow icon="people-outline" label="Psicóloga" value={details.professional.name} />
+            <OwnerDetailRow icon="calendar-outline" label="Data" value={formatDateLabel(appointment.startDateTime.slice(0, 10)).full} />
+            <OwnerDetailRow icon="time-outline" label="Horário" value={`${appointment.startDateTime.slice(11, 16)} - ${appointment.endDateTime.slice(11, 16)}`} />
+            <OwnerDetailRow icon="wallet-outline" label="Valor" value={formatCurrency(appointment.total)} />
+            <OwnerDetailRow icon="ellipse-outline" label="Status" value={appointmentStatusLabel(appointment.status)} />
+          </View>
+
+          <SectionTitle title="Consultas" />
+          <View style={styles.formCard}>
+            {details.services.map((service) => (
+              <OwnerDetailRow
+                key={service.id}
+                icon="checkmark-circle-outline"
+                label={service.name}
+                value={`${formatDuration(service.durationMinutes)} • ${formatCurrency(service.price)}`}
+              />
+            ))}
+          </View>
+
+          {roomAvailable ? (
+            <PrimaryButton label="Entrar na sala" icon="videocam-outline" onPress={() => openOnlineRoom(appointment.onlineRoomUrl!)} />
+          ) : null}
+
+          {needsConfirmation ? (
+            <View style={styles.formCard}>
+              <View style={styles.actionRow}>
+                <View style={styles.flex}>
+                  <PrimaryButton
+                    label="Aceitar"
+                    icon="checkmark-circle-outline"
+                    loading={loadingAction === 'confirm'}
+                    onPress={confirmAppointment}
+                  />
+                </View>
+                <View style={styles.flex}>
+                  <PrimaryButton
+                    label="Reprovar"
+                    icon="close-circle-outline"
+                    variant="secondary"
+                    disabled={loadingAction === 'confirm'}
+                    onPress={() => setRejectFormVisible((current) => !current)}
+                  />
+                </View>
+              </View>
+
+              {rejectFormVisible ? (
+                <>
+                  <Field
+                    label="Motivo para a cliente"
+                    value={rejectReason}
+                    onChangeText={setRejectReason}
+                    multiline
+                    numberOfLines={4}
+                    style={styles.textArea}
+                  />
+                  <PrimaryButton
+                    label="Enviar reprovação"
+                    icon="send-outline"
+                    variant="ghost"
+                    loading={loadingAction === 'reject'}
+                    onPress={rejectAppointment}
+                  />
+                </>
+              ) : null}
+            </View>
+          ) : null}
+        </>
+      ) : (
+        <EmptyState icon="calendar-outline" title="Carregando detalhe" text="Buscando os dados do agendamento." />
+      )}
     </ScreenScaffold>
   );
 }
@@ -1828,25 +2069,52 @@ function Metric({
   );
 }
 
+function OwnerDetailRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.itemCardFlat}>
+      <View style={styles.iconCircle}>
+        <Ionicons name={icon} size={20} color={UI.primary} />
+      </View>
+      <View style={styles.itemCopy}>
+        <Text style={styles.itemTitle}>{label}</Text>
+        <Text style={styles.itemText}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
 function AppointmentCard({
   appointment,
   updating,
+  onOpen,
   onConfirm,
   onComplete,
   onNoShow,
 }: {
   appointment: Appointment;
   updating?: boolean;
+  onOpen?: () => void;
   onConfirm?: () => void;
   onComplete?: () => void;
   onNoShow?: () => void;
 }) {
   const needsConfirmation = appointment.status === 'pending_confirmation';
-  const canClose = !needsConfirmation && !['cancelled', 'expired', 'completed', 'no_show'].includes(appointment.status);
+  const canClose = !needsConfirmation && !['cancelled', 'expired', 'completed', 'no_show', 'rejected'].includes(appointment.status);
 
   return (
     <View style={styles.appointmentManagerCard}>
-      <View style={styles.itemCardFlat}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onOpen}
+        style={({ pressed }) => [styles.itemCardFlat, pressed && styles.pressed]}>
         <View style={styles.iconCircle}>
           <Ionicons name="calendar-outline" size={20} color={UI.primary} />
         </View>
@@ -1857,12 +2125,25 @@ function AppointmentCard({
           </Text>
           <Text style={styles.itemText}>{formatCurrency(appointment.total)} • {appointmentStatusLabel(appointment.status)}</Text>
         </View>
-      </View>
+        <Ionicons name="chevron-forward" size={18} color={UI.textMuted} />
+      </Pressable>
       {needsConfirmation && (
-        <PrimaryButton label="Aceitar" icon="checkmark-circle-outline" loading={updating} onPress={onConfirm} />
+        <View style={styles.actionRow}>
+          <View style={styles.flex}>
+            <PrimaryButton label="Aceitar" icon="checkmark-circle-outline" loading={updating} onPress={onConfirm} />
+          </View>
+          <View style={styles.flex}>
+            <PrimaryButton label="Detalhes" icon="document-text-outline" variant="secondary" onPress={onOpen} />
+          </View>
+        </View>
       )}
       {canClose && (
         <View style={styles.actionRow}>
+          {appointment.status === 'confirmed' && appointment.onlineRoomUrl ? (
+            <View style={styles.flex}>
+              <PrimaryButton label="Sala" icon="videocam-outline" loading={updating} onPress={() => openOnlineRoom(appointment.onlineRoomUrl!)} />
+            </View>
+          ) : null}
           <View style={styles.flex}>
             <PrimaryButton label="Concluir" icon="checkmark-outline" loading={updating} onPress={onComplete} />
           </View>
@@ -1875,8 +2156,9 @@ function AppointmentCard({
   );
 }
 
-function appointmentStatusLabel(status: Appointment['status']) {
-  const labels: Record<Appointment['status'], string> = {
+function appointmentStatusLabel(status: Appointment['status'] | 'reserved') {
+  const labels: Record<Appointment['status'] | 'reserved', string> = {
+    reserved: 'Reservado',
     pending_payment: 'Pagamento pendente',
     pending_confirmation: 'Aguardando confirmação',
     confirmed: 'Confirmado',
@@ -1884,6 +2166,7 @@ function appointmentStatusLabel(status: Appointment['status']) {
     cancelled: 'Cancelado',
     completed: 'Concluído',
     no_show: 'Falta',
+    rejected: 'Recusado',
   };
 
   return labels[status];
@@ -2315,6 +2598,10 @@ const styles = StyleSheet.create({
     color: UI.textMuted,
     fontSize: 13,
     fontWeight: '700',
+  },
+  textArea: {
+    minHeight: 100,
+    textAlignVertical: 'top',
   },
   chipWrap: {
     flexDirection: 'row',

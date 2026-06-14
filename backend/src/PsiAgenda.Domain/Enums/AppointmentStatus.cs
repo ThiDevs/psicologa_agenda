@@ -8,5 +8,6 @@ public enum AppointmentStatus
     Cancelled = 4,
     Completed = 5,
     NoShow = 6,
-    PendingConfirmation = 7
+    PendingConfirmation = 7,
+    Rejected = 8
 }
