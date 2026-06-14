@@ -24,16 +24,16 @@ O caminho mais simples para desenvolvimento local é subir tudo com Docker:
 
 ```bash
 docker compose up --build -d
-curl http://localhost:5225/health
+curl http://localhost:3001/health
 ```
 
-A API fica em `http://localhost:5225` e o PostgreSQL em `localhost:5432`.
+A API fica em `http://localhost:3001` e o PostgreSQL em `localhost:5432`.
 
 Para rodar a API fora do Docker:
 
 ```bash
-dotnet restore backend/src/NailsAgenda.Api/NailsAgenda.Api.csproj
-dotnet run --project backend/src/NailsAgenda.Api/NailsAgenda.Api.csproj
+dotnet restore backend/src/PsiAgenda.Api/PsiAgenda.Api.csproj
+dotnet run --project backend/src/PsiAgenda.Api/PsiAgenda.Api.csproj
 ```
 
 Em ambiente `Development`, as migrations são aplicadas automaticamente na inicialização da API.
@@ -42,13 +42,13 @@ Em ambiente `Development`, as migrations são aplicadas automaticamente na inici
 
 Sem configuração extra, o app usa:
 
-- `http://10.0.2.2:5225` no emulador Android, apontando para o host onde o Docker está rodando.
-- `http://localhost:5225` no web e no simulador iOS.
+- `http://10.0.2.2:3001` no emulador Android, apontando para o host onde o Docker está rodando.
+- `http://localhost:3001` no web e no simulador iOS.
 
 Para sobrescrever esse padrão, defina `EXPO_PUBLIC_API_URL` no bundle Expo. Reinicie o servidor Expo depois de mudar essa variável.
 
 ```bash
-EXPO_PUBLIC_API_URL=http://localhost:5225 npx expo start
+EXPO_PUBLIC_API_URL=http://localhost:3001 npx expo start
 ```
 
 Não coloque segredos em variáveis `EXPO_PUBLIC_`; elas entram no bundle do app.
@@ -83,7 +83,7 @@ npm run backend:build
 - `src/contexts`: estado de autenticação, booking e configuração da psicóloga.
 - `src/data/initial-owner-config.ts`: vitrine inicial de consultas online e agenda da psicóloga.
 - `src/services/api-client.ts`: cliente HTTP centralizado.
-- `backend/src/NailsAgenda.Api`: API, auth, CORS, healthcheck e endpoints herdados do projeto original.
+- `backend/src/PsiAgenda.Api`: API, auth, CORS, healthcheck e endpoints herdados do projeto original.
 
 ## Fluxos do MVP
 

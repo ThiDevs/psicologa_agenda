@@ -41,11 +41,11 @@ Data: 2026-05-28
 
 - [x] `npx tsc --noEmit`
 - [x] `npm run lint`
-- [x] `.NET SDK 10.0.107` instalado via Homebrew e `dotnet build backend/src/NailsAgenda.Api/NailsAgenda.Api.csproj` executado com sucesso.
+- [x] `.NET SDK 10.0.107` instalado via Homebrew e `dotnet build backend/src/PsiAgenda.Api/PsiAgenda.Api.csproj` executado com sucesso.
 - [x] Docker CLI, Docker Compose, Docker Buildx e Colima instalados via Homebrew.
 - [x] Docker daemon iniciado via Colima.
 - [x] `docker compose up --build -d` executado com API e PostgreSQL ativos.
-- [x] `GET http://localhost:5225/health` retornou `{"status":"ok","service":"nails-agenda-api"}`.
+- [x] `GET http://localhost:3001/health` retornou `{"status":"ok","service":"psi-agenda-api"}`.
 - [x] Migration inicial aplicada no PostgreSQL e tabelas criadas.
 - [x] Fluxo real validado via API: cadastro de gestor, criação de espaço, listagem do espaço do gestor e checklist.
 - [x] Bateria HTTP da API executada com 34 verificações e 0 falhas: saúde, autenticação, autorização, refresh/logout, cliente, gestor, espaço, checklist, dashboard, atualização e ownership.
@@ -68,8 +68,8 @@ Data: 2026-05-28
 ## Como rodar localmente
 
 1. Rodar `docker compose up --build -d`.
-2. Conferir `GET http://localhost:5225/health`.
-3. No app, usar `EXPO_PUBLIC_API_URL=http://localhost:5225` se precisar sobrescrever a URL padrão.
+2. Conferir `GET http://localhost:3001/health`.
+3. No app, usar `EXPO_PUBLIC_API_URL=http://localhost:3001` se precisar sobrescrever a URL padrão.
 4. Rodar `npx expo start --ios --port 8083`.
 5. Validar o fluxo completo sem fallback local: cadastro de gestor, criação de espaço, setup, painel e agendamento como cliente.
 

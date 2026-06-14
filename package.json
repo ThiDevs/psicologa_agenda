@@ -5,13 +5,14 @@
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "ios:device": "expo run:ios --device",
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "verify": "npm run lint && npm run typecheck",
-    "backend:build": "dotnet build backend/src/NailsAgenda.Api/NailsAgenda.Api.csproj"
+    "backend:build": "dotnet build backend/src/PsiAgenda.Api/PsiAgenda.Api.csproj"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

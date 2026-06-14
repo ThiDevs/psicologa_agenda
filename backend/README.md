@@ -1,4 +1,4 @@
-# Nails Agenda API
+# Psi Agenda API
 
 Backend ASP.NET Core + Entity Framework Core + PostgreSQL para o MVP local da fase 5. A API cobre cadastro, autenticacao, espacos, servicos, profissionais, agenda, bloqueios, reservas, reagendamento, cancelamento, avaliacoes, notificacoes internas e auditoria basica.
 
@@ -10,62 +10,62 @@ Na raiz do repositorio:
 
 ```bash
 docker compose up --build -d
-curl http://localhost:5225/health
+curl http://localhost:3001/health
 ```
 
 Servicos:
 
-- API: `http://localhost:5225`.
+- API: `http://localhost:3001`.
 - PostgreSQL: `localhost:5432`.
-- Banco: `nails_agenda`.
-- Usuario/senha de desenvolvimento: `nails` / `nails`.
+- Banco: `psi_agenda`.
+- Usuario/senha de desenvolvimento: `psi` / `psi`.
 
 ## Rodar local sem container da API
 
-Suba o PostgreSQL pelo Docker Compose ou use um PostgreSQL local com a connection string em `backend/src/NailsAgenda.Api/appsettings.Development.json`.
+Suba o PostgreSQL pelo Docker Compose ou use um PostgreSQL local com a connection string em `backend/src/PsiAgenda.Api/appsettings.Development.json`.
 
 ```bash
-dotnet restore backend/src/NailsAgenda.Api/NailsAgenda.Api.csproj
-dotnet run --project backend/src/NailsAgenda.Api/NailsAgenda.Api.csproj
+dotnet restore backend/src/PsiAgenda.Api/PsiAgenda.Api.csproj
+dotnet run --project backend/src/PsiAgenda.Api/PsiAgenda.Api.csproj
 ```
 
 Em `Development`, a API aplica migrations automaticamente ao iniciar.
 
 ## Abrir no Visual Studio
 
-Abra `backend/NailsAgenda.Backend.sln` no Visual Studio para carregar a solucao completa com os projetos:
+Abra `backend/PsiAgenda.Backend.sln` no Visual Studio para carregar a solucao completa com os projetos:
 
-- `NailsAgenda.Api`
-- `NailsAgenda.Application`
-- `NailsAgenda.Domain`
-- `NailsAgenda.Infrastructure`
+- `PsiAgenda.Api`
+- `PsiAgenda.Application`
+- `PsiAgenda.Domain`
+- `PsiAgenda.Infrastructure`
 
-O projeto de inicializacao deve ser `NailsAgenda.Api`. O arquivo `backend/backend.slnx` tambem foi mantido para Visual Studio/.NET com suporte ao formato XML de solution. O arquivo `backend/.project` identifica o workspace do backend para ferramentas que esperam esse descritor.
+O projeto de inicializacao deve ser `PsiAgenda.Api`. O arquivo `backend/backend.slnx` tambem foi mantido para Visual Studio/.NET com suporte ao formato XML de solution. O arquivo `backend/.project` identifica o workspace do backend para ferramentas que esperam esse descritor.
 
 ## Migrations
 
-As migrations ficam em `backend/src/NailsAgenda.Infrastructure/Persistence/Migrations`.
+As migrations ficam em `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations`.
 
 Para criar uma nova migration:
 
 ```bash
 dotnet ef migrations add NomeDaMigration \
-  --project backend/src/NailsAgenda.Infrastructure \
-  --startup-project backend/src/NailsAgenda.Api
+  --project backend/src/PsiAgenda.Infrastructure \
+  --startup-project backend/src/PsiAgenda.Api
 ```
 
 Para aplicar manualmente:
 
 ```bash
 dotnet ef database update \
-  --project backend/src/NailsAgenda.Infrastructure \
-  --startup-project backend/src/NailsAgenda.Api
+  --project backend/src/PsiAgenda.Infrastructure \
+  --startup-project backend/src/PsiAgenda.Api
 ```
 
 ## Verificacoes
 
 ```bash
-dotnet build backend/src/NailsAgenda.Api/NailsAgenda.Api.csproj
+dotnet build backend/src/PsiAgenda.Api/PsiAgenda.Api.csproj
 ```
 
 Tambem e possivel rodar pela raiz:
@@ -81,7 +81,7 @@ npm run backend:build
 Resposta esperada:
 
 ```json
-{ "status": "ok", "service": "nails-agenda-api" }
+{ "status": "ok", "service": "psi-agenda-api" }
 ```
 
 ## Autenticacao

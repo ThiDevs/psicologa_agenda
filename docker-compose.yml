@@ -1,18 +1,18 @@
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: nails-agenda-postgres
+    container_name: psi-agenda-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: nails_agenda
-      POSTGRES_USER: nails
-      POSTGRES_PASSWORD: nails
+      POSTGRES_DB: psi_agenda
+      POSTGRES_USER: psi
+      POSTGRES_PASSWORD: psi
     ports:
       - "5432:5432"
     volumes:
-      - nails_agenda_pgdata:/var/lib/postgresql/data
+      - psi_agenda_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nails -d nails_agenda"]
+      test: ["CMD-SHELL", "pg_isready -U psi -d psi_agenda"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -20,26 +20,26 @@ services:
   api:
     build:
       context: ./backend
-      dockerfile: src/NailsAgenda.Api/Dockerfile
-    container_name: nails-agenda-api
+      dockerfile: src/PsiAgenda.Api/Dockerfile
+    container_name: psi-agenda-api
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=nails_agenda;Username=nails;Password=nails
-      Jwt__Issuer: nails-agenda-api
-      Jwt__Audience: nails-agenda-app
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=psi_agenda;Username=psi;Password=psi
+      Jwt__Issuer: psi-agenda-api
+      Jwt__Audience: psi-agenda-app
       Jwt__SigningKey: dev-only-signing-key-change-this-in-production-please
       BusinessClock__TimeZoneId: America/Sao_Paulo
       BusinessClock__UtcOffset: "-03:00"
     ports:
-      - "5225:8080"
+      - "3001:8080"
     volumes:
-      - nails_agenda_uploads:/app/wwwroot/uploads
+      - psi_agenda_uploads:/app/wwwroot/uploads
     depends_on:
       postgres:
         condition: service_healthy
 
 volumes:
-  nails_agenda_pgdata:
-  nails_agenda_uploads:
+  psi_agenda_pgdata:
+  psi_agenda_uploads:

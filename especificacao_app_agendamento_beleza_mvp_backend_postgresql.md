@@ -415,17 +415,17 @@ Funcionalidades:
 
 Categorias iniciais:
 
-- Unhas.
-- Cabelo.
-- Estética.
-- Massagem.
+- Psicoterapia.
+- Avaliação inicial.
+- Orientação.
+- Mais procuradas.
 - Mais.
 
 Espaços mockados:
 
-- Studio Bella Nails.
-- Espaço Linda Unhas.
-- Nail House.
+- Psi Agenda Online.
+- Consultório Sereno.
+- Clínica Escuta.
 
 ---
 
@@ -1143,9 +1143,9 @@ Usuário autenticado vindo da API/Auth.
 Mock atual:
 
 ```text
-Studio Bella Nails
-Espaço Linda Unhas
-Nail House
+Psi Agenda Online
+Consultório Sereno
+Clínica Escuta
 ```
 
 Substituir por:
@@ -3255,7 +3255,7 @@ GET /me
 Mock atual:
 
 ```text
-Studio Bella Nails criado manualmente no código
+Psi Agenda Online criado manualmente no código
 ```
 
 Substituir por:

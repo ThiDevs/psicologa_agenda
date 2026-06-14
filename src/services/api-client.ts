@@ -5,7 +5,7 @@ import type { OnboardingItem, User, UserRole } from '@/types/domain';
 
 const ACCESS_TOKEN_KEY = 'psi_agenda_online.access_token';
 const REFRESH_TOKEN_KEY = 'psi_agenda_online.refresh_token';
-const LOCAL_API_PORT = 5225;
+const LOCAL_API_PORT = 3001;
 
 export const API_BASE_URL = resolveApiBaseUrl();
 

@@ -81,11 +81,11 @@ A fase 5 finaliza o MVP para uso real por um espaco de beleza, cobrindo app da c
 
 ## Testes executados
 
-- [x] `dotnet build backend/src/NailsAgenda.Api/NailsAgenda.Api.csproj`.
+- [x] `dotnet build backend/src/PsiAgenda.Api/PsiAgenda.Api.csproj`.
 - [x] `npx tsc --noEmit`.
 - [x] `npm run lint`.
 - [x] `docker compose up --build -d`.
-- [x] `curl http://localhost:5225/health`.
+- [x] `curl http://localhost:3001/health`.
 - [x] Teste HTTP completo da API com criacao de conta, espaco, servico, profissional, agenda, pagamento no local, reserva, reagendamento, conclusao, avaliacao, cancelamento e notificacoes.
 - [x] Teste de regressao da API para nao retornar horarios passados no mesmo dia.
 - [x] Teste no simulador iPhone 17 Pro com app Expo conectado na API local.

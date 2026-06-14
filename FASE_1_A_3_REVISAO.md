@@ -116,9 +116,9 @@ Resultado: um gestor cria conta, cria o espaco pelo app, fica vinculado como adm
 
 ## Validacoes executadas
 
-- [x] `dotnet build backend/src/NailsAgenda.Api/NailsAgenda.Api.csproj`.
+- [x] `dotnet build backend/src/PsiAgenda.Api/PsiAgenda.Api.csproj`.
 - [x] `docker compose up --build -d`.
-- [x] `GET http://localhost:5225/health`.
+- [x] `GET http://localhost:3001/health`.
 - [x] Bateria HTTP da API com cadastro de gestor, cadastro de cliente, criacao de espaco, checklist, starter setup e dashboard.
 - [x] `npx tsc --noEmit`.
 - [x] `npm run lint`.

@@ -45,9 +45,9 @@ Status: concluida em 2026-05-28.
 
 ## Testes executados
 
-- [x] `DOTNET_ROOT=/opt/homebrew/opt/dotnet/libexec dotnet build backend/src/NailsAgenda.Api/NailsAgenda.Api.csproj`
+- [x] `DOTNET_ROOT=/opt/homebrew/opt/dotnet/libexec dotnet build backend/src/PsiAgenda.Api/PsiAgenda.Api.csproj`
 - [x] `docker compose up --build -d`
-- [x] `GET http://localhost:5225/health`
+- [x] `GET http://localhost:3001/health`
 - [x] `npx tsc --noEmit`
 - [x] `npm run lint`
 - [x] Teste final no iPhone 17 Pro via Computador:

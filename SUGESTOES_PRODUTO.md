@@ -2,7 +2,7 @@
 
 Data: 2026-06-05
 
-Este documento consolida ideias para tornar o Nails Agenda mais atraente para dois publicos:
+Este documento consolida ideias para tornar o Psi Agenda mais atraente para dois publicos:
 
 - Gestor do espaco, com foco em agenda cheia, receita recorrente, reducao de falta e controle operacional.
 - Cliente final, com foco em conveniencia, personalizacao, recompra e experiencia de beleza mais memoravel.

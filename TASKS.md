@@ -26,7 +26,7 @@ Data: 2026-05-29
 
 - [x] Remover artefatos gerados do .NET que estao versionados.
   - Evidencia: `git ls-files backend/src/**/bin backend/src/**/obj | wc -l` retornou 228 arquivos, cerca de 21 MB.
-  - Aceite: `backend/**/bin/` e `backend/**/obj/` entram no `.gitignore`, os arquivos gerados saem do git, e `dotnet build backend/src/NailsAgenda.Api/NailsAgenda.Api.csproj` continua passando.
+  - Aceite: `backend/**/bin/` e `backend/**/obj/` entram no `.gitignore`, os arquivos gerados saem do git, e `dotnet build backend/src/PsiAgenda.Api/PsiAgenda.Api.csproj` continua passando.
 
 - [x] Usar `isHydratingSession` na rota inicial para evitar flash de tela errada.
   - Evidencia: `AuthContext` expoe `isHydratingSession`, mas `src/app/index.tsx` decide a tela somente por `user`.
