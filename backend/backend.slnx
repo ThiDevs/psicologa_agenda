@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/NailsAgenda.Api/NailsAgenda.Api.csproj" />
+    <Project Path="src/NailsAgenda.Application/NailsAgenda.Application.csproj" />
+    <Project Path="src/NailsAgenda.Domain/NailsAgenda.Domain.csproj" />
+    <Project Path="src/NailsAgenda.Infrastructure/NailsAgenda.Infrastructure.csproj" />
+  </Folder>
+</Solution>
