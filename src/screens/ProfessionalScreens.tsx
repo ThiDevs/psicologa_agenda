@@ -13,6 +13,7 @@ import {
   markProfessionalAppointmentNoShow,
 } from '@/services/api-client';
 import type { Appointment } from '@/types/domain';
+import { openOnlineRoom } from '@/utils/open-online-room';
 import { buildDateOptions, formatCurrency } from '@/utils/format';
 
 export function ProfessionalAgendaScreen() {
@@ -53,6 +54,9 @@ export function ProfessionalAgendaScreen() {
         status: appointment.status === 'reserved' ? 'pending_payment' : appointment.status,
         professionalId: appointment.professionalId,
         expiresAt: appointment.expiresAt ?? undefined,
+        ownerDecisionReason: appointment.ownerDecisionReason ?? undefined,
+        ownerDecisionAt: appointment.ownerDecisionAt ?? undefined,
+        onlineRoomUrl: appointment.onlineRoomUrl ?? undefined,
       })));
       setMessage(null);
     } catch (error) {
@@ -126,7 +130,7 @@ export function ProfessionalAgendaScreen() {
       <View style={styles.list}>
         {todayAppointments.length ? (
           todayAppointments.map((appointment) => {
-            const canClose = appointment.status !== 'pending_confirmation' && !['cancelled', 'expired', 'completed', 'no_show'].includes(appointment.status);
+            const canClose = appointment.status !== 'pending_confirmation' && !['cancelled', 'expired', 'completed', 'no_show', 'rejected'].includes(appointment.status);
 
             return (
               <View key={appointment.id} style={styles.card}>
@@ -142,6 +146,11 @@ export function ProfessionalAgendaScreen() {
                 </View>
                 {canClose && (
                   <View style={styles.row}>
+                    {appointment.status === 'confirmed' && appointment.onlineRoomUrl ? (
+                      <View style={styles.flex}>
+                        <PrimaryButton label="Sala" icon="videocam-outline" loading={updatingId === appointment.id} onPress={() => openOnlineRoom(appointment.onlineRoomUrl!)} />
+                      </View>
+                    ) : null}
                     <View style={styles.flex}>
                       <PrimaryButton label="Concluir" icon="checkmark-outline" loading={updatingId === appointment.id} onPress={() => updateStatus(appointment.id, 'complete')} />
                     </View>
@@ -183,6 +192,7 @@ function appointmentStatusLabel(status: Appointment['status']) {
     cancelled: 'Cancelado',
     completed: 'Concluído',
     no_show: 'Falta',
+    rejected: 'Recusado',
   };
 
   return labels[status];

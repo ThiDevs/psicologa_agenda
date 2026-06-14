@@ -22,6 +22,9 @@ public sealed class Appointment
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAt { get; set; }
     public DateTimeOffset? ExpiresAt { get; set; }
+    public string? OwnerDecisionReason { get; set; }
+    public DateTimeOffset? OwnerDecisionAt { get; set; }
+    public string? OnlineRoomUrl { get; set; }
 
     public User? Customer { get; set; }
     public Space? Space { get; set; }

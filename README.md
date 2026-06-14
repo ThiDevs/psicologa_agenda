@@ -40,16 +40,15 @@ Em ambiente `Development`, as migrations são aplicadas automaticamente na inici
 
 ## Configurar URL da API no app
 
-Sem configuração extra, o app usa:
+Sem configuração extra, o app usa a API publicada em `https://felicio.app`.
 
-- `http://10.0.2.2:3001` no emulador Android, apontando para o host onde o Docker está rodando.
-- `http://localhost:3001` no web e no simulador iOS.
-
-Para sobrescrever esse padrão, defina `EXPO_PUBLIC_API_URL` no bundle Expo. Reinicie o servidor Expo depois de mudar essa variável.
+Para desenvolvimento local, defina `EXPO_PUBLIC_API_URL` no bundle Expo. Reinicie o servidor Expo depois de mudar essa variável.
 
 ```bash
 EXPO_PUBLIC_API_URL=http://localhost:3001 npx expo start
 ```
+
+No emulador Android, use `http://10.0.2.2:3001` para apontar para a API local rodando no host.
 
 Não coloque segredos em variáveis `EXPO_PUBLIC_`; elas entram no bundle do app.
 

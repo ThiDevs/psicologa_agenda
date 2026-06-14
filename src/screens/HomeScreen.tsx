@@ -593,6 +593,7 @@ function statusLabel(status: Appointment['status']) {
     cancelled: 'Cancelado',
     completed: 'Concluído',
     no_show: 'Falta',
+    rejected: 'Recusado',
   };
 
   return labels[status];

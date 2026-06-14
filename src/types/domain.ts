@@ -175,7 +175,8 @@ export type AppointmentStatus =
   | 'expired'
   | 'cancelled'
   | 'completed'
-  | 'no_show';
+  | 'no_show'
+  | 'rejected';
 
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'not_required';
 
@@ -198,6 +199,9 @@ export type Appointment = {
   paymentStatus: PaymentStatus;
   createdAt: string;
   expiresAt?: string;
+  ownerDecisionReason?: string;
+  ownerDecisionAt?: string;
+  onlineRoomUrl?: string;
 };
 
 export type OnboardingItem = {

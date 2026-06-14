@@ -24,6 +24,8 @@ public static class DependencyInjection
 
         services.Configure<BusinessClockOptions>(
             configuration.GetSection(BusinessClockOptions.SectionName));
+        services.Configure<MeetingRoomOptions>(
+            configuration.GetSection(MeetingRoomOptions.SectionName));
 
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ISpaceService, SpaceService>();

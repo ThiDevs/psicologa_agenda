@@ -53,6 +53,14 @@
           "photosPermission": "Permita que o Psi Agenda Online acesse suas fotos para montar a galeria pública do consultório.",
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
       ]
     ],
     "experiments": {

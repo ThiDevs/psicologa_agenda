@@ -383,6 +383,9 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
             entity.Property(appointment => appointment.CreatedAt).HasColumnName("created_at");
             entity.Property(appointment => appointment.UpdatedAt).HasColumnName("updated_at");
             entity.Property(appointment => appointment.ExpiresAt).HasColumnName("expires_at");
+            entity.Property(appointment => appointment.OwnerDecisionReason).HasColumnName("owner_decision_reason").HasMaxLength(500);
+            entity.Property(appointment => appointment.OwnerDecisionAt).HasColumnName("owner_decision_at");
+            entity.Property(appointment => appointment.OnlineRoomUrl).HasColumnName("online_room_url").HasMaxLength(2048);
             entity.HasIndex(appointment => appointment.Code).IsUnique();
             entity.HasIndex(appointment => new { appointment.SpaceId, appointment.StartDateTime });
             entity.HasIndex(appointment => new { appointment.ProfessionalId, appointment.StartDateTime, appointment.EndDateTime });

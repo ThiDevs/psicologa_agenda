@@ -119,6 +119,8 @@ Endpoints sensiveis usam rate limit de desenvolvimento.
 - `GET|PUT /spaces/{spaceId}/cancellation-policy`
 - `GET /spaces/{spaceId}/appointments`
 - `GET /spaces/{spaceId}/appointments/{appointmentId}`
+- `POST /spaces/{spaceId}/appointments/{appointmentId}/confirm`
+- `POST /spaces/{spaceId}/appointments/{appointmentId}/reject`
 - `POST /spaces/{spaceId}/appointments/{appointmentId}/complete`
 - `POST /spaces/{spaceId}/appointments/{appointmentId}/no-show`
 - `GET|POST /spaces/{spaceId}/photos`

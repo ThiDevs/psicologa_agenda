@@ -60,6 +60,7 @@ public static class SpaceEndpoints
         group.MapGet("/{spaceId:guid}/appointments", GetSpaceAppointmentsAsync);
         group.MapGet("/{spaceId:guid}/appointments/{appointmentId:guid}", GetSpaceAppointmentDetailsAsync);
         group.MapPost("/{spaceId:guid}/appointments/{appointmentId:guid}/confirm", ConfirmSpaceAppointmentAsync);
+        group.MapPost("/{spaceId:guid}/appointments/{appointmentId:guid}/reject", RejectSpaceAppointmentAsync);
         group.MapPost("/{spaceId:guid}/appointments/{appointmentId:guid}/complete", CompleteSpaceAppointmentAsync);
         group.MapPost("/{spaceId:guid}/appointments/{appointmentId:guid}/no-show", MarkSpaceAppointmentNoShowAsync);
         group.MapGet("/{spaceId:guid}/photos", GetSpacePhotosAsync);
@@ -472,6 +473,19 @@ public static class SpaceEndpoints
     {
         return await ExecuteAsync(
             () => spaceService.ConfirmSpaceAppointmentAsync(currentUser.UserIdOrThrow(), spaceId, appointmentId, cancellationToken),
+            Results.Ok);
+    }
+
+    private static async Task<IResult> RejectSpaceAppointmentAsync(
+        Guid spaceId,
+        Guid appointmentId,
+        RejectAppointmentRequest request,
+        ICurrentUserService currentUser,
+        ISpaceService spaceService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => spaceService.RejectSpaceAppointmentAsync(currentUser.UserIdOrThrow(), spaceId, appointmentId, request, cancellationToken),
             Results.Ok);
     }
 
