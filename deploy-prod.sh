@@ -12,6 +12,16 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 cd "$APP_DIR"
 mkdir -p "$BACKUP_DIR"
 
+echo "==> Atualizando versao"
+VERSION_FILE=".version"
+if [ ! -f "$VERSION_FILE" ]; then
+  echo "1" > "$VERSION_FILE"
+else
+  VER=$(cat "$VERSION_FILE")
+  echo "$((VER + 1))" > "$VERSION_FILE"
+fi
+export APP_VERSION=$(cat "$VERSION_FILE")
+
 echo "==> Carregando variaveis de ambiente de $ENV_FILE"
 if [ -f "$ENV_FILE" ]; then
   set -a
@@ -63,6 +73,6 @@ docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build api
 
 echo "==> Healthcheck"
 sleep 5
-curl -f http://127.0.0.1:3001/health
+curl -f https://felicio.app/api/health
 
 echo "Deploy concluido."
