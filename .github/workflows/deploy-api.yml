@@ -22,4 +22,4 @@ jobs:
           set -a
           source .env.prod
           set +a
-          sudo bash ./deploy-prod.sh
+          bash ./deploy-prod.sh
