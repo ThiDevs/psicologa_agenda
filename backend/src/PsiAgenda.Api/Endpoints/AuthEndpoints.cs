@@ -8,7 +8,7 @@ public static class AuthEndpoints
 {
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/auth").WithTags("Auth");
+        var group = app.MapGroup("/api/auth").WithTags("Auth");
 
         group.MapPost("/register/customer", RegisterCustomerAsync).RequireRateLimiting("Sensitive");
         group.MapPost("/register/space-admin", RegisterSpaceAdminAsync).RequireRateLimiting("Sensitive");

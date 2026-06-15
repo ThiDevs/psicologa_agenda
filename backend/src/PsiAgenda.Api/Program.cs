@@ -80,7 +80,7 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "psi-agenda-api2" }));
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok", service = "psi-agenda-api2" }));
 app.MapAuthEndpoints();
 app.MapSpaceEndpoints();
 

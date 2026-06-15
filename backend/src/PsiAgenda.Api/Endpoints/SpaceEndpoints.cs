@@ -26,7 +26,7 @@ public static class SpaceEndpoints
 
     public static IEndpointRouteBuilder MapSpaceEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/spaces")
+        var group = app.MapGroup("/api/spaces")
             .WithTags("Spaces")
             .RequireAuthorization();
 
@@ -71,7 +71,7 @@ public static class SpaceEndpoints
         group.MapGet("/{spaceId:guid}/notification-settings", GetNotificationSettingsAsync);
         group.MapPut("/{spaceId:guid}/notification-settings", UpdateNotificationSettingsAsync);
 
-        var publicGroup = app.MapGroup("/public/spaces")
+        var publicGroup = app.MapGroup("/api/public/spaces")
             .WithTags("Public Spaces");
         publicGroup.MapGet("/", GetPublishedSpacesAsync);
         publicGroup.MapGet("/{spaceId:guid}", GetPublishedSpaceDetailsAsync);
