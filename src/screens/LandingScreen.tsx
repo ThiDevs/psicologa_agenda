@@ -106,6 +106,12 @@ const faqItems = [
   },
 ];
 
+const footerLinks: { label: string; path: '/privacy' | '/terms' | '/support' }[] = [
+  { label: 'Privacidade', path: '/privacy' },
+  { label: 'Termos de uso', path: '/terms' },
+  { label: 'Suporte', path: '/support' },
+];
+
 export default function LandingScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
@@ -288,6 +294,17 @@ export default function LandingScreen() {
             <Text style={styles.footerText}>
               Agenda, marcação e gestão de consultas para psicólogas que atendem online.
             </Text>
+            <View style={styles.footerLinks}>
+              {footerLinks.map((link) => (
+                <Pressable
+                  key={link.path}
+                  accessibilityRole="link"
+                  onPress={() => router.push(link.path)}
+                  style={({ pressed }) => [styles.footerLink, pressed && styles.pressed]}>
+                  <Text style={styles.footerLinkText}>{link.label}</Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -1309,6 +1326,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     fontWeight: '700',
+  },
+  footerLinks: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingTop: 4,
+  },
+  footerLink: {
+    minHeight: 40,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: UI.surfaceMuted,
+  },
+  footerLinkText: {
+    color: UI.primaryDark,
+    fontSize: 13,
+    fontWeight: '900',
   },
   pressed: {
     opacity: 0.74,
