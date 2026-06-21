@@ -77,6 +77,14 @@ public static class SpaceEndpoints
         publicGroup.MapGet("/{spaceId:guid}", GetPublishedSpaceDetailsAsync);
         publicGroup.MapGet("/{spaceId:guid}/professionals/compatible", GetCompatibleProfessionalsAsync);
 
+        MapOperationalEndpoints(app.MapGroup("/api"));
+        MapOperationalEndpoints(app);
+
+        return app;
+    }
+
+    private static void MapOperationalEndpoints(IEndpointRouteBuilder app)
+    {
         app.MapPost("/availability/search", SearchAvailabilityAsync)
             .WithTags("Availability");
         app.MapPost("/appointments/reserve", ReserveAppointmentAsync)
@@ -122,8 +130,6 @@ public static class SpaceEndpoints
         app.MapPost("/notifications/{notificationId:guid}/read", MarkNotificationReadAsync)
             .WithTags("Notifications")
             .RequireAuthorization();
-
-        return app;
     }
 
     private static async Task<IResult> CreateSpaceAsync(

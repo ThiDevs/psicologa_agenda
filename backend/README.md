@@ -96,65 +96,65 @@ Usadas pela App Store, suporte e links legais do app.
 
 Endpoints com `RequireAuthorization` esperam `Authorization: Bearer <accessToken>`.
 
-- `POST /auth/register/customer`
-- `POST /auth/register/space-admin`
-- `POST /auth/register/professional`
-- `POST /auth/login`
-- `POST /auth/refresh-token`
-- `POST /auth/logout`
-- `GET /auth/me`
-- `DELETE /auth/me`
+- `POST /api/auth/register/customer`
+- `POST /api/auth/register/space-admin`
+- `POST /api/auth/register/professional`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh-token`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+- `DELETE /api/auth/me`
 
 Endpoints sensiveis usam rate limit de desenvolvimento.
 
 ## Espacos e gestao
 
-- `POST /spaces`
-- `PUT /spaces/{spaceId}`
-- `GET /spaces/my`
-- `POST /spaces/{spaceId}/starter-setup`
-- `GET /spaces/{spaceId}/onboarding-checklist`
-- `GET /spaces/{spaceId}/dashboard`
-- `GET|POST /spaces/{spaceId}/categories`
-- `GET|POST /spaces/{spaceId}/services`
-- `PUT /spaces/{spaceId}/services/{serviceId}`
-- `GET|POST /spaces/{spaceId}/professionals`
-- `PUT /spaces/{spaceId}/professionals/{professionalId}`
-- `GET|PUT /spaces/{spaceId}/opening-hours`
-- `GET|PUT /spaces/{spaceId}/professionals/{professionalId}/schedule`
-- `GET|POST /spaces/{spaceId}/blocked-times`
-- `DELETE /spaces/{spaceId}/blocked-times/{blockedTimeId}`
-- `GET|PUT /spaces/{spaceId}/payment-settings`
-- `GET|PUT /spaces/{spaceId}/cancellation-policy`
-- `GET /spaces/{spaceId}/appointments`
-- `GET /spaces/{spaceId}/appointments/{appointmentId}`
-- `POST /spaces/{spaceId}/appointments/{appointmentId}/confirm`
-- `POST /spaces/{spaceId}/appointments/{appointmentId}/reject`
-- `POST /spaces/{spaceId}/appointments/{appointmentId}/complete`
-- `POST /spaces/{spaceId}/appointments/{appointmentId}/no-show`
-- `GET|POST /spaces/{spaceId}/photos`
-- `DELETE /spaces/{spaceId}/photos/{photoId}`
-- `GET|PUT /spaces/{spaceId}/notification-settings`
+- `POST /api/spaces`
+- `PUT /api/spaces/{spaceId}`
+- `GET /api/spaces/my`
+- `POST /api/spaces/{spaceId}/starter-setup`
+- `GET /api/spaces/{spaceId}/onboarding-checklist`
+- `GET /api/spaces/{spaceId}/dashboard`
+- `GET|POST /api/spaces/{spaceId}/categories`
+- `GET|POST /api/spaces/{spaceId}/services`
+- `PUT /api/spaces/{spaceId}/services/{serviceId}`
+- `GET|POST /api/spaces/{spaceId}/professionals`
+- `PUT /api/spaces/{spaceId}/professionals/{professionalId}`
+- `GET|PUT /api/spaces/{spaceId}/opening-hours`
+- `GET|PUT /api/spaces/{spaceId}/professionals/{professionalId}/schedule`
+- `GET|POST /api/spaces/{spaceId}/blocked-times`
+- `DELETE /api/spaces/{spaceId}/blocked-times/{blockedTimeId}`
+- `GET|PUT /api/spaces/{spaceId}/payment-settings`
+- `GET|PUT /api/spaces/{spaceId}/cancellation-policy`
+- `GET /api/spaces/{spaceId}/appointments`
+- `GET /api/spaces/{spaceId}/appointments/{appointmentId}`
+- `POST /api/spaces/{spaceId}/appointments/{appointmentId}/confirm`
+- `POST /api/spaces/{spaceId}/appointments/{appointmentId}/reject`
+- `POST /api/spaces/{spaceId}/appointments/{appointmentId}/complete`
+- `POST /api/spaces/{spaceId}/appointments/{appointmentId}/no-show`
+- `GET|POST /api/spaces/{spaceId}/photos`
+- `DELETE /api/spaces/{spaceId}/photos/{photoId}`
+- `GET|PUT /api/spaces/{spaceId}/notification-settings`
 
 ## Publico, cliente e profissional
 
-- `GET /public/spaces`
-- `GET /public/spaces/{spaceId}`
-- `GET /public/spaces/{spaceId}/professionals/compatible?serviceIds=<ids>`
-- `POST /availability/search`
-- `POST /appointments/reserve`
-- `GET /customers/me/appointments`
-- `GET /customers/me/appointments/{appointmentId}`
-- `POST /customers/me/appointments/{appointmentId}/cancel`
-- `POST /customers/me/appointments/{appointmentId}/reschedule`
-- `POST /customers/me/appointments/{appointmentId}/review`
-- `GET /professionals/me/appointments`
-- `GET /professionals/me/appointments/{appointmentId}`
-- `POST /professionals/me/appointments/{appointmentId}/complete`
-- `POST /professionals/me/appointments/{appointmentId}/no-show`
-- `POST /professionals/me/blocked-times`
-- `GET /notifications`
-- `POST /notifications/{notificationId}/read`
+- `GET /api/public/spaces`
+- `GET /api/public/spaces/{spaceId}`
+- `GET /api/public/spaces/{spaceId}/professionals/compatible?serviceIds=<ids>`
+- `POST /api/availability/search`
+- `POST /api/appointments/reserve`
+- `GET /api/customers/me/appointments`
+- `GET /api/customers/me/appointments/{appointmentId}`
+- `POST /api/customers/me/appointments/{appointmentId}/cancel`
+- `POST /api/customers/me/appointments/{appointmentId}/reschedule`
+- `POST /api/customers/me/appointments/{appointmentId}/review`
+- `GET /api/professionals/me/appointments`
+- `GET /api/professionals/me/appointments/{appointmentId}`
+- `POST /api/professionals/me/appointments/{appointmentId}/complete`
+- `POST /api/professionals/me/appointments/{appointmentId}/no-show`
+- `POST /api/professionals/me/blocked-times`
+- `GET /api/notifications`
+- `POST /api/notifications/{notificationId}/read`
 
 ## Contrato de erro atual
 

@@ -10,7 +10,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.thidevs.psiagendaonline",
+      "bundleIdentifier": "com.thidevs.psiagenda",
       "buildNumber": "1",
       "supportsTablet": false,
       "config": {

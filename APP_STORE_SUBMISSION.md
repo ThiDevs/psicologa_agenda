@@ -20,14 +20,18 @@ Checklist para enviar o Psi Agenda Online para TestFlight e App Store.
 ## App Store Connect
 
 - Nome na loja: `Psi Agenda Online`.
-- Criar o app com o bundle id `com.thidevs.psiagendaonline` e SKU `psi-agenda-ios`.
+- App criado no App Store Connect com App ID `6782610386`.
+- Bundle ID iOS: `com.thidevs.psiagenda`.
+- SKU: `psi-agenda-ios`.
 - Idioma principal: `Portuguese (Brazil)`.
-- Bloqueios vistos em 2026-06-21:
-  - o contrato atualizado do Apple Developer Program precisa ser aceito pelo Account Holder;
-  - o status de trader para distribuicao na Uniao Europeia precisa ser preenchido;
-  - o Bundle ID ainda nao aparece no seletor do App Store Connect e precisa ser registrado em Certificates, Identifiers & Profiles.
-- Preencher Privacy Policy URL com `https://felicio.app/api/privacy`.
-- Preencher Support URL com `https://felicio.app/api/support`.
+- Status em 2026-06-21:
+  - contrato atualizado do Apple Developer Program aceito;
+  - Bundle ID `com.thidevs.psiagenda` registrado em Certificates, Identifiers & Profiles;
+  - app `Psi Agenda Online` criado no App Store Connect;
+  - o aviso de trader status ainda apareceu na tela de Apps e precisa ser validado pelo Account Holder antes do envio para revisao, caso continue visivel.
+- Privacy Policy URL configurada no App Store Connect: `https://felicio.app/api/privacy` (HTTP 200 em 2026-06-21).
+- Support URL configurada na versao iOS 1.0: `https://felicio.app/api/support` (HTTP 200 em 2026-06-21).
+- Terms URL publica disponivel em `https://felicio.app/api/terms` (HTTP 200 em 2026-06-21).
 - Declarar App Privacy de forma consistente com o app:
   - nome;
   - e-mail;

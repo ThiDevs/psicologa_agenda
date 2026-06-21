@@ -24,7 +24,7 @@ O caminho mais simples para desenvolvimento local é subir tudo com Docker:
 
 ```bash
 docker compose up --build -d
-curl http://localhost:3001/health
+curl http://localhost:3001/api/health
 ```
 
 A API fica em `http://localhost:3001` e o PostgreSQL em `localhost:5432`.
@@ -40,15 +40,15 @@ Em ambiente `Development`, as migrations são aplicadas automaticamente na inici
 
 ## Configurar URL da API no app
 
-Sem configuração extra, o app usa a API publicada em `https://felicio.app`.
+Sem configuração extra, o app usa a API publicada em `https://felicio.app/api`.
 
 Para desenvolvimento local, defina `EXPO_PUBLIC_API_URL` no bundle Expo. Reinicie o servidor Expo depois de mudar essa variável.
 
 ```bash
-EXPO_PUBLIC_API_URL=http://localhost:3001 npx expo start
+EXPO_PUBLIC_API_URL=http://localhost:3001/api npx expo start
 ```
 
-No emulador Android, use `http://10.0.2.2:3001` para apontar para a API local rodando no host.
+No emulador Android, use `http://10.0.2.2:3001/api` para apontar para a API local rodando no host.
 
 Não coloque segredos em variáveis `EXPO_PUBLIC_`; elas entram no bundle do app.
 

@@ -215,18 +215,18 @@ public sealed class AuthService(
     }
 
     private async Task<AuthResponse> RegisterAsync(
-        string name,
-        string email,
+        string? name,
+        string? email,
         string? phone,
-        string password,
+        string? password,
         UserRole role,
         CancellationToken cancellationToken)
     {
-        var normalizedEmail = NormalizeEmail(email);
-        ValidateRequired(name, "Nome");
-        ValidateRequired(normalizedEmail, "E-mail");
+        var normalizedName = NormalizeRequired(name, "Nome");
+        var normalizedEmail = NormalizeEmail(NormalizeRequired(email, "E-mail"));
+        var normalizedPassword = NormalizeRequired(password, "Senha");
 
-        if (password.Trim().Length < 6)
+        if (normalizedPassword.Length < 6)
         {
             throw new InvalidOperationException("A senha deve ter pelo menos 6 caracteres.");
         }
@@ -241,10 +241,10 @@ public sealed class AuthService(
 
         var user = new User
         {
-            Name = name.Trim(),
+            Name = normalizedName,
             Email = normalizedEmail,
-            Phone = phone?.Trim(),
-            PasswordHash = passwordHasher.Hash(password),
+            Phone = string.IsNullOrWhiteSpace(phone) ? null : phone.Trim(),
+            PasswordHash = passwordHasher.Hash(normalizedPassword),
             Role = role
         };
 
@@ -284,11 +284,13 @@ public sealed class AuthService(
         return email.Trim().ToLowerInvariant();
     }
 
-    private static void ValidateRequired(string value, string fieldName)
+    private static string NormalizeRequired(string? value, string fieldName)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
             throw new InvalidOperationException($"{fieldName} é obrigatório.");
         }
+
+        return value.Trim();
     }
 }
