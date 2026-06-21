@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 import type { User, UserRole } from '@/types/domain';
 import {
   getApiErrorMessage,
+  deleteAccount as deleteAccountApi,
   isApiOffline,
   login as loginApi,
   logout as logoutApi,
@@ -39,6 +40,7 @@ type AuthContextValue = {
   continueAsCustomer: () => Promise<User>;
   registerUser: (input: RegisterUserInput) => Promise<User>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -171,6 +173,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfessionalProfileActive(false);
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    setLastAuthError(null);
+
+    try {
+      await deleteAccountApi();
+      if (user) {
+        await removeStoredProfessionalProfile(user).catch(() => undefined);
+      }
+      setUser(null);
+      setSessionSource(null);
+      setProfessionalProfileActive(false);
+      setApiStatus('connected');
+    } catch (error) {
+      setApiStatus(isApiOffline(error) ? 'offline' : 'connected');
+      setLastAuthError(getApiErrorMessage(error));
+      throw error;
+    }
+  }, [user]);
+
   const activateProfessionalProfile = useCallback(() => {
     setProfessionalProfileActive(true);
     if (user) {
@@ -192,6 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       continueAsCustomer,
       registerUser,
       logout,
+      deleteAccount,
     }),
     [
       apiStatus,
@@ -205,6 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       registerUser,
       sessionSource,
       user,
+      deleteAccount,
     ],
   );
 
@@ -235,6 +258,13 @@ async function storeProfessionalProfile(user: User) {
   const storedProfiles = await readProfessionalProfileUsers();
 
   storedProfiles[getProfessionalProfileStorageId(user)] = true;
+  await writeProfessionalProfileUsers(storedProfiles);
+}
+
+async function removeStoredProfessionalProfile(user: User) {
+  const storedProfiles = await readProfessionalProfileUsers();
+
+  delete storedProfiles[getProfessionalProfileStorageId(user)];
   await writeProfessionalProfileUsers(storedProfiles);
 }
 

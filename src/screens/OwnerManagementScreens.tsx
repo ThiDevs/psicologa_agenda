@@ -2294,8 +2294,8 @@ function capitalizeCalendarText(value: string) {
 
 const paymentToggles: { id: keyof Pick<SpacePaymentSettings, 'allowPix' | 'allowCreditCard' | 'allowDebitCard' | 'allowPayOnSite' | 'requirePrePayment'>; label: string }[] = [
   { id: 'allowPix', label: 'Pix combinado' },
-  { id: 'allowCreditCard', label: 'Cartão de crédito' },
-  { id: 'allowDebitCard', label: 'Cartão de débito' },
+  { id: 'allowCreditCard', label: 'Cartão de crédito combinado' },
+  { id: 'allowDebitCard', label: 'Cartão de débito combinado' },
   { id: 'allowPayOnSite', label: 'Pagamento combinado' },
   { id: 'requirePrePayment', label: 'Sinal antecipado' },
 ];

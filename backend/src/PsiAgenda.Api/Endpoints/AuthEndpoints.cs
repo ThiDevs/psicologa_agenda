@@ -17,6 +17,7 @@ public static class AuthEndpoints
         group.MapPost("/refresh-token", RefreshAsync).RequireRateLimiting("Sensitive");
         group.MapPost("/logout", LogoutAsync);
         group.MapGet("/me", GetMeAsync).RequireAuthorization();
+        group.MapDelete("/me", DeleteMeAsync).RequireAuthorization().RequireRateLimiting("Sensitive");
 
         return app;
     }
@@ -89,6 +90,16 @@ public static class AuthEndpoints
         var user = await authService.GetUserAsync(currentUser.UserIdOrThrow(), cancellationToken);
 
         return user is null ? Results.NotFound() : Results.Ok(user);
+    }
+
+    private static async Task<IResult> DeleteMeAsync(
+        ICurrentUserService currentUser,
+        IAuthService authService,
+        CancellationToken cancellationToken)
+    {
+        await authService.DeleteAccountAsync(currentUser.UserIdOrThrow(), cancellationToken);
+
+        return Results.NoContent();
     }
 
     private static async Task<IResult> ExecuteAsync<T>(

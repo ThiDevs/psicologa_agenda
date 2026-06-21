@@ -116,6 +116,104 @@ public sealed class AuthService(
         return user is null ? null : ToDto(user);
     }
 
+    public async Task DeleteAccountAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var user = await dbContext.Users
+            .Include(item => item.RefreshTokens)
+            .FirstOrDefaultAsync(item => item.Id == userId, cancellationToken);
+
+        if (user is null)
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var originalEmail = user.Email;
+        var deletedAccountMarker = $"deleted-{user.Id:N}";
+
+        user.Active = false;
+        user.Name = "Conta excluida";
+        user.Email = $"{deletedAccountMarker}@deleted.local";
+        user.Phone = null;
+        user.PasswordHash = deletedAccountMarker;
+        user.UpdatedAt = now;
+
+        foreach (var token in user.RefreshTokens.Where(token => token.RevokedAt is null))
+        {
+            token.RevokedAt = now;
+        }
+
+        var memberships = await dbContext.SpaceUsers
+            .Where(item => item.UserId == userId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var membership in memberships)
+        {
+            membership.Active = false;
+        }
+
+        var ownedSpaceIds = memberships
+            .Where(membership => membership.Role is SpaceUserRole.SpaceAdmin or SpaceUserRole.SpaceManager)
+            .Select(membership => membership.SpaceId)
+            .Distinct()
+            .ToArray();
+
+        if (ownedSpaceIds.Length > 0)
+        {
+            var spaces = await dbContext.Spaces
+                .Where(space => ownedSpaceIds.Contains(space.Id))
+                .ToListAsync(cancellationToken);
+
+            foreach (var space in spaces)
+            {
+                space.Active = false;
+                space.Published = false;
+                space.AllowOnlineBooking = false;
+                space.UpdatedAt = now;
+            }
+        }
+
+        var professionalProfiles = await dbContext.Professionals
+            .Where(professional => professional.Email == originalEmail)
+            .ToListAsync(cancellationToken);
+
+        foreach (var professional in professionalProfiles)
+        {
+            professional.Email = null;
+            professional.Active = false;
+            professional.UpdatedAt = now;
+        }
+
+        var reviews = await dbContext.Reviews
+            .Where(review => review.CustomerId == userId && review.Comment != null)
+            .ToListAsync(cancellationToken);
+
+        foreach (var review in reviews)
+        {
+            review.Comment = null;
+        }
+
+        var notifications = await dbContext.Notifications
+            .Where(notification => notification.UserId == userId)
+            .ToListAsync(cancellationToken);
+
+        dbContext.Notifications.RemoveRange(notifications);
+
+        var auditLogs = await dbContext.AuditLogs
+            .Where(log => log.UserId == userId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var log in auditLogs)
+        {
+            log.UserId = null;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     private async Task<AuthResponse> RegisterAsync(
         string name,
         string email,

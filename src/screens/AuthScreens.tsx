@@ -270,7 +270,17 @@ function RegisterForm({
         <View style={[styles.termsBox, accepted && styles.termsBoxSelected]}>
           {accepted && <Ionicons name="checkmark" size={18} color={UI.surface} />}
         </View>
-        <Text style={styles.termsText}>Aceito os termos de uso e a política de privacidade.</Text>
+        <Text style={styles.termsText}>
+          Aceito os{' '}
+          <Text style={styles.termsLink} onPress={() => router.push('/terms')}>
+            termos de uso
+          </Text>{' '}
+          e a{' '}
+          <Text style={styles.termsLink} onPress={() => router.push('/privacy')}>
+            política de privacidade
+          </Text>
+          .
+        </Text>
       </Pressable>
 
       {(errorMessage || lastAuthError) && (
@@ -445,6 +455,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '700',
+  },
+  termsLink: {
+    color: UI.primary,
+    fontWeight: '900',
+    textDecorationLine: 'underline',
   },
   pressed: {
     opacity: 0.72,

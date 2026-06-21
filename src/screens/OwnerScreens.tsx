@@ -16,6 +16,7 @@ import {
   SectionTitle,
   UI,
 } from '@/components/app-ui';
+import { AccountDeletionCard } from '@/components/account-deletion-card';
 import {
   getOnboardingRoute,
   OwnerSetupProgressCard,
@@ -523,6 +524,7 @@ export function OwnerDashboardScreen() {
     sessionSource,
     user,
     logout,
+    deleteAccount,
     professionalProfileActive,
     activateProfessionalProfile,
   } = useAuth();
@@ -539,6 +541,9 @@ export function OwnerDashboardScreen() {
   } = useOwnerConfig();
   const ownerSpace = selectedOwnerSpace;
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [deleteAccountArmed, setDeleteAccountArmed] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
   const [remoteDashboard, setRemoteDashboard] = useState<ApiOwnerDashboard | null>(null);
   const [remoteError, setRemoteError] = useState<string | null>(null);
   const spaceServices = services.filter((service) => service.spaceId === ownerSpace?.id);
@@ -570,6 +575,28 @@ export function OwnerDashboardScreen() {
     setRemoteDashboard(null);
     setRemoteError(null);
     setProfileMenuOpen(false);
+  }
+
+  async function handleDeleteAccount() {
+    if (!deleteAccountArmed) {
+      setDeleteAccountArmed(true);
+      setDeleteAccountError(null);
+      return;
+    }
+
+    setDeletingAccount(true);
+    setDeleteAccountError(null);
+
+    try {
+      await deleteAccount();
+      setDeleteAccountArmed(false);
+      setProfileMenuOpen(false);
+      router.replace('/');
+    } catch (error) {
+      setDeleteAccountError(error instanceof Error ? error.message : 'Não foi possível excluir a conta agora.');
+    } finally {
+      setDeletingAccount(false);
+    }
   }
 
   useEffect(() => {
@@ -642,27 +669,44 @@ export function OwnerDashboardScreen() {
       />
 
       {profileMenuOpen && (
-        <OwnerProfileMenu
-          userName={user?.name ?? 'Psicóloga'}
-          userEmail={user?.email ?? ''}
-          spaces={spaces}
-          selectedSpaceId={selectedOwnerSpaceId ?? ownerSpace?.id ?? null}
-          professionalProfileActive={professionalProfileActive}
-          onSelectSpace={selectOwnerSpace}
-          onCreateSpace={() => {
-            setProfileMenuOpen(false);
-            router.push('/create-space');
-          }}
-          onWorkAsProfessional={() => {
-            setProfileMenuOpen(false);
-            router.push('/professional-agenda');
-          }}
-          onActivateProfessional={activateProfessionalProfile}
-          onLogout={async () => {
-            await logout();
-            router.replace('/');
-          }}
-        />
+        <>
+          <OwnerProfileMenu
+            userName={user?.name ?? 'Psicóloga'}
+            userEmail={user?.email ?? ''}
+            spaces={spaces}
+            selectedSpaceId={selectedOwnerSpaceId ?? ownerSpace?.id ?? null}
+            professionalProfileActive={professionalProfileActive}
+            onSelectSpace={selectOwnerSpace}
+            onCreateSpace={() => {
+              setProfileMenuOpen(false);
+              router.push('/create-space');
+            }}
+            onWorkAsProfessional={() => {
+              setProfileMenuOpen(false);
+              router.push('/professional-agenda');
+            }}
+            onActivateProfessional={activateProfessionalProfile}
+            onLogout={async () => {
+              await logout();
+              router.replace('/');
+            }}
+          />
+          <View style={styles.profileComplianceActions}>
+            <PrimaryButton label="Termos de uso" icon="document-text-outline" variant="secondary" onPress={() => router.push('/terms')} />
+            <PrimaryButton label="Privacidade" icon="shield-checkmark-outline" variant="secondary" onPress={() => router.push('/privacy')} />
+            <PrimaryButton label="Suporte" icon="help-circle-outline" variant="secondary" onPress={() => router.push('/support')} />
+          </View>
+          <AccountDeletionCard
+            armed={deleteAccountArmed}
+            loading={deletingAccount}
+            errorMessage={deleteAccountError}
+            onCancel={() => {
+              setDeleteAccountArmed(false);
+              setDeleteAccountError(null);
+            }}
+            onDelete={handleDeleteAccount}
+          />
+        </>
       )}
 
       {spaces.length > 1 && (
@@ -1265,6 +1309,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   profileMenuActions: {
+    gap: 9,
+  },
+  profileComplianceActions: {
     gap: 9,
   },
   spaceCard: {

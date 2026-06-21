@@ -50,4 +50,5 @@ public interface IAuthService
     Task<AuthResponse> RefreshAsync(RefreshTokenRequest request, CancellationToken cancellationToken);
     Task LogoutAsync(LogoutRequest request, CancellationToken cancellationToken);
     Task<UserDto?> GetUserAsync(Guid userId, CancellationToken cancellationToken);
+    Task DeleteAccountAsync(Guid userId, CancellationToken cancellationToken);
 }

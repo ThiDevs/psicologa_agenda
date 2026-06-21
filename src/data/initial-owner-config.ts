@@ -244,7 +244,7 @@ export const initialBlockedTimes: BlockedTime[] = [
 
 export const paymentMethods: PaymentMethod[] = [
   { id: 'pix', label: 'Pix combinado', iconName: 'qr-code-outline', online: true },
-  { id: 'credit_card', label: 'Cartão online', iconName: 'card-outline', online: true },
-  { id: 'debit_card', label: 'Cartão de débito', iconName: 'wallet-outline', online: true },
+  { id: 'credit_card', label: 'Cartão combinado', iconName: 'card-outline', online: true },
+  { id: 'debit_card', label: 'Débito combinado', iconName: 'wallet-outline', online: true },
   { id: 'pay_on_site', label: 'Pagamento combinado', iconName: 'chatbubble-ellipses-outline', online: false },
 ];

@@ -95,6 +95,7 @@ Endpoints com `RequireAuthorization` esperam `Authorization: Bearer <accessToken
 - `POST /auth/refresh-token`
 - `POST /auth/logout`
 - `GET /auth/me`
+- `DELETE /auth/me`
 
 Endpoints sensiveis usam rate limit de desenvolvimento.
 

@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AccountDeletionCard } from '@/components/account-deletion-card';
 import { cardShadow, EmptyState, Field, HeaderBar, InfoStrip, PrimaryButton, ScreenScaffold, SectionTitle, UI } from '@/components/app-ui';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -21,6 +22,7 @@ export function ProfessionalAgendaScreen() {
   const {
     user,
     logout,
+    deleteAccount,
     professionalProfileActive,
     activateProfessionalProfile,
   } = useAuth();
@@ -31,6 +33,9 @@ export function ProfessionalAgendaScreen() {
   const [reason, setReason] = useState('Pausa');
   const [message, setMessage] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deleteAccountArmed, setDeleteAccountArmed] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
   const todayAppointments = useMemo(
     () => appointments.filter((appointment) => appointment.startDateTime.slice(0, 10) === date),
     [appointments, date],
@@ -90,6 +95,27 @@ export function ProfessionalAgendaScreen() {
       setMessage('Bloqueio criado na sua agenda.');
     } catch (error) {
       setMessage(getApiErrorMessage(error));
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (!deleteAccountArmed) {
+      setDeleteAccountArmed(true);
+      setDeleteAccountError(null);
+      return;
+    }
+
+    setDeletingAccount(true);
+    setDeleteAccountError(null);
+
+    try {
+      await deleteAccount();
+      setDeleteAccountArmed(false);
+      router.replace('/');
+    } catch (error) {
+      setDeleteAccountError(error instanceof Error ? error.message : 'Não foi possível excluir a conta agora.');
+    } finally {
+      setDeletingAccount(false);
     }
   }
 
@@ -179,6 +205,23 @@ export function ProfessionalAgendaScreen() {
         <Field label="Motivo" value={reason} onChangeText={setReason} />
         <PrimaryButton label="Criar bloqueio" icon="ban-outline" onPress={handleBlock} />
       </View>
+
+      <SectionTitle title="Conta" />
+      <View style={styles.accountActions}>
+        <PrimaryButton label="Termos de uso" icon="document-text-outline" variant="secondary" onPress={() => router.push('/terms')} />
+        <PrimaryButton label="Privacidade" icon="shield-checkmark-outline" variant="secondary" onPress={() => router.push('/privacy')} />
+        <PrimaryButton label="Suporte" icon="help-circle-outline" variant="secondary" onPress={() => router.push('/support')} />
+      </View>
+      <AccountDeletionCard
+        armed={deleteAccountArmed}
+        loading={deletingAccount}
+        errorMessage={deleteAccountError}
+        onCancel={() => {
+          setDeleteAccountArmed(false);
+          setDeleteAccountError(null);
+        }}
+        onDelete={handleDeleteAccount}
+      />
     </ScreenScaffold>
   );
 }
@@ -276,6 +319,9 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
+  },
+  accountActions: {
+    gap: 9,
   },
   logoutButton: {
     width: 44,

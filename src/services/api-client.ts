@@ -363,6 +363,15 @@ export async function logout() {
   await clearAuthSession();
 }
 
+export async function deleteAccount() {
+  await request('/auth/me', {
+    method: 'DELETE',
+    authenticated: true,
+  });
+
+  await clearAuthSession();
+}
+
 export async function restoreAuthSession() {
   const accessToken = await readToken(ACCESS_TOKEN_KEY);
   const refreshToken = await readToken(REFRESH_TOKEN_KEY);

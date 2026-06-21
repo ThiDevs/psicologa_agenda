@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AccountDeletionCard } from '@/components/account-deletion-card';
 import { cardShadow, EmptyState, PrimaryButton, ScreenScaffold, SectionTitle, UI } from '@/components/app-ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBooking } from '@/contexts/BookingContext';
@@ -19,11 +20,11 @@ import { formatCurrency, formatRating } from '@/utils/format';
 
 type BottomTab = 'home' | 'appointments' | 'favorites' | 'profile';
 type Coordinates = { latitude: number; longitude: number };
-type LocationStatus = 'requesting' | 'granted' | 'denied' | 'error';
+type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'error';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user, logout, professionalProfileActive, activateProfessionalProfile } = useAuth();
+  const { user, logout, deleteAccount, professionalProfileActive, activateProfessionalProfile } = useAuth();
   const { selectSpace } = useBooking();
   const {
     categories,
@@ -40,8 +41,11 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<BottomTab>('home');
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
-  const [locationStatus, setLocationStatus] = useState<LocationStatus>('requesting');
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>('idle');
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
+  const [deleteAccountArmed, setDeleteAccountArmed] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
 
   const requestLocation = useCallback(async () => {
     setLocationStatus('requesting');
@@ -100,10 +104,6 @@ export default function HomeScreen() {
     };
   }, [coordinates, syncAppointmentsFromApi, syncPublicSpacesFromApi, user]);
 
-  useEffect(() => {
-    requestLocation();
-  }, [requestLocation]);
-
   const filteredSpaces = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
@@ -139,6 +139,28 @@ export default function HomeScreen() {
   function openSpace(spaceId: string) {
     selectSpace(spaceId);
     router.push('/space-details');
+  }
+
+  async function handleDeleteAccount() {
+    if (!deleteAccountArmed) {
+      setDeleteAccountArmed(true);
+      setDeleteAccountError(null);
+      return;
+    }
+
+    setDeletingAccount(true);
+    setDeleteAccountError(null);
+
+    try {
+      await deleteAccount();
+      setDeleteAccountArmed(false);
+      setActiveTab('home');
+      router.replace('/');
+    } catch (error) {
+      setDeleteAccountError(error instanceof Error ? error.message : 'Não foi possível excluir a conta agora.');
+    } finally {
+      setDeletingAccount(false);
+    }
   }
 
   return (
@@ -374,7 +396,18 @@ export default function HomeScreen() {
                 <ProfileLink icon="receipt-outline" label="Histórico de pagamentos" value={`${paymentHistory.length} registros`} />
                 <ProfileLink icon="document-text-outline" label="Termos de uso" onPress={() => router.push('/terms')} />
                 <ProfileLink icon="shield-checkmark-outline" label="Privacidade e LGPD" onPress={() => router.push('/privacy')} />
+                <ProfileLink icon="help-circle-outline" label="Suporte" onPress={() => router.push('/support')} />
               </View>
+              <AccountDeletionCard
+                armed={deleteAccountArmed}
+                loading={deletingAccount}
+                errorMessage={deleteAccountError}
+                onCancel={() => {
+                  setDeleteAccountArmed(false);
+                  setDeleteAccountError(null);
+                }}
+                onDelete={handleDeleteAccount}
+              />
             </>
           ) : (
             <>
@@ -387,6 +420,7 @@ export default function HomeScreen() {
               <View style={styles.profileLinks}>
                 <ProfileLink icon="document-text-outline" label="Termos de uso" onPress={() => router.push('/terms')} />
                 <ProfileLink icon="shield-checkmark-outline" label="Privacidade e LGPD" onPress={() => router.push('/privacy')} />
+                <ProfileLink icon="help-circle-outline" label="Suporte" onPress={() => router.push('/support')} />
               </View>
             </>
           )}
@@ -437,20 +471,25 @@ function LocationBanner({
   }
 
   const title =
-    status === 'requesting'
+    status === 'idle'
+      ? 'Ordenar por proximidade'
+      : status === 'requesting'
       ? 'Buscando sua localização'
       : status === 'granted'
         ? 'Calculando consultórios próximos'
         : 'Localização desativada';
   const text =
     message ??
-    (status === 'granted'
+    (status === 'idle'
+      ? 'Use sua localização apenas se quiser ver os consultórios mais próximos primeiro.'
+      : status === 'granted'
       ? 'Ordenando os consultórios disponíveis pela distância estimada.'
       : 'Mostrando os consultórios publicados enquanto a localização não está disponível.');
   const icon: keyof typeof Ionicons.glyphMap =
     status === 'requesting' || status === 'granted'
       ? 'navigate-outline'
       : 'location-outline';
+  const actionLabel = status === 'idle' ? 'Ordenar' : 'Ativar';
 
   return (
     <View style={styles.locationBanner}>
@@ -466,7 +505,7 @@ function LocationBanner({
           accessibilityRole="button"
           onPress={onRetry}
           style={({ pressed }) => [styles.locationRetry, pressed && styles.pressed]}>
-          <Text style={styles.locationRetryText}>Ativar</Text>
+          <Text style={styles.locationRetryText}>{actionLabel}</Text>
         </Pressable>
       )}
     </View>
