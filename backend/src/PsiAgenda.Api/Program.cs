@@ -82,6 +82,7 @@ app.UseAuthorization();
 
 var version = Environment.GetEnvironmentVariable("APP_VERSION") ?? "1";
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok", service = "psi-agenda-api2", version = version }));
+app.MapPublicPageEndpoints();
 app.MapAuthEndpoints();
 app.MapSpaceEndpoints();
 

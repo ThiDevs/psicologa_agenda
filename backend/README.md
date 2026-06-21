@@ -10,7 +10,7 @@ Na raiz do repositorio:
 
 ```bash
 docker compose up --build -d
-curl http://localhost:3001/health
+curl http://localhost:3001/api/health
 ```
 
 Servicos:
@@ -76,13 +76,21 @@ npm run backend:build
 
 ## Healthcheck
 
-- `GET /health`
+- `GET /api/health`
 
 Resposta esperada:
 
 ```json
 { "status": "ok", "service": "psi-agenda-api" }
 ```
+
+## Paginas publicas
+
+Usadas pela App Store, suporte e links legais do app.
+
+- `GET /privacy`
+- `GET /terms`
+- `GET /support`
 
 ## Autenticacao
 

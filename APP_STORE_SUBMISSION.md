@@ -9,7 +9,7 @@ Checklist para enviar o Psi Agenda Online para TestFlight e App Store.
 - Criar uma conta demo permanente para App Review:
   - cliente com agendamento visivel;
   - psicologa/administradora com consultorio publicado.
-- Publicar URLs web:
+- Apos o deploy do backend, confirmar as URLs web publicas:
   - `https://felicio.app/privacy`
   - `https://felicio.app/terms`
   - `https://felicio.app/support`
