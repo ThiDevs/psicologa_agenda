@@ -68,6 +68,9 @@ docker run --rm \
       --startup-project src/PsiAgenda.Api
   '
 
+echo "==> Corrigindo permissoes dos arquivos gerados pelo Docker"
+docker run --rm -v "$APP_DIR/backend:/src" alpine chown -R 1000:1000 /src
+
 echo "==> Build e restart da API"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build api
 

@@ -1,0 +1,15 @@
+==> Atualizando versao
+==> Carregando variaveis de ambiente de .env.prod
+==> Atualizando codigo
+From https://github.com/thidevs/psicologa_agenda
+   99b0c34..7539a56  main       -> origin/main
+Already on 'main'
+M	.version
+M	deploy-prod.sh
+M	package.json
+Your branch is behind 'origin/main' by 1 commit, and can be fast-forwarded.
+  (use "git pull" to update your local branch)
+From https://github.com/thidevs/psicologa_agenda
+ * branch            main       -> FETCH_HEAD
+fatal: cannot create directory at 'backend/src/PsiAgenda.Api/wwwroot/legal': Permission denied
+Updating 99b0c34..7539a56
