@@ -2,7 +2,7 @@
   "expo": {
     "name": "Psi Agenda Online",
     "description": "Agenda online para psicólogas e clientes organizarem consultas, horários, políticas e pagamentos combinados.",
-    "slug": "psi-agenda-online",
+    "slug": "psi-agenda",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -98,7 +98,11 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",
@@ -146,9 +150,15 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "ab49a9cf-753e-42ed-b1a8-06ac32844b3b"
+        "projectId": "d2421580-1638-4f2d-aa3f-15d6f2b2a661"
       }
     },
-    "owner": "thidevs"
+    "owner": "thidevs",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d2421580-1638-4f2d-aa3f-15d6f2b2a661"
+    }
   }
 }

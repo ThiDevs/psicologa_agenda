@@ -6,25 +6,29 @@ public static class PublicPageEndpoints
 
     public static IEndpointRouteBuilder MapPublicPageEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapMethods("/privacy", PublicPageMethods, (IWebHostEnvironment environment, CancellationToken cancellationToken) =>
-                ServePageAsync("privacy.html", environment, cancellationToken))
-            .AllowAnonymous()
-            .WithTags("Public Pages")
-            .WithName("PrivacyPolicy");
-
-        app.MapMethods("/terms", PublicPageMethods, (IWebHostEnvironment environment, CancellationToken cancellationToken) =>
-                ServePageAsync("terms.html", environment, cancellationToken))
-            .AllowAnonymous()
-            .WithTags("Public Pages")
-            .WithName("TermsOfUse");
-
-        app.MapMethods("/support", PublicPageMethods, (IWebHostEnvironment environment, CancellationToken cancellationToken) =>
-                ServePageAsync("support.html", environment, cancellationToken))
-            .AllowAnonymous()
-            .WithTags("Public Pages")
-            .WithName("Support");
+        app.MapPublicPage("/privacy", "privacy.html", "PrivacyPolicy");
+        app.MapPublicPage("/terms", "terms.html", "TermsOfUse");
+        app.MapPublicPage("/support", "support.html", "Support");
 
         return app;
+    }
+
+    private static void MapPublicPage(this IEndpointRouteBuilder app, string route, string fileName, string endpointName)
+    {
+        var routes = new[]
+        {
+            (Route: route, Name: endpointName),
+            (Route: $"/api{route}", Name: $"{endpointName}Api")
+        };
+
+        foreach (var publicRoute in routes)
+        {
+            app.MapMethods(publicRoute.Route, PublicPageMethods, (IWebHostEnvironment environment, CancellationToken cancellationToken) =>
+                    ServePageAsync(fileName, environment, cancellationToken))
+                .AllowAnonymous()
+                .WithTags("Public Pages")
+                .WithName(publicRoute.Name);
+        }
     }
 
     private static async Task<IResult> ServePageAsync(
