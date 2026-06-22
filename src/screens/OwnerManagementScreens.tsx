@@ -1465,7 +1465,10 @@ export function OwnerAgendaScreen() {
   }
 
   function handleOpenRoom(url: string) {
-    const route = buildVideoCallRoute(url);
+    const route = buildVideoCallRoute(url, {
+      displayName: space?.name ?? 'Consultorio',
+      role: 'owner',
+    });
 
     if (route) {
       router.push(route);
@@ -1633,7 +1636,10 @@ export function OwnerAppointmentDetailsScreen() {
   }
 
   function handleOpenRoom(url: string) {
-    const route = buildVideoCallRoute(url);
+    const route = buildVideoCallRoute(url, {
+      displayName: space?.name ?? 'Consultorio',
+      role: 'owner',
+    });
 
     if (route) {
       router.push(route);

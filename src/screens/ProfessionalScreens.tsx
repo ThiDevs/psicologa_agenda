@@ -121,7 +121,10 @@ export function ProfessionalAgendaScreen() {
   }
 
   function handleOpenRoom(url: string) {
-    const route = buildVideoCallRoute(url);
+    const route = buildVideoCallRoute(url, {
+      displayName: user?.name ?? 'Psicologa',
+      role: 'professional',
+    });
 
     if (route) {
       router.push(route);

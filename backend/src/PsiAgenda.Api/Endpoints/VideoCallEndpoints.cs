@@ -53,7 +53,8 @@ public sealed class VideoCallSignalingHub
         "answer",
         "ice-candidate",
         "ready",
-        "media-state"
+        "media-state",
+        "caption"
     };
 
     private readonly ConcurrentDictionary<string, VideoCallRoom> rooms = new(StringComparer.OrdinalIgnoreCase);

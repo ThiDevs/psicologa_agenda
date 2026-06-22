@@ -93,7 +93,10 @@ export function AppointmentDetailsScreen() {
   }
 
   function handleOpenRoom(url: string) {
-    const route = buildVideoCallRoute(url);
+    const route = buildVideoCallRoute(url, {
+      displayName: details?.customer.name ?? 'Paciente',
+      role: 'patient',
+    });
 
     if (route) {
       router.push(route);

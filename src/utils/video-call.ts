@@ -8,6 +8,11 @@ export type VideoCallSession = {
   fallbackUrl: string;
 };
 
+type VideoCallRouteOptions = {
+  displayName?: string | null;
+  role?: 'patient' | 'professional' | 'owner' | 'guest';
+};
+
 export function parseVideoCallSession(onlineRoomUrl?: string | null): VideoCallSession | null {
   const value = onlineRoomUrl?.trim();
 
@@ -39,18 +44,22 @@ export function parseVideoCallSession(onlineRoomUrl?: string | null): VideoCallS
   }
 }
 
-export function buildVideoCallRoute(onlineRoomUrl: string) {
+export function buildVideoCallRoute(onlineRoomUrl: string, options: VideoCallRouteOptions = {}) {
   const session = parseVideoCallSession(onlineRoomUrl);
 
   if (!session) {
     return null;
   }
 
+  const displayName = normalizeDisplayName(options.displayName);
+
   return {
     pathname: '/video-call',
     params: {
       room: session.room,
       fallback: session.fallbackUrl,
+      ...(displayName ? { localName: displayName } : {}),
+      ...(options.role ? { role: options.role } : {}),
     },
   } as const;
 }
@@ -89,4 +98,10 @@ function getLastPathSegment(pathname: string) {
 
 function isJitsiUrl(url: URL) {
   return url.hostname === 'meet.jit.si' || url.hostname.endsWith('.meet.jit.si');
+}
+
+function normalizeDisplayName(value?: string | null) {
+  const normalized = value?.trim().replace(/\s+/g, ' ');
+
+  return normalized ? normalized.slice(0, 80) : null;
 }

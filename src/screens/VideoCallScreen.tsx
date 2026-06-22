@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import VideoCallRoom from '@/components/video-call-room';
 import { EmptyState, HeaderBar, ScreenScaffold, UI } from '@/components/app-ui';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   buildJitsiFallbackUrl,
   buildSignalingUrl,
@@ -15,15 +16,19 @@ import {
 
 export function VideoCallScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ room?: string; fallback?: string }>();
+  const { user } = useAuth();
+  const params = useLocalSearchParams<{ room?: string; fallback?: string; localName?: string; role?: string }>();
   const roomParam = Array.isArray(params.room) ? params.room[0] : params.room;
   const fallbackParam = Array.isArray(params.fallback) ? params.fallback[0] : params.fallback;
+  const localNameParam = Array.isArray(params.localName) ? params.localName[0] : params.localName;
+  const roleParam = Array.isArray(params.role) ? params.role[0] : params.role;
   const session = useMemo(
     () => parseVideoCallSession(roomParam ?? null),
     [roomParam],
   );
   const room = session?.room ?? null;
   const fallbackUrl = fallbackParam ?? (room ? buildJitsiFallbackUrl(room) : null);
+  const displayName = normalizeDisplayName(localNameParam ?? user?.name) ?? 'Participante';
   const signalingUrl = useMemo(
     () => (room ? buildSignalingUrl(room) : null),
     [room],
@@ -61,6 +66,8 @@ export function VideoCallScreen() {
           room={room}
           signalingUrl={signalingUrl}
           fallbackUrl={fallbackUrl}
+          displayName={displayName}
+          role={normalizeRole(roleParam)}
           openFallback={openFallback}
           leaveCall={leaveCall}
           dom={{
@@ -91,3 +98,15 @@ const styles = StyleSheet.create({
     minHeight: 620,
   },
 });
+
+function normalizeDisplayName(value?: string | null) {
+  const normalized = value?.trim().replace(/\s+/g, ' ');
+
+  return normalized ? normalized.slice(0, 80) : null;
+}
+
+function normalizeRole(value?: string | null) {
+  return value === 'professional' || value === 'owner' || value === 'patient'
+    ? value
+    : 'guest';
+}
