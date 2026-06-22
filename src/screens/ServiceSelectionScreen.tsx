@@ -34,6 +34,7 @@ export default function ServiceSelectionScreen() {
   const totalMinutes = selectedServices.reduce((total, service) => total + service.durationMinutes, 0);
   const totalPrice = selectedServices.reduce((total, service) => total + service.price, 0);
   const canContinue = selectedServices.length > 0;
+  const showLoadError = loadError && services.length === 0;
 
   useEffect(() => {
     let mounted = true;
@@ -85,7 +86,7 @@ export default function ServiceSelectionScreen() {
       {space && <SpaceMiniCard space={space} />}
 
       <SectionTitle title="Consultas ativas" actionLabel={`${services.length} disponíveis`} />
-      {loadError && <InfoStrip icon="cloud-offline-outline" title="Consultas indisponíveis" text={loadError} tone="warning" />}
+      {showLoadError && <InfoStrip icon="cloud-offline-outline" title="Consultas indisponíveis" text={loadError} tone="warning" />}
       <View style={styles.list}>
         {services.map((service) => (
           <ServiceCard

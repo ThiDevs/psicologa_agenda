@@ -175,6 +175,18 @@ export default function LandingScreen() {
                   <ProofPill icon="shield-checkmark" label="Perfis separados" />
                   <ProofPill icon="repeat" label="Reagendamento" />
                 </View>
+
+                <View style={styles.updateNotice}>
+                  <View style={styles.updateNoticeIcon}>
+                    <Ionicons name="cloud-done-outline" size={22} color="#A7F3D0" />
+                  </View>
+                  <View style={styles.updateNoticeCopy}>
+                    <Text style={styles.updateNoticeTitle}>EAS Update 21/06 ativo</Text>
+                    <Text style={styles.updateNoticeText}>
+                      A home do app ganhou um painel OTA de teste para confirmar a atualização sem rebuild.
+                    </Text>
+                  </View>
+                </View>
               </View>
             </View>
           </SafeAreaView>
@@ -576,7 +588,7 @@ function MobileMockup() {
       <View style={styles.mobileTopBar} />
       <View style={styles.mobileHeader}>
         <Text style={styles.mobileTitle}>Escolha seu horário</Text>
-        <Text style={styles.mobileSubtitle}>Clínica Online Dra. Helena</Text>
+        <Text style={styles.mobileSubtitle}>Clínica Helena Online</Text>
       </View>
       <View style={styles.servicePreview}>
         <View style={styles.serviceIcon}>
@@ -829,6 +841,42 @@ const styles = StyleSheet.create({
     color: UI.surface,
     fontSize: 12,
     fontWeight: '800',
+  },
+  updateNotice: {
+    maxWidth: 560,
+    minHeight: 78,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 13,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(167, 243, 208, 0.24)',
+    backgroundColor: 'rgba(15, 23, 42, 0.58)',
+  },
+  updateNoticeIcon: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: 'rgba(20, 184, 166, 0.24)',
+  },
+  updateNoticeCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  updateNoticeTitle: {
+    color: UI.surface,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  updateNoticeText: {
+    color: 'rgba(255, 255, 255, 0.82)',
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '700',
   },
   section: {
     backgroundColor: '#F7FAF8',

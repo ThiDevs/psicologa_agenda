@@ -58,6 +58,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 builder.Services.AddOpenApi();
+builder.Services.AddSingleton<VideoCallSignalingHub>();
 
 var webRootPath = builder.Environment.WebRootPath ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
 Directory.CreateDirectory(Path.Combine(webRootPath, "uploads"));
@@ -76,6 +77,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("ExpoDev");
 app.UseStaticFiles();
+app.UseWebSockets(new WebSocketOptions
+{
+    KeepAliveInterval = TimeSpan.FromSeconds(30)
+});
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -85,5 +90,6 @@ app.MapGet("/api/health", () => Results.Ok(new { status = "ok", service = "psi-a
 app.MapPublicPageEndpoints();
 app.MapAuthEndpoints();
 app.MapSpaceEndpoints();
+app.MapVideoCallEndpoints();
 
 app.Run();

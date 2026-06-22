@@ -63,7 +63,7 @@ export const initialCategories: Category[] = [
 export const initialSpaces: Space[] = [
   {
     id: 'clinic-helena-online',
-    name: 'Clínica Online Dra. Helena',
+    name: 'Clínica Helena Online',
     description:
       'Atendimento psicológico online para adultos, ansiedade, autoconhecimento e organização emocional.',
     categoryId: 'therapy',

@@ -66,6 +66,7 @@ import type {
 } from '@/types/domain';
 import { openOnlineRoom } from '@/utils/open-online-room';
 import { buildDateOptions, formatCurrency, formatDateLabel, formatDuration, getIsoDate } from '@/utils/format';
+import { buildVideoCallRoute } from '@/utils/video-call';
 
 const weekdays = [
   { id: 0, label: 'Dom' },
@@ -1463,6 +1464,17 @@ export function OwnerAgendaScreen() {
     }
   }
 
+  function handleOpenRoom(url: string) {
+    const route = buildVideoCallRoute(url);
+
+    if (route) {
+      router.push(route);
+      return;
+    }
+
+    void openOnlineRoom(url);
+  }
+
   function moveCalendar(direction: -1 | 1) {
     setSelectedDate((current) => shiftCalendarDate(current, calendarView, direction));
   }
@@ -1502,6 +1514,7 @@ export function OwnerAgendaScreen() {
               onConfirm={() => confirmAppointment(appointment.id)}
               onComplete={() => updateStatus(appointment.id, 'complete')}
               onNoShow={() => updateStatus(appointment.id, 'no_show')}
+              onOpenRoom={handleOpenRoom}
             />
           ))
         ) : (
@@ -1619,6 +1632,17 @@ export function OwnerAppointmentDetailsScreen() {
     }
   }
 
+  function handleOpenRoom(url: string) {
+    const route = buildVideoCallRoute(url);
+
+    if (route) {
+      router.push(route);
+      return;
+    }
+
+    void openOnlineRoom(url);
+  }
+
   if (!params.appointmentId) {
     return (
       <ScreenScaffold>
@@ -1694,7 +1718,7 @@ export function OwnerAppointmentDetailsScreen() {
           </View>
 
           {roomAvailable ? (
-            <PrimaryButton label="Entrar na sala" icon="videocam-outline" onPress={() => openOnlineRoom(appointment.onlineRoomUrl!)} />
+            <PrimaryButton label="Entrar na sala" icon="videocam-outline" onPress={() => handleOpenRoom(appointment.onlineRoomUrl!)} />
           ) : null}
 
           {needsConfirmation ? (
@@ -2098,6 +2122,7 @@ function AppointmentCard({
   onConfirm,
   onComplete,
   onNoShow,
+  onOpenRoom,
 }: {
   appointment: Appointment;
   updating?: boolean;
@@ -2105,6 +2130,7 @@ function AppointmentCard({
   onConfirm?: () => void;
   onComplete?: () => void;
   onNoShow?: () => void;
+  onOpenRoom?: (url: string) => void;
 }) {
   const needsConfirmation = appointment.status === 'pending_confirmation';
   const canClose = !needsConfirmation && !['cancelled', 'expired', 'completed', 'no_show', 'rejected'].includes(appointment.status);
@@ -2141,7 +2167,7 @@ function AppointmentCard({
         <View style={styles.actionRow}>
           {appointment.status === 'confirmed' && appointment.onlineRoomUrl ? (
             <View style={styles.flex}>
-              <PrimaryButton label="Sala" icon="videocam-outline" loading={updating} onPress={() => openOnlineRoom(appointment.onlineRoomUrl!)} />
+              <PrimaryButton label="Sala" icon="videocam-outline" loading={updating} onPress={() => onOpenRoom?.(appointment.onlineRoomUrl!)} />
             </View>
           ) : null}
           <View style={styles.flex}>

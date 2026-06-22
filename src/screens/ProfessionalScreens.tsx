@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AccountDeletionCard } from '@/components/account-deletion-card';
-import { cardShadow, EmptyState, Field, HeaderBar, InfoStrip, PrimaryButton, ScreenScaffold, SectionTitle, UI } from '@/components/app-ui';
+import { EmptyState, Field, HeaderBar, InfoStrip, PrimaryButton, ScreenScaffold, SectionTitle, UI } from '@/components/app-ui';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   completeProfessionalAppointment,
@@ -16,6 +16,7 @@ import {
 import type { Appointment } from '@/types/domain';
 import { openOnlineRoom } from '@/utils/open-online-room';
 import { buildDateOptions, formatCurrency } from '@/utils/format';
+import { buildVideoCallRoute } from '@/utils/video-call';
 
 export function ProfessionalAgendaScreen() {
   const router = useRouter();
@@ -119,12 +120,24 @@ export function ProfessionalAgendaScreen() {
     }
   }
 
+  function handleOpenRoom(url: string) {
+    const route = buildVideoCallRoute(url);
+
+    if (route) {
+      router.push(route);
+      return;
+    }
+
+    void openOnlineRoom(url);
+  }
+
   return (
-    <ScreenScaffold>
+    <ScreenScaffold appearance="dark">
       <HeaderBar
         title="Minha agenda"
         subtitle={user?.name}
         onBack={() => router.back()}
+        appearance="dark"
         right={
           <Pressable
             accessibilityRole="button"
@@ -133,7 +146,7 @@ export function ProfessionalAgendaScreen() {
               router.replace('/');
             }}
             style={({ pressed }) => [styles.logoutButton, pressed && styles.pressed]}>
-            <Ionicons name="log-out-outline" size={22} color={UI.text} />
+            <Ionicons name="log-out-outline" size={22} color={UI.darkText} />
           </Pressable>
         }
       />
@@ -150,9 +163,9 @@ export function ProfessionalAgendaScreen() {
       </View>
       {message && <InfoStrip icon="information-circle-outline" title="Agenda" text={message} />}
       <View style={styles.formCard}>
-        <Field label="Data" value={date} onChangeText={setDate} />
+        <Field appearance="dark" label="Data" value={date} onChangeText={setDate} />
       </View>
-      <SectionTitle title="Atendimentos do dia" actionLabel={`${todayAppointments.length} itens`} />
+      <SectionTitle appearance="dark" title="Atendimentos do dia" actionLabel={`${todayAppointments.length} itens`} />
       <View style={styles.list}>
         {todayAppointments.length ? (
           todayAppointments.map((appointment) => {
@@ -174,7 +187,7 @@ export function ProfessionalAgendaScreen() {
                   <View style={styles.row}>
                     {appointment.status === 'confirmed' && appointment.onlineRoomUrl ? (
                       <View style={styles.flex}>
-                        <PrimaryButton label="Sala" icon="videocam-outline" loading={updatingId === appointment.id} onPress={() => openOnlineRoom(appointment.onlineRoomUrl!)} />
+                        <PrimaryButton label="Sala" icon="videocam-outline" loading={updatingId === appointment.id} onPress={() => handleOpenRoom(appointment.onlineRoomUrl!)} />
                       </View>
                     ) : null}
                     <View style={styles.flex}>
@@ -189,24 +202,24 @@ export function ProfessionalAgendaScreen() {
             );
           })
         ) : (
-          <EmptyState icon="calendar-outline" title="Sem atendimentos" text="Quando seu e-mail estiver vinculado ao consultório, sua agenda aparece aqui." />
+          <EmptyState appearance="dark" icon="calendar-outline" title="Sem atendimentos" text="Quando seu e-mail estiver vinculado ao consultório, sua agenda aparece aqui." />
         )}
       </View>
-      <SectionTitle title="Bloquear horário" />
+      <SectionTitle appearance="dark" title="Bloquear horário" />
       <View style={styles.formCard}>
         <View style={styles.row}>
           <View style={styles.flex}>
-            <Field label="Início" value={startTime} onChangeText={setStartTime} />
+            <Field appearance="dark" label="Início" value={startTime} onChangeText={setStartTime} />
           </View>
           <View style={styles.flex}>
-            <Field label="Fim" value={endTime} onChangeText={setEndTime} />
+            <Field appearance="dark" label="Fim" value={endTime} onChangeText={setEndTime} />
           </View>
         </View>
-        <Field label="Motivo" value={reason} onChangeText={setReason} />
+        <Field appearance="dark" label="Motivo" value={reason} onChangeText={setReason} />
         <PrimaryButton label="Criar bloqueio" icon="ban-outline" onPress={handleBlock} />
       </View>
 
-      <SectionTitle title="Conta" />
+      <SectionTitle appearance="dark" title="Conta" />
       <View style={styles.accountActions}>
         <PrimaryButton label="Termos de uso" icon="document-text-outline" variant="secondary" onPress={() => router.push('/terms')} />
         <PrimaryButton label="Privacidade" icon="shield-checkmark-outline" variant="secondary" onPress={() => router.push('/privacy')} />
@@ -250,17 +263,17 @@ const styles = StyleSheet.create({
     padding: 13,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(22, 163, 74, 0.22)',
-    backgroundColor: '#F7FEFA',
-    ...cardShadow,
+    borderColor: 'rgba(109, 214, 180, 0.22)',
+    backgroundColor: UI.darkSurface,
+    boxShadow: '0 18px 38px rgba(0, 0, 0, 0.22)',
   },
   professionalModeIcon: {
     width: 50,
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 25,
-    backgroundColor: UI.success,
+    borderRadius: 17,
+    backgroundColor: UI.darkPrimary,
   },
   professionalModeCopy: {
     flex: 1,
@@ -268,12 +281,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   professionalModeTitle: {
-    color: UI.success,
+    color: UI.darkPrimary,
     fontSize: 16,
     fontWeight: '900',
   },
   professionalModeText: {
-    color: UI.textMuted,
+    color: UI.darkTextMuted,
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '700',
@@ -281,9 +294,11 @@ const styles = StyleSheet.create({
   formCard: {
     gap: 12,
     padding: 14,
-    borderRadius: 18,
-    backgroundColor: UI.surface,
-    ...cardShadow,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 247, 242, 0.10)',
+    backgroundColor: UI.darkSurface,
+    boxShadow: 'none',
   },
   list: {
     gap: 10,
@@ -291,9 +306,11 @@ const styles = StyleSheet.create({
   card: {
     gap: 10,
     padding: 13,
-    borderRadius: 18,
-    backgroundColor: UI.surface,
-    ...cardShadow,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 247, 242, 0.10)',
+    backgroundColor: UI.darkSurface,
+    boxShadow: 'none',
   },
   cardTop: {
     flexDirection: 'row',
@@ -304,12 +321,12 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   title: {
-    color: UI.text,
+    color: UI.darkText,
     fontSize: 15,
     fontWeight: '900',
   },
   text: {
-    color: UI.textMuted,
+    color: UI.darkTextMuted,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -328,9 +345,11 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 22,
-    backgroundColor: UI.surface,
-    ...cardShadow,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 247, 242, 0.10)',
+    backgroundColor: UI.darkSurface,
+    boxShadow: 'none',
   },
   pressed: {
     opacity: 0.72,

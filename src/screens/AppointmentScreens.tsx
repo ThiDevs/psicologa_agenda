@@ -28,6 +28,7 @@ import {
 } from '@/services/api-client';
 import { openOnlineRoom } from '@/utils/open-online-room';
 import { buildDateOptions, formatCurrency, formatDateLabel, formatDuration } from '@/utils/format';
+import { buildVideoCallRoute } from '@/utils/video-call';
 
 export function AppointmentDetailsScreen() {
   const router = useRouter();
@@ -91,6 +92,17 @@ export function AppointmentDetailsScreen() {
     }
   }
 
+  function handleOpenRoom(url: string) {
+    const route = buildVideoCallRoute(url);
+
+    if (route) {
+      router.push(route);
+      return;
+    }
+
+    void openOnlineRoom(url);
+  }
+
   if (!params.appointmentId) {
     return (
       <ScreenScaffold>
@@ -145,7 +157,7 @@ export function AppointmentDetailsScreen() {
               <PrimaryButton
                 label="Entrar na sala"
                 icon="videocam-outline"
-                onPress={() => openOnlineRoom(appointment.onlineRoomUrl!)}
+                onPress={() => handleOpenRoom(appointment.onlineRoomUrl!)}
               />
             ) : null}
             {canChange && (

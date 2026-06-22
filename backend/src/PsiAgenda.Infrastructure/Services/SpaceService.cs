@@ -2768,8 +2768,11 @@ public sealed class SpaceService(
     {
         var random = Convert.ToHexString(RandomNumberGenerator.GetBytes(10)).ToLowerInvariant();
         var slug = $"psi-agenda-{random}";
+        var fallbackUrl = $"{meetingRoomOptions.Value.GetNormalizedFallbackBaseUrl()}/{slug}";
+        var appBaseUrl = meetingRoomOptions.Value.GetNormalizedAppBaseUrl();
+        var separator = appBaseUrl.Contains('?', StringComparison.Ordinal) ? "&" : "?";
 
-        return $"{meetingRoomOptions.Value.GetNormalizedBaseUrl()}/{slug}";
+        return $"{appBaseUrl}{separator}room={Uri.EscapeDataString(slug)}&fallback={Uri.EscapeDataString(fallbackUrl)}";
     }
 
     private static SpaceDto ToDto(Space space)

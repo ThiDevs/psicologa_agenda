@@ -3,16 +3,28 @@ namespace PsiAgenda.Infrastructure.Services;
 public sealed class MeetingRoomOptions
 {
     public const string SectionName = "MeetingRoom";
-    private const string DefaultBaseUrl = "https://meet.jit.si";
+    private const string DefaultAppBaseUrl = "https://felicio.app/video-call";
+    private const string DefaultFallbackBaseUrl = "https://meet.jit.si";
 
-    public string BaseUrl { get; init; } = DefaultBaseUrl;
+    public string? AppBaseUrl { get; init; } = DefaultAppBaseUrl;
+    public string? FallbackBaseUrl { get; init; } = DefaultFallbackBaseUrl;
 
-    public string GetNormalizedBaseUrl()
+    public string GetNormalizedAppBaseUrl()
     {
-        var trimmed = BaseUrl.Trim();
+        return Normalize(AppBaseUrl, DefaultAppBaseUrl);
+    }
+
+    public string GetNormalizedFallbackBaseUrl()
+    {
+        return Normalize(FallbackBaseUrl, DefaultFallbackBaseUrl);
+    }
+
+    private static string Normalize(string? value, string fallback)
+    {
+        var trimmed = value?.Trim();
 
         return string.IsNullOrWhiteSpace(trimmed)
-            ? DefaultBaseUrl
+            ? fallback
             : trimmed.TrimEnd('/');
     }
 }

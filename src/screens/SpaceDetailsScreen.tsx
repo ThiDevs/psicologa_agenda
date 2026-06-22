@@ -40,6 +40,7 @@ export default function SpaceDetailsScreen() {
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const services = getServicesForSpace(space?.id ?? null);
   const professionals = getProfessionalsForSpace(space?.id ?? null);
+  const showDetailsError = detailsError && services.length === 0 && professionals.length === 0;
   const minPrice = services.length ? Math.min(...services.map((service) => service.price)) : 0;
   const galleryPhotos = useMemo(
     () =>
@@ -160,7 +161,7 @@ export default function SpaceDetailsScreen() {
         </View>
       </View>
 
-      {detailsError && (
+      {showDetailsError && (
         <InfoStrip icon="cloud-offline-outline" title="Detalhes indisponíveis" text={detailsError} tone="warning" />
       )}
 
