@@ -55,10 +55,10 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Tarefas e materiais compartilhados entram na camada compartilhado.',
       'Endpoint longitudinal por paciente busca itens reais com filtros de camada, origem, período e texto.',
       'Detalhe auditado de item da timeline mostra metadados seguros da origem sem copiar conteúdo sensível.',
+      'Arquivamento controlado remove itens não oficiais da timeline ativa sem apagar rastreabilidade.',
     ],
     missing: [
       'Filtro por tags aplicadas e severidade.',
-      'Arquivamento controlado de item não oficial da timeline.',
       'Eventos reais de alertas quando o motor responsável existir.',
     ],
   },

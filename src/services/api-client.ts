@@ -328,6 +328,9 @@ export type ApiPatientTimelineItem = {
   summary: string;
   layer: 'rascunho' | 'prontuario' | 'memoria' | 'compartilhado';
   occurredAt: string;
+  archived: boolean;
+  archivedAt?: string | null;
+  archiveReason?: string | null;
   createdAt: string;
 };
 
@@ -1100,6 +1103,14 @@ export async function getClinicalPatientTimeline(patientId: string, filters: Api
 
 export async function getClinicalTimelineItemDetail(itemId: string) {
   return request<ApiPatientTimelineItemDetail>(`/clinical/timeline/${itemId}`, { authenticated: true });
+}
+
+export async function archiveClinicalTimelineItem(itemId: string, input: { reason?: string | null } = {}) {
+  return request<ApiPatientTimelineItemDetail>(`/clinical/timeline/${itemId}/archive`, {
+    method: 'POST',
+    authenticated: true,
+    body: input,
+  });
 }
 
 export async function startClinicalAppointmentSession(appointmentId: string) {

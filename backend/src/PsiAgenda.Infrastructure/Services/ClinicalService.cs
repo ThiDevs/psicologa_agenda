@@ -139,7 +139,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             .AsNoTracking()
             .Where(item =>
                 item.PatientId == appointment.CustomerId &&
-                item.ProfessionalId == appointment.ProfessionalId)
+                item.ProfessionalId == appointment.ProfessionalId &&
+                !item.Archived)
             .OrderByDescending(item => item.OccurredAt)
             .Take(40)
             .ToListAsync(cancellationToken);
@@ -198,7 +199,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             .AsNoTracking()
             .Where(item =>
                 item.PatientId == patientId &&
-                item.ProfessionalId == relationship.ProfessionalId);
+                item.ProfessionalId == relationship.ProfessionalId &&
+                !item.Archived);
 
         if (sourceType is not null)
         {
@@ -266,23 +268,6 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
 
         await EnsureProfessionalPatientRelationshipAsync(professionalUserId, item.PatientId, cancellationToken);
 
-        var appointment = item.AppointmentId is null
-            ? null
-            : await dbContext.Appointments
-                .AsNoTracking()
-                .Where(appointmentItem =>
-                    appointmentItem.Id == item.AppointmentId.Value &&
-                    appointmentItem.CustomerId == item.PatientId &&
-                    appointmentItem.ProfessionalId == item.ProfessionalId &&
-                    appointmentItem.SpaceId == item.SpaceId)
-                .Select(appointmentItem => new
-                {
-                    appointmentItem.Code,
-                    appointmentItem.StartDateTime
-                })
-                .FirstOrDefaultAsync(cancellationToken);
-        var source = await GetTimelineSourceMetadataAsync(item, cancellationToken);
-
         await AddClinicalAuditAsync(
             professionalUserId,
             item.SpaceId,
@@ -292,17 +277,55 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return new PatientTimelineItemDetailDto(
-            ToSafeTimelineDetailDto(item),
-            appointment?.Code,
-            appointment?.StartDateTime,
-            source.SourceLabel,
-            source.SourceStatus,
-            source.SourceTypeDetail,
-            source.SourceVersion,
-            source.CanOpenSource,
-            item.Layer != "prontuario" && item.SourceType != "record",
-            BuildTimelineAccessNote(item));
+        return await BuildTimelineItemDetailDtoAsync(item, cancellationToken);
+    }
+
+    public async Task<PatientTimelineItemDetailDto> ArchiveTimelineItemAsync(
+        Guid professionalUserId,
+        Guid itemId,
+        ArchiveTimelineItemRequest request,
+        CancellationToken cancellationToken)
+    {
+        var professional = await GetLinkedProfessionalAsync(professionalUserId, cancellationToken);
+        var item = await dbContext.PatientTimelineItems
+            .FirstOrDefaultAsync(timelineItem =>
+                    timelineItem.Id == itemId &&
+                    timelineItem.ProfessionalId == professional.Id,
+                cancellationToken);
+
+        if (item is null)
+        {
+            throw new KeyNotFoundException("Item da timeline clínica não encontrado.");
+        }
+
+        await EnsureProfessionalPatientRelationshipAsync(professionalUserId, item.PatientId, cancellationToken);
+
+        if (item.Archived)
+        {
+            throw new InvalidOperationException("Este item da timeline já está arquivado.");
+        }
+
+        if (!CanArchiveTimelineItem(item))
+        {
+            throw new InvalidOperationException("Itens de prontuário aprovado não podem ser arquivados pela timeline. Use retificação formal quando necessário.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        item.Archived = true;
+        item.ArchivedAt = now;
+        item.ArchivedByUserId = professionalUserId;
+        item.ArchiveReason = NormalizeOptionalText(request.Reason, 500, "Motivo do arquivamento");
+
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            item.SpaceId,
+            "clinical.timeline_item.archived",
+            nameof(PatientTimelineItem),
+            item.Id,
+            cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return await BuildTimelineItemDetailDtoAsync(item, cancellationToken);
     }
 
     public async Task<PatientCarePortalDto> GetPatientCarePortalAsync(
@@ -2044,6 +2067,40 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         await Task.CompletedTask;
     }
 
+    private async Task<PatientTimelineItemDetailDto> BuildTimelineItemDetailDtoAsync(
+        PatientTimelineItem item,
+        CancellationToken cancellationToken)
+    {
+        var appointment = item.AppointmentId is null
+            ? null
+            : await dbContext.Appointments
+                .AsNoTracking()
+                .Where(appointmentItem =>
+                    appointmentItem.Id == item.AppointmentId.Value &&
+                    appointmentItem.CustomerId == item.PatientId &&
+                    appointmentItem.ProfessionalId == item.ProfessionalId &&
+                    appointmentItem.SpaceId == item.SpaceId)
+                .Select(appointmentItem => new
+                {
+                    appointmentItem.Code,
+                    appointmentItem.StartDateTime
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+        var source = await GetTimelineSourceMetadataAsync(item, cancellationToken);
+
+        return new PatientTimelineItemDetailDto(
+            ToSafeTimelineDetailDto(item),
+            appointment?.Code,
+            appointment?.StartDateTime,
+            source.SourceLabel,
+            source.SourceStatus,
+            source.SourceTypeDetail,
+            source.SourceVersion,
+            source.CanOpenSource,
+            CanArchiveTimelineItem(item),
+            BuildTimelineAccessNote(item));
+    }
+
     private async Task<TimelineSourceMetadata> GetTimelineSourceMetadataAsync(
         PatientTimelineItem item,
         CancellationToken cancellationToken)
@@ -2232,6 +2289,11 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
 
     private static string BuildTimelineAccessNote(PatientTimelineItem item)
     {
+        if (item.Archived)
+        {
+            return "Evento arquivado pela psicóloga. Ele saiu da timeline ativa, mas permanece preservado para rastreabilidade clínica.";
+        }
+
         return item.Layer switch
         {
             "prontuario" => "Evento de prontuário aprovado. A timeline não edita nem arquiva esse conteúdo; use retificação formal quando necessário.",
@@ -2239,6 +2301,11 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             "compartilhado" => "Evento compartilhável. A disponibilidade ao paciente depende da ação explícita da psicóloga e dos consentimentos ativos.",
             _ => "Evento de memória clínica privada. O portal do paciente não exibe esta timeline interna."
         };
+    }
+
+    private static bool CanArchiveTimelineItem(PatientTimelineItem item)
+    {
+        return !item.Archived && item.Layer != "prontuario" && item.SourceType != "record";
     }
 
     private static string NormalizeRecordType(string? recordType)
@@ -2753,6 +2820,9 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             item.Summary,
             item.Layer,
             item.OccurredAt,
+            item.Archived,
+            item.ArchivedAt,
+            item.ArchiveReason,
             item.CreatedAt);
     }
 

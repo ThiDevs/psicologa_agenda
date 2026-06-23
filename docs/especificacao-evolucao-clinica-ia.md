@@ -225,6 +225,10 @@ Campos principais:
 - `summary`
 - `visibility`: `professional_only`, `shared_with_patient`
 - `severity`
+- `archived`
+- `archivedAt`
+- `archivedByUserId`
+- `archiveReason`
 - `createdAt`
 
 ### TreatmentPlan
@@ -1585,6 +1589,8 @@ Atualizacao da decima terceira entrega: a timeline clinica ganhou consulta longi
 
 Atualizacao da decima quarta entrega: a timeline agora possui detalhe auditado em `GET /api/clinical/timeline/{itemId}`. A rota valida profissional vinculada ao paciente, retorna o item, dados operacionais do atendimento e metadados seguros da origem, como status, tipo e versao quando aplicavel, sem copiar `ContentText` de rascunho/prontuario, resposta livre de paciente ou conteudo clinico sensivel para fora do modulo correto. A tela clinica permite abrir o detalhe a partir de eventos reais e mostra nota de acesso por camada. A auditoria usa `clinical.timeline_item.viewed` sem metadata sensivel. Ainda nao existe arquivamento controlado de itens nao oficiais, filtro por tag aplicada/severidade, alertas, IA, exportacao ou gravacao/transcricao.
 
+Atualizacao da decima quinta entrega: a timeline agora permite arquivar item nao oficial por `POST /api/clinical/timeline/{itemId}/archive`, com motivo opcional e auditoria `clinical.timeline_item.archived` sem metadata sensivel. Itens arquivados saem da timeline ativa e do workspace, mas permanecem preservados para detalhe e rastreabilidade. Itens de prontuario aprovado continuam bloqueados para arquivamento pela timeline e devem seguir por retificacao formal. Ainda nao existe filtro por tag aplicada/severidade, alertas, IA, exportacao ou gravacao/transcricao.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1619,6 +1625,7 @@ Arquivos criados ou alterados:
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623053000_AddPatientShareables.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623060000_AddPatientTaskResponses.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623063000_AddPatientCheckIns.cs`
+- `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623070000_AddTimelineItemArchiving.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/PsiAgendaDbContext.cs`
 - `backend/src/PsiAgenda.Infrastructure/DependencyInjection.cs`
 - `backend/src/PsiAgenda.Api/Program.cs`
@@ -1685,6 +1692,10 @@ Feito agora:
 58. Detalhe valida vinculo profissional-paciente antes de retornar qualquer dado.
 59. Detalhe retorna metadados seguros da origem sem expor texto de prontuario, rascunho ou respostas livres.
 60. A tela clinica exibe nota de acesso por camada e registra loading/erro do detalhe.
+61. Psicologa pode arquivar item nao oficial por `POST /api/clinical/timeline/{itemId}/archive`.
+62. Arquivamento bloqueia itens de prontuario aprovado e orienta usar retificacao formal.
+63. Itens arquivados saem da timeline ativa, mas ficam preservados para detalhe auditado e rastreabilidade.
+64. A tela clinica exibe acao de arquivamento no detalhe com motivo opcional, loading, erro e sucesso.
 
 Falta para virar produto clinico real:
 
@@ -1705,7 +1716,7 @@ Status por modulo:
 | --- | --- | --- | --- |
 | Registro pos-consulta com IA | Parcial | `ClinicalSession`, `ClinicalDraft` manual, `ClinicalRecord` aprovado manualmente e retificacao versionada por atendimento | IA, edicao assistida e exportacao |
 | Botoes rapidos e tags clinicas | Parcial | Tags salvas em `AppliedClinicalTag` por atendimento | Biblioteca de tags, personalizacao, filtros e gestao completa |
-| Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags, consentimentos, plano, tarefas, materiais e check-ins; `GET /api/clinical/patients/{patientId}/timeline` com filtros de camada, origem, periodo, busca e limite; detalhe auditado por `GET /api/clinical/timeline/{itemId}`; UI com vazio/loading/erro | Arquivamento controlado de item nao oficial, filtro por tag aplicada/severidade e eventos reais de alertas quando o motor existir |
+| Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags, consentimentos, plano, tarefas, materiais e check-ins; `GET /api/clinical/patients/{patientId}/timeline` com filtros de camada, origem, periodo, busca e limite; detalhe auditado por `GET /api/clinical/timeline/{itemId}`; arquivamento controlado por `POST /api/clinical/timeline/{itemId}/archive`; UI com vazio/loading/erro | Filtro por tag aplicada/severidade e eventos reais de alertas quando o motor existir |
 | Plano terapeutico vivo | Parcial | `TreatmentPlan` persistido e editavel no workspace clinico | Historico versionado, revisao periodica e sugestoes por IA |
 | Preparacao da proxima sessao | Parcial | Card de briefing conceitual | Job automatico, fontes reais e arquivamento |
 | Separar rascunho, prontuario e memoria | Parcial | Rascunho, memoria, prontuario aprovado e retificacao versionada aparecem como camadas separadas | Exportacao seletiva e politicas de retencao |

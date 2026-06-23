@@ -657,9 +657,14 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
             entity.Property(item => item.Summary).HasColumnName("summary").HasMaxLength(1000).IsRequired();
             entity.Property(item => item.Layer).HasColumnName("layer").HasMaxLength(40).IsRequired();
             entity.Property(item => item.OccurredAt).HasColumnName("occurred_at");
+            entity.Property(item => item.Archived).HasColumnName("archived").HasDefaultValue(false);
+            entity.Property(item => item.ArchivedAt).HasColumnName("archived_at");
+            entity.Property(item => item.ArchivedByUserId).HasColumnName("archived_by_user_id");
+            entity.Property(item => item.ArchiveReason).HasColumnName("archive_reason").HasMaxLength(500);
             entity.Property(item => item.CreatedAt).HasColumnName("created_at");
             entity.HasIndex(item => new { item.PatientId, item.ProfessionalId, item.OccurredAt });
             entity.HasIndex(item => new { item.AppointmentId, item.CreatedAt });
+            entity.HasIndex(item => item.ArchivedByUserId);
             entity.HasOne(item => item.Appointment)
                 .WithMany()
                 .HasForeignKey(item => item.AppointmentId)
@@ -679,6 +684,10 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
             entity.HasOne(item => item.CreatedBy)
                 .WithMany()
                 .HasForeignKey(item => item.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(item => item.ArchivedBy)
+                .WithMany()
+                .HasForeignKey(item => item.ArchivedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

@@ -21,6 +21,7 @@ import {
 } from '@/data/clinical-integration';
 import {
   applyClinicalAppointmentTags,
+  archiveClinicalTimelineItem,
   approveClinicalDraft,
   completeClinicalAppointmentSession,
   createClinicalAppointmentMaterial,
@@ -174,6 +175,7 @@ export function ClinicalIntegrationScreen() {
         <Bullet text="Check-ins manuais já podem ser compartilhados e respondidos pelo paciente com consentimento ativo." />
         <Bullet text="Timeline longitudinal já busca eventos reais por paciente com filtros e busca clínica." />
         <Bullet text="Detalhe auditado da timeline já exibe origem, status e nota de acesso sem revelar conteúdo sensível fora do módulo." />
+        <Bullet text="Timeline permite arquivar eventos não oficiais sem apagar rastreabilidade clínica." />
         <Bullet text="Documento de especificação acompanha o status por módulo." />
       </View>
 
@@ -270,6 +272,8 @@ export function ClinicalPatientWorkspaceScreen() {
   const [loadingTimeline, setLoadingTimeline] = useState(false);
   const [selectedTimelineDetail, setSelectedTimelineDetail] = useState<ApiPatientTimelineItemDetail | null>(null);
   const [loadingTimelineDetailId, setLoadingTimelineDetailId] = useState<string | null>(null);
+  const [archivingTimelineItemId, setArchivingTimelineItemId] = useState<string | null>(null);
+  const [timelineArchiveReason, setTimelineArchiveReason] = useState('');
 
   const hydrateTreatmentPlan = useCallback((plan: ApiTreatmentPlan) => {
     setPlanStatus(toTreatmentPlanStatus(plan.status));
@@ -576,6 +580,7 @@ export function ClinicalPatientWorkspaceScreen() {
 
       setWorkspace((current) => current ? { ...current, timeline } : current);
       setSelectedTimelineDetail(null);
+      setTimelineArchiveReason('');
       setClinicalMessage('Timeline longitudinal filtrada carregada. Conteúdo clínico segue restrito à profissional vinculada.');
     } catch (error) {
       setClinicalMessage(getApiErrorMessage(error));
@@ -591,11 +596,34 @@ export function ClinicalPatientWorkspaceScreen() {
     try {
       const detail = await getClinicalTimelineItemDetail(itemId);
       setSelectedTimelineDetail(detail);
+      setTimelineArchiveReason('');
       setClinicalMessage('Detalhe da timeline carregado com auditoria clínica.');
     } catch (error) {
       setClinicalMessage(getApiErrorMessage(error));
     } finally {
       setLoadingTimelineDetailId(null);
+    }
+  }
+
+  async function archiveTimelineItem(itemId: string) {
+    setArchivingTimelineItemId(itemId);
+    setClinicalMessage(null);
+
+    try {
+      const detail = await archiveClinicalTimelineItem(itemId, {
+        reason: nullableText(timelineArchiveReason),
+      });
+
+      setSelectedTimelineDetail(detail);
+      setTimelineArchiveReason('');
+      setWorkspace((current) => current
+        ? { ...current, timeline: current.timeline.filter((item) => item.id !== itemId) }
+        : current);
+      setClinicalMessage('Evento não oficial arquivado. Ele saiu da timeline ativa, mas permanece preservado para rastreabilidade.');
+    } catch (error) {
+      setClinicalMessage(getApiErrorMessage(error));
+    } finally {
+      setArchivingTimelineItemId(null);
     }
   }
 
@@ -1090,6 +1118,10 @@ export function ClinicalPatientWorkspaceScreen() {
       {selectedTimelineDetail ? (
         <TimelineDetailPanel
           detail={selectedTimelineDetail}
+          archiveReason={timelineArchiveReason}
+          archiving={archivingTimelineItemId === selectedTimelineDetail.item.id}
+          onArchiveReasonChange={setTimelineArchiveReason}
+          onArchive={() => archiveTimelineItem(selectedTimelineDetail.item.id)}
           onClose={() => setSelectedTimelineDetail(null)}
         />
       ) : null}
@@ -1655,9 +1687,17 @@ function TimelineCard({
 
 function TimelineDetailPanel({
   detail,
+  archiveReason,
+  archiving,
+  onArchiveReasonChange,
+  onArchive,
   onClose,
 }: {
   detail: ApiPatientTimelineItemDetail;
+  archiveReason: string;
+  archiving?: boolean;
+  onArchiveReasonChange: (value: string) => void;
+  onArchive: () => void;
   onClose: () => void;
 }) {
   return (
@@ -1696,10 +1736,60 @@ function TimelineDetailPanel({
         {detail.sourceVersion ? (
           <DetailRow icon="albums-outline" label="Versão" value={String(detail.sourceVersion)} />
         ) : null}
+        {detail.item.archived ? (
+          <>
+            <DetailRow
+              icon="archive-outline"
+              label="Arquivado em"
+              value={formatDateTimeLabel(detail.item.archivedAt ?? undefined)}
+            />
+            {detail.item.archiveReason ? (
+              <DetailRow icon="chatbox-ellipses-outline" label="Motivo" value={detail.item.archiveReason} />
+            ) : null}
+          </>
+        ) : null}
       </View>
       <View style={styles.timelineAccessNote}>
         <Ionicons name="shield-checkmark-outline" size={17} color={UI.darkPrimary} />
         <Text style={styles.timelineAccessText}>{detail.accessNote}</Text>
+      </View>
+      <View style={styles.timelineArchiveBox}>
+        <View style={styles.timelineArchiveHeader}>
+          <Ionicons
+            name={detail.canArchive ? 'archive-outline' : 'lock-closed-outline'}
+            size={17}
+            color={detail.canArchive ? UI.darkPrimary : UI.darkTextMuted}
+          />
+          <Text style={styles.timelineArchiveTitle}>
+            {detail.canArchive ? 'Arquivar evento não oficial' : 'Arquivamento indisponível'}
+          </Text>
+        </View>
+        {detail.canArchive ? (
+          <>
+            <Text style={styles.timelineArchiveText}>
+              Use para tirar ruído da timeline ativa. O evento continua preservado e auditável; prontuário aprovado segue por retificação formal.
+            </Text>
+            <Field
+              appearance="dark"
+              label="Motivo opcional"
+              value={archiveReason}
+              onChangeText={onArchiveReasonChange}
+              placeholder="Ex.: evento duplicado ou registro operacional sem valor clínico"
+            />
+            <PrimaryButton
+              label="Arquivar evento"
+              icon="archive-outline"
+              variant="secondary"
+              loading={archiving}
+              disabled={archiving}
+              onPress={onArchive}
+            />
+          </>
+        ) : (
+          <Text style={styles.timelineArchiveText}>
+            Itens de prontuário aprovado e eventos já arquivados não podem ser removidos pela timeline. Quando houver correção clínica, crie uma retificação.
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -1914,7 +2004,7 @@ function shortId(value: string) {
 }
 
 function isClinicalSuccessMessage(value: string) {
-  return ['salvo', 'salvas', 'carregado', 'carregada', 'criada', 'atualizado', 'iniciada', 'finalizada', 'aprovada']
+  return ['salvo', 'salvas', 'carregado', 'carregada', 'criada', 'atualizado', 'iniciada', 'finalizada', 'aprovada', 'arquivado']
     .some((item) => value.toLowerCase().includes(item));
 }
 
@@ -2747,6 +2837,29 @@ const styles = StyleSheet.create({
   },
   timelineAccessText: {
     flex: 1,
+    color: UI.darkTextMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '400',
+  },
+  timelineArchiveBox: {
+    gap: 10,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(237, 247, 242, 0.08)',
+  },
+  timelineArchiveHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timelineArchiveTitle: {
+    color: UI.darkText,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  timelineArchiveText: {
     color: UI.darkTextMuted,
     fontSize: 12,
     lineHeight: 17,

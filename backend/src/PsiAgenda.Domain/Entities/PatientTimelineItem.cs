@@ -14,6 +14,10 @@ public sealed class PatientTimelineItem
     public required string Summary { get; set; }
     public required string Layer { get; set; }
     public DateTimeOffset OccurredAt { get; set; } = DateTimeOffset.UtcNow;
+    public bool Archived { get; set; }
+    public DateTimeOffset? ArchivedAt { get; set; }
+    public Guid? ArchivedByUserId { get; set; }
+    public string? ArchiveReason { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public Appointment? Appointment { get; set; }
@@ -21,4 +25,5 @@ public sealed class PatientTimelineItem
     public Professional? Professional { get; set; }
     public Space? Space { get; set; }
     public User? CreatedBy { get; set; }
+    public User? ArchivedBy { get; set; }
 }

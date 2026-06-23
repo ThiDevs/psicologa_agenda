@@ -92,6 +92,9 @@ public sealed record PatientTimelineItemDto(
     string Summary,
     string Layer,
     DateTimeOffset OccurredAt,
+    bool Archived,
+    DateTimeOffset? ArchivedAt,
+    string? ArchiveReason,
     DateTimeOffset CreatedAt);
 
 public sealed record PatientTimelineItemDetailDto(
@@ -259,11 +262,15 @@ public sealed record PatientTimelineQuery(
     string? Search,
     int? Limit);
 
+public sealed record ArchiveTimelineItemRequest(
+    string? Reason);
+
 public interface IClinicalService
 {
     Task<ClinicalWorkspaceDto> GetAppointmentWorkspaceAsync(Guid professionalUserId, Guid appointmentId, CancellationToken cancellationToken);
     Task<IReadOnlyList<PatientTimelineItemDto>> GetPatientTimelineAsync(Guid professionalUserId, Guid patientId, PatientTimelineQuery query, CancellationToken cancellationToken);
     Task<PatientTimelineItemDetailDto> GetTimelineItemDetailAsync(Guid professionalUserId, Guid itemId, CancellationToken cancellationToken);
+    Task<PatientTimelineItemDetailDto> ArchiveTimelineItemAsync(Guid professionalUserId, Guid itemId, ArchiveTimelineItemRequest request, CancellationToken cancellationToken);
     Task<PatientCarePortalDto> GetPatientCarePortalAsync(Guid patientUserId, CancellationToken cancellationToken);
     Task<PatientTaskDto> CompletePatientTaskAsync(Guid patientUserId, Guid taskId, CompletePatientTaskRequest request, CancellationToken cancellationToken);
     Task<PatientCheckInDto> RespondPatientCheckInAsync(Guid patientUserId, Guid checkInId, RespondPatientCheckInRequest request, CancellationToken cancellationToken);
