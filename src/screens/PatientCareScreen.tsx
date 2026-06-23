@@ -16,9 +16,11 @@ import {
   completePatientCareTask,
   getApiErrorMessage,
   getPatientCarePortal,
+  respondPatientCheckIn,
   updatePatientPortalConsent,
   type ApiPatientConsentStatus,
   type ApiPatientCarePortal,
+  type ApiPatientCheckIn,
   type ApiPatientPortalConsent,
   type ApiPatientTask,
   type ApiSharedMaterial,
@@ -50,7 +52,10 @@ export function PatientCarePortalScreen() {
   const [portalMessage, setPortalMessage] = useState<string | null>(null);
   const [portalMessageTone, setPortalMessageTone] = useState<'success' | 'warning'>('success');
   const [taskResponses, setTaskResponses] = useState<Record<string, string>>({});
+  const [checkInResponses, setCheckInResponses] = useState<Record<string, string>>({});
+  const [checkInMoodScores, setCheckInMoodScores] = useState<Record<string, number>>({});
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+  const [respondingCheckInId, setRespondingCheckInId] = useState<string | null>(null);
   const [savingConsentKey, setSavingConsentKey] = useState<string | null>(null);
 
   const loadPortal = useCallback(async (showLoading = true) => {
@@ -122,21 +127,56 @@ export function PatientCarePortalScreen() {
     }
   }
 
+  async function respondCheckIn(checkIn: ApiPatientCheckIn) {
+    const moodScore = checkInMoodScores[checkIn.id] ?? 3;
+    const responseText = checkInResponses[checkIn.id]?.trim() || null;
+
+    setRespondingCheckInId(checkIn.id);
+    setPortalMessage(null);
+    setErrorMessage(null);
+
+    try {
+      await respondPatientCheckIn(checkIn.id, { moodScore, responseText });
+      setCheckInResponses((current) => {
+        const next = { ...current };
+        delete next[checkIn.id];
+
+        return next;
+      });
+      setCheckInMoodScores((current) => {
+        const next = { ...current };
+        delete next[checkIn.id];
+
+        return next;
+      });
+      await loadPortal(false);
+      setPortalMessageTone('success');
+      setPortalMessage('Check-in enviado para revisão da sua psicóloga.');
+    } catch (error) {
+      setPortalMessageTone('warning');
+      setPortalMessage(getApiErrorMessage(error));
+    } finally {
+      setRespondingCheckInId(null);
+    }
+  }
+
   useEffect(() => {
     loadPortal();
   }, [loadPortal]);
 
   const tasks = portal?.tasks ?? [];
   const materials = portal?.materials ?? [];
+  const checkIns = portal?.checkIns ?? [];
   const consents = portal?.consents ?? [];
   const openTasks = tasks.filter((task) => task.status !== 'completed');
+  const openCheckIns = checkIns.filter((checkIn) => checkIn.status !== 'answered');
   const grantedConsentCount = consents.filter((consent) => consent.status === 'granted').length;
 
   return (
     <ScreenScaffold>
       <HeaderBar
         title="Meu acompanhamento"
-        subtitle="Tarefas e materiais liberados pela sua psicóloga"
+        subtitle="Tarefas, check-ins e materiais liberados pela sua psicóloga"
         onBack={() => router.back()}
       />
 
@@ -157,7 +197,7 @@ export function PatientCarePortalScreen() {
       {portalMessage ? (
         <InfoStrip
           icon="checkmark-circle-outline"
-          title="Tarefas"
+          title="Acompanhamento"
           text={portalMessage}
           tone={portalMessageTone}
         />
@@ -183,8 +223,8 @@ export function PatientCarePortalScreen() {
         <>
           <View style={styles.summaryGrid}>
             <SummaryTile icon="checkbox-outline" label="Tarefas abertas" value={String(openTasks.length)} />
+            <SummaryTile icon="pulse-outline" label="Check-ins" value={String(openCheckIns.length)} />
             <SummaryTile icon="library-outline" label="Materiais" value={String(materials.length)} />
-            <SummaryTile icon="shield-checkmark-outline" label="Consentimentos" value={`${grantedConsentCount}/${consents.length}`} />
           </View>
 
           <SectionTitle title="Tarefas combinadas" actionLabel={`${tasks.length} itens`} />
@@ -211,6 +251,41 @@ export function PatientCarePortalScreen() {
                 icon="checkbox-outline"
                 title="Sem tarefas abertas"
                 text="Quando uma tarefa for liberada, ela aparecerá aqui."
+              />
+            )}
+          </View>
+
+          <SectionTitle title="Check-ins" actionLabel={`${checkIns.length} itens`} />
+          <View style={styles.card}>
+            {checkIns.length ? (
+              checkIns.map((checkIn, index) => (
+                <PatientCheckInRow
+                  key={checkIn.id}
+                  checkIn={checkIn}
+                  isFirst={index === 0}
+                  moodScore={checkInMoodScores[checkIn.id] ?? 3}
+                  responseText={checkInResponses[checkIn.id] ?? ''}
+                  saving={respondingCheckInId === checkIn.id}
+                  onChangeMoodScore={(value) => {
+                    setCheckInMoodScores((current) => ({
+                      ...current,
+                      [checkIn.id]: value,
+                    }));
+                  }}
+                  onChangeResponse={(value) => {
+                    setCheckInResponses((current) => ({
+                      ...current,
+                      [checkIn.id]: value,
+                    }));
+                  }}
+                  onRespond={() => respondCheckIn(checkIn)}
+                />
+              ))
+            ) : (
+              <EmptyState
+                icon="pulse-outline"
+                title="Sem check-ins abertos"
+                text="Quando sua psicóloga liberar um check-in, ele aparecerá aqui."
               />
             )}
           </View>
@@ -264,7 +339,8 @@ export function PatientCarePortalScreen() {
           <View style={styles.careTimeline}>
             <CareStep icon="calendar-outline" title="Sessão" text="Acompanhe seus horários" done />
             <CareStep icon="checkbox-outline" title="Tarefas" text={openTasks.length ? 'Em andamento' : 'Sem pendências'} current={openTasks.length > 0} />
-            <CareStep icon="library-outline" title="Materiais" text={materials.length ? 'Disponíveis' : 'Aguardando'} current={openTasks.length === 0 && materials.length > 0} />
+            <CareStep icon="pulse-outline" title="Check-ins" text={openCheckIns.length ? 'A responder' : 'Em dia'} current={openTasks.length === 0 && openCheckIns.length > 0} />
+            <CareStep icon="library-outline" title="Materiais" text={materials.length ? 'Disponíveis' : 'Aguardando'} current={openTasks.length === 0 && openCheckIns.length === 0 && materials.length > 0} />
           </View>
         </>
       )}
@@ -360,6 +436,106 @@ function PatientTaskRow({
             onPress={onComplete}
           />
         ) : null}
+      </View>
+    </View>
+  );
+}
+
+function PatientCheckInRow({
+  checkIn,
+  isFirst,
+  moodScore,
+  responseText,
+  saving,
+  onChangeMoodScore,
+  onChangeResponse,
+  onRespond,
+}: {
+  checkIn: ApiPatientCheckIn;
+  isFirst: boolean;
+  moodScore: number;
+  responseText: string;
+  saving: boolean;
+  onChangeMoodScore: (value: number) => void;
+  onChangeResponse: (value: string) => void;
+  onRespond: () => void;
+}) {
+  const answered = checkIn.status === 'answered';
+  const selectedMood = checkIn.moodScore ?? moodScore;
+
+  return (
+    <View style={[styles.listRow, isFirst && styles.listRowFirst]}>
+      <View style={styles.rowIcon}>
+        <Ionicons name={answered ? 'checkmark' : 'pulse-outline'} size={18} color={CARE_COLORS.primary} />
+      </View>
+      <View style={styles.rowCopy}>
+        <View style={styles.rowHeader}>
+          <Text style={styles.rowTitle}>{checkIn.prompt}</Text>
+          <View style={[styles.statusPill, answered && styles.completedPill]}>
+            <Text style={[styles.statusText, answered && styles.completedStatusText]}>
+              {answered ? 'Respondido' : 'Aberto'}
+            </Text>
+          </View>
+        </View>
+        {checkIn.contextNote ? (
+          <Text style={styles.rowText}>{checkIn.contextNote}</Text>
+        ) : null}
+        <Text style={styles.rowMeta}>
+          {answered && checkIn.respondedAt
+            ? `Respondido em ${formatDateLabel(checkIn.respondedAt)}`
+            : checkIn.dueAt
+            ? `Prazo ${formatDateLabel(checkIn.dueAt)}`
+            : 'Sem prazo definido'} · escala de 1 a 5
+        </Text>
+        <View style={styles.moodScale}>
+          {[1, 2, 3, 4, 5].map((value) => {
+            const selected = selectedMood === value;
+
+            return (
+              <Pressable
+                key={value}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                disabled={answered || saving}
+                onPress={() => onChangeMoodScore(value)}
+                style={({ pressed }) => [
+                  styles.moodButton,
+                  selected && styles.moodButtonSelected,
+                  (answered || saving) && styles.moodButtonDisabled,
+                  pressed && styles.pressed,
+                ]}>
+                <Text style={[styles.moodButtonText, selected && styles.moodButtonTextSelected]}>{value}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        {answered ? (
+          <View style={styles.responseBox}>
+            <Text style={styles.responseLabel}>Sua resposta</Text>
+            <Text style={styles.responseText}>Escala emocional: {checkIn.moodScore ?? '-'} de 5</Text>
+            {checkIn.responseText ? <Text style={styles.responseText}>{checkIn.responseText}</Text> : null}
+          </View>
+        ) : (
+          <>
+            <Field
+              label="Observação opcional"
+              value={responseText}
+              multiline
+              maxLength={2000}
+              autoCapitalize="sentences"
+              editable={!saving}
+              style={styles.responseInput}
+              onChangeText={onChangeResponse}
+              placeholder="Escreva algo breve, se quiser."
+            />
+            <PrimaryButton
+              label="Enviar check-in"
+              icon="send-outline"
+              loading={saving}
+              onPress={onRespond}
+            />
+          </>
+        )}
       </View>
     </View>
   );
@@ -740,6 +916,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '400',
+  },
+  moodScale: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    paddingVertical: 3,
+  },
+  moodButton: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: CARE_COLORS.surface,
+  },
+  moodButtonSelected: {
+    borderColor: CARE_COLORS.primary,
+    backgroundColor: CARE_COLORS.primarySoft,
+  },
+  moodButtonDisabled: {
+    opacity: 0.72,
+  },
+  moodButtonText: {
+    color: CARE_COLORS.muted,
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: '600',
+  },
+  moodButtonTextSelected: {
+    color: CARE_COLORS.primary,
   },
   materialPill: {
     backgroundColor: CARE_COLORS.amberSoft,

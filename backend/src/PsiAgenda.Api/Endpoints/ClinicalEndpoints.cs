@@ -36,6 +36,12 @@ public static class ClinicalEndpoints
             .RequireRateLimiting("Sensitive");
         group.MapPost("/materials/{materialId:guid}/unshare", UnshareMaterialAsync)
             .RequireRateLimiting("Sensitive");
+        group.MapPost("/appointments/{appointmentId:guid}/check-ins", CreateAppointmentCheckInAsync)
+            .RequireRateLimiting("Sensitive");
+        group.MapPost("/check-ins/{checkInId:guid}/share", ShareCheckInAsync)
+            .RequireRateLimiting("Sensitive");
+        group.MapPost("/check-ins/{checkInId:guid}/unshare", UnshareCheckInAsync)
+            .RequireRateLimiting("Sensitive");
         group.MapPost("/drafts/{draftId:guid}/approve", ApproveDraftAsync)
             .RequireRateLimiting("Sensitive");
         group.MapPost("/records/{recordId:guid}/rectifications", CreateRecordRectificationDraftAsync)
@@ -45,6 +51,10 @@ public static class ClinicalEndpoints
             .WithTags("Clinical")
             .RequireAuthorization();
         app.MapPost("/api/patients/me/tasks/{taskId:guid}/complete", CompletePatientTaskAsync)
+            .WithTags("Clinical")
+            .RequireAuthorization()
+            .RequireRateLimiting("Sensitive");
+        app.MapPost("/api/patients/me/check-ins/{checkInId:guid}/respond", RespondPatientCheckInAsync)
             .WithTags("Clinical")
             .RequireAuthorization()
             .RequireRateLimiting("Sensitive");
@@ -88,6 +98,22 @@ public static class ClinicalEndpoints
             () => clinicalService.CompletePatientTaskAsync(
                 currentUser.UserIdOrThrow(),
                 taskId,
+                request,
+                cancellationToken),
+            Results.Ok);
+    }
+
+    private static async Task<IResult> RespondPatientCheckInAsync(
+        Guid checkInId,
+        RespondPatientCheckInRequest request,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.RespondPatientCheckInAsync(
+                currentUser.UserIdOrThrow(),
+                checkInId,
                 request,
                 cancellationToken),
             Results.Ok);
@@ -287,6 +313,44 @@ public static class ClinicalEndpoints
     {
         return await ExecuteAsync(
             () => clinicalService.UnshareMaterialAsync(currentUser.UserIdOrThrow(), materialId, cancellationToken),
+            Results.Ok);
+    }
+
+    private static async Task<IResult> CreateAppointmentCheckInAsync(
+        Guid appointmentId,
+        CreatePatientCheckInRequest request,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.CreateAppointmentCheckInAsync(
+                currentUser.UserIdOrThrow(),
+                appointmentId,
+                request,
+                cancellationToken),
+            checkIn => Results.Created($"/api/clinical/appointments/{appointmentId}/check-ins/{checkIn.Id}", checkIn));
+    }
+
+    private static async Task<IResult> ShareCheckInAsync(
+        Guid checkInId,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.ShareCheckInAsync(currentUser.UserIdOrThrow(), checkInId, cancellationToken),
+            Results.Ok);
+    }
+
+    private static async Task<IResult> UnshareCheckInAsync(
+        Guid checkInId,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.UnshareCheckInAsync(currentUser.UserIdOrThrow(), checkInId, cancellationToken),
             Results.Ok);
     }
 

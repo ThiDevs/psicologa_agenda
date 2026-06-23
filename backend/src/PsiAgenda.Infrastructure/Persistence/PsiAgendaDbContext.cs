@@ -36,6 +36,7 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
     public DbSet<TreatmentPlan> TreatmentPlans => Set<TreatmentPlan>();
     public DbSet<PatientTask> PatientTasks => Set<PatientTask>();
     public DbSet<SharedMaterial> SharedMaterials => Set<SharedMaterial>();
+    public DbSet<PatientCheckIn> PatientCheckIns => Set<PatientCheckIn>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -878,6 +879,51 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
             entity.HasOne(material => material.CreatedBy)
                 .WithMany()
                 .HasForeignKey(material => material.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PatientCheckIn>(entity =>
+        {
+            entity.ToTable("patient_check_ins");
+            entity.HasKey(checkIn => checkIn.Id);
+            entity.Property(checkIn => checkIn.Id).HasColumnName("id");
+            entity.Property(checkIn => checkIn.AppointmentId).HasColumnName("appointment_id");
+            entity.Property(checkIn => checkIn.PatientId).HasColumnName("patient_id");
+            entity.Property(checkIn => checkIn.ProfessionalId).HasColumnName("professional_id");
+            entity.Property(checkIn => checkIn.SpaceId).HasColumnName("space_id");
+            entity.Property(checkIn => checkIn.CreatedByUserId).HasColumnName("created_by_user_id");
+            entity.Property(checkIn => checkIn.Prompt).HasColumnName("prompt").HasMaxLength(220).IsRequired();
+            entity.Property(checkIn => checkIn.ContextNote).HasColumnName("context_note").HasMaxLength(1000);
+            entity.Property(checkIn => checkIn.DueAt).HasColumnName("due_at");
+            entity.Property(checkIn => checkIn.Status).HasColumnName("status").HasMaxLength(40).IsRequired();
+            entity.Property(checkIn => checkIn.MoodScore).HasColumnName("mood_score");
+            entity.Property(checkIn => checkIn.ResponseText).HasColumnName("response_text").HasMaxLength(2000);
+            entity.Property(checkIn => checkIn.RespondedAt).HasColumnName("responded_at");
+            entity.Property(checkIn => checkIn.SharedAt).HasColumnName("shared_at");
+            entity.Property(checkIn => checkIn.CreatedAt).HasColumnName("created_at");
+            entity.Property(checkIn => checkIn.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(checkIn => new { checkIn.PatientId, checkIn.ProfessionalId, checkIn.Status });
+            entity.HasIndex(checkIn => new { checkIn.AppointmentId, checkIn.CreatedAt });
+            entity.HasIndex(checkIn => checkIn.SpaceId);
+            entity.HasOne(checkIn => checkIn.Appointment)
+                .WithMany()
+                .HasForeignKey(checkIn => checkIn.AppointmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(checkIn => checkIn.Patient)
+                .WithMany()
+                .HasForeignKey(checkIn => checkIn.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(checkIn => checkIn.Professional)
+                .WithMany()
+                .HasForeignKey(checkIn => checkIn.ProfessionalId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(checkIn => checkIn.Space)
+                .WithMany()
+                .HasForeignKey(checkIn => checkIn.SpaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(checkIn => checkIn.CreatedBy)
+                .WithMany()
+                .HasForeignKey(checkIn => checkIn.CreatedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

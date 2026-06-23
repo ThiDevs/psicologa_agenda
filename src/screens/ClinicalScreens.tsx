@@ -24,6 +24,7 @@ import {
   approveClinicalDraft,
   completeClinicalAppointmentSession,
   createClinicalAppointmentMaterial,
+  createClinicalAppointmentCheckIn,
   createClinicalAppointmentDraft,
   createClinicalAppointmentTask,
   createClinicalRecordRectification,
@@ -31,9 +32,11 @@ import {
   getClinicalAppointmentWorkspace,
   getProfessionalAppointmentDetails,
   shareClinicalMaterial,
+  shareClinicalCheckIn,
   shareClinicalTask,
   startClinicalAppointmentSession,
   unshareClinicalMaterial,
+  unshareClinicalCheckIn,
   unshareClinicalTask,
   updateClinicalAppointmentConsent,
   updateClinicalAppointmentTreatmentPlan,
@@ -43,6 +46,7 @@ import {
   type ApiClinicalWorkspace,
   type ApiPatientConsent,
   type ApiPatientConsentStatus,
+  type ApiPatientCheckIn,
   type ApiPatientTask,
   type ApiPatientTimelineItem,
   type ApiSharedMaterial,
@@ -131,6 +135,7 @@ export function ClinicalIntegrationScreen() {
         <Bullet text="Paciente já vê em Meu acompanhamento apenas tarefas e materiais compartilhados." />
         <Bullet text="Paciente pode concluir tarefas compartilhadas com resposta opcional para revisão da psicóloga." />
         <Bullet text="Paciente pode conceder ou revogar consentimentos não sensíveis no portal." />
+        <Bullet text="Check-ins manuais já podem ser compartilhados e respondidos pelo paciente com consentimento ativo." />
         <Bullet text="Documento de especificação acompanha o status por módulo." />
       </View>
 
@@ -216,6 +221,9 @@ export function ClinicalPatientWorkspaceScreen() {
   const [materialTitle, setMaterialTitle] = useState('');
   const [materialDescription, setMaterialDescription] = useState('');
   const [materialUrl, setMaterialUrl] = useState('');
+  const [checkInPrompt, setCheckInPrompt] = useState('');
+  const [checkInContextNote, setCheckInContextNote] = useState('');
+  const [checkInDueAt, setCheckInDueAt] = useState('');
 
   const hydrateTreatmentPlan = useCallback((plan: ApiTreatmentPlan) => {
     setPlanStatus(toTreatmentPlanStatus(plan.status));
@@ -299,7 +307,11 @@ export function ClinicalPatientWorkspaceScreen() {
   const treatmentPlan = workspace?.treatmentPlan ?? null;
   const patientTasks = workspace?.tasks ?? [];
   const sharedMaterials = workspace?.materials ?? [];
-  const sharedPortalItemsCount = patientTasks.filter(isSharedStatus).length + sharedMaterials.filter(isSharedStatus).length;
+  const patientCheckIns = workspace?.checkIns ?? [];
+  const sharedPortalItemsCount =
+    patientTasks.filter(isPatientVisibleStatus).length +
+    sharedMaterials.filter(isPatientVisibleStatus).length +
+    patientCheckIns.filter(isPatientVisibleStatus).length;
   const consentRows = useMemo(() => buildConsentRows(workspace?.consents), [workspace?.consents]);
   const grantedConsentCount = consentRows.filter((consent) => consent.status === 'granted').length;
 
@@ -578,6 +590,59 @@ export function ClinicalPatientWorkspaceScreen() {
       } else {
         await unshareClinicalMaterial(material.id);
         await refreshWorkspaceWithMessage('Material recolhido do portal do paciente.');
+      }
+    } catch (error) {
+      setClinicalMessage(getApiErrorMessage(error));
+    } finally {
+      setSavingShareableAction(null);
+    }
+  }
+
+  async function createPatientCheckIn() {
+    if (!appointmentId) {
+      setClinicalMessage('Abra a tela a partir de um atendimento para criar check-ins.');
+      return;
+    }
+
+    let dueAt: string | null;
+    try {
+      dueAt = normalizeOptionalDateInput(checkInDueAt);
+    } catch (error) {
+      setClinicalMessage(error instanceof Error ? error.message : 'Informe um prazo válido.');
+      return;
+    }
+
+    setSavingShareableAction('create-checkin');
+    setClinicalMessage(null);
+
+    try {
+      await createClinicalAppointmentCheckIn(appointmentId, {
+        prompt: checkInPrompt,
+        contextNote: nullableText(checkInContextNote),
+        dueAt,
+      });
+      setCheckInPrompt('');
+      setCheckInContextNote('');
+      setCheckInDueAt('');
+      await refreshWorkspaceWithMessage('Check-in criado como privado. Compartilhe somente com consentimento ativo de check-ins.');
+    } catch (error) {
+      setClinicalMessage(getApiErrorMessage(error));
+    } finally {
+      setSavingShareableAction(null);
+    }
+  }
+
+  async function updateCheckInSharing(checkIn: ApiPatientCheckIn, action: 'share' | 'unshare') {
+    setSavingShareableAction(`${action}-checkin-${checkIn.id}`);
+    setClinicalMessage(null);
+
+    try {
+      if (action === 'share') {
+        await shareClinicalCheckIn(checkIn.id);
+        await refreshWorkspaceWithMessage('Check-in compartilhado no portal do paciente.');
+      } else {
+        await unshareClinicalCheckIn(checkIn.id);
+        await refreshWorkspaceWithMessage('Check-in recolhido do portal do paciente.');
       }
     } catch (error) {
       setClinicalMessage(getApiErrorMessage(error));
@@ -936,12 +1001,12 @@ export function ClinicalPatientWorkspaceScreen() {
 
       <SectionTitle
         appearance="dark"
-        title="Tarefas e materiais do portal"
-        actionLabel={`${sharedPortalItemsCount} compartilhados`}
+        title="Portal do paciente"
+        actionLabel={`${sharedPortalItemsCount} visíveis`}
       />
       <View style={styles.card}>
         <Text style={styles.cardText}>
-          Itens nascem privados para revisão da psicóloga. O paciente só vê uma tarefa ou material após a ação explícita de compartilhar e com consentimento ativo.
+          Itens nascem privados para revisão da psicóloga. O paciente só vê tarefas, materiais ou check-ins após a ação explícita de compartilhar e com consentimento ativo.
         </Text>
 
         <View style={styles.shareableBlock}>
@@ -1078,6 +1143,52 @@ export function ClinicalPatientWorkspaceScreen() {
         <View style={styles.shareableDivider} />
 
         <View style={styles.shareableBlock}>
+          <Text style={styles.kicker}>Novo check-in privado</Text>
+          <Field
+            appearance="dark"
+            label="Pergunta"
+            value={checkInPrompt}
+            onChangeText={setCheckInPrompt}
+            placeholder="Ex.: Como ficou sua ansiedade desde a última sessão?"
+          />
+          <Field
+            appearance="dark"
+            label="Contexto opcional"
+            value={checkInContextNote}
+            multiline
+            style={styles.shareableTextArea}
+            onChangeText={setCheckInContextNote}
+            placeholder="Orientação breve para o paciente responder sem pressão."
+          />
+          <Field
+            appearance="dark"
+            label="Prazo opcional"
+            value={checkInDueAt}
+            onChangeText={setCheckInDueAt}
+            placeholder="Ex.: 2026-07-01T15:00:00Z"
+          />
+          <View style={styles.shareablePreview}>
+            <Text style={styles.shareablePreviewLabel}>Prévia para paciente</Text>
+            <Text style={styles.shareablePreviewTitle}>{checkInPrompt.trim() || 'Pergunta do check-in'}</Text>
+            <Text style={styles.cardText}>
+              {checkInContextNote.trim() || 'O paciente responderá com uma escala de 1 a 5 e uma observação opcional.'}
+            </Text>
+            <Text style={styles.mutedText}>
+              {checkInDueAt.trim() ? `Prazo: ${checkInDueAt.trim()}` : 'Sem prazo definido'} · Resposta revisada pela psicóloga
+            </Text>
+          </View>
+          <PrimaryButton
+            label="Criar check-in privado"
+            icon="pulse-outline"
+            loading={savingShareableAction === 'create-checkin'}
+            disabled={!appointmentId || !checkInPrompt.trim() || Boolean(savingShareableAction)}
+            onPress={createPatientCheckIn}
+          />
+        </View>
+
+        <View style={styles.shareableDivider} />
+
+        <View style={styles.shareableBlock}>
           <Text style={styles.kicker}>Tarefas cadastradas</Text>
           {patientTasks.length ? (
             patientTasks.map((task) => (
@@ -1178,6 +1289,63 @@ export function ClinicalPatientWorkspaceScreen() {
             ))
           ) : (
             <Text style={styles.mutedText}>Nenhum material privado ou compartilhado ainda.</Text>
+          )}
+        </View>
+
+        <View style={styles.shareableBlock}>
+          <Text style={styles.kicker}>Check-ins cadastrados</Text>
+          {patientCheckIns.length ? (
+            patientCheckIns.map((checkIn) => (
+              <View key={checkIn.id} style={styles.shareableItem}>
+                <View style={styles.shareableHeader}>
+                  <View style={styles.shareableTitleRow}>
+                    <Ionicons name="pulse-outline" size={17} color={UI.darkPrimary} />
+                    <Text style={styles.cardTitle}>{checkIn.prompt}</Text>
+                  </View>
+                  <View style={[styles.shareablePill, shareableStatusPillStyle(checkIn.status)]}>
+                    <Text style={[styles.shareablePillText, { color: shareableStatusColor(checkIn.status) }]}>
+                      {shareableStatusLabel(checkIn.status)}
+                    </Text>
+                  </View>
+                </View>
+                {checkIn.contextNote ? <Text style={styles.cardText}>{checkIn.contextNote}</Text> : null}
+                {checkIn.status === 'answered' ? (
+                  <View style={styles.shareableResponseBox}>
+                    <Text style={styles.shareablePreviewLabel}>Resposta do paciente</Text>
+                    <Text style={styles.cardText}>Escala emocional: {checkIn.moodScore ?? '-'} de 5</Text>
+                    {checkIn.responseText ? <Text selectable style={styles.cardText}>{checkIn.responseText}</Text> : null}
+                    {checkIn.respondedAt ? (
+                      <Text style={styles.mutedText}>{formatDateTimeLabel(checkIn.respondedAt)}</Text>
+                    ) : null}
+                  </View>
+                ) : null}
+                <Text style={styles.mutedText}>
+                  {checkIn.dueAt ? `Prazo ${formatDateTimeLabel(checkIn.dueAt)}` : 'Sem prazo'} · {checkIn.sharedAt ? `compartilhado em ${formatDateTimeLabel(checkIn.sharedAt)}` : 'privado'}
+                </Text>
+                <View style={styles.shareableActions}>
+                  {isSharedStatus(checkIn) ? (
+                    <ShareableActionButton
+                      label="Recolher"
+                      icon="lock-closed-outline"
+                      loading={savingShareableAction === `unshare-checkin-${checkIn.id}`}
+                      disabled={Boolean(savingShareableAction)}
+                      onPress={() => updateCheckInSharing(checkIn, 'unshare')}
+                    />
+                  ) : (
+                    <ShareableActionButton
+                      label="Compartilhar"
+                      icon="share-social-outline"
+                      primary
+                      loading={savingShareableAction === `share-checkin-${checkIn.id}`}
+                      disabled={isClosedShareable(checkIn.status) || Boolean(savingShareableAction)}
+                      onPress={() => updateCheckInSharing(checkIn, 'share')}
+                    />
+                  )}
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.mutedText}>Nenhum check-in privado ou compartilhado ainda.</Text>
           )}
         </View>
       </View>
@@ -1489,14 +1657,20 @@ function normalizeOptionalDateInput(value: string) {
   return parsed.toISOString();
 }
 
-function isSharedStatus(item: ApiPatientTask | ApiSharedMaterial | string) {
+function isSharedStatus(item: ApiPatientTask | ApiSharedMaterial | ApiPatientCheckIn | string) {
   const status = typeof item === 'string' ? item : item.status;
 
   return status === 'shared';
 }
 
+function isPatientVisibleStatus(item: ApiPatientTask | ApiSharedMaterial | ApiPatientCheckIn | string) {
+  const status = typeof item === 'string' ? item : item.status;
+
+  return status === 'shared' || status === 'completed' || status === 'answered';
+}
+
 function isClosedShareable(status: string) {
-  return status === 'completed' || status === 'archived';
+  return status === 'completed' || status === 'answered' || status === 'archived';
 }
 
 function shareableStatusLabel(status: string) {
@@ -1505,6 +1679,8 @@ function shareableStatusLabel(status: string) {
       return 'Compartilhado';
     case 'completed':
       return 'Concluído';
+    case 'answered':
+      return 'Respondido';
     case 'archived':
       return 'Arquivado';
     case 'private':
@@ -1520,6 +1696,8 @@ function shareableStatusColor(status: string) {
       return UI.darkPrimary;
     case 'completed':
       return '#F3C969';
+    case 'answered':
+      return '#F3C969';
     case 'archived':
       return '#EAA0A0';
     case 'private':
@@ -1533,6 +1711,7 @@ function shareableStatusPillStyle(status: string) {
     case 'shared':
       return styles.shareablePillShared;
     case 'completed':
+    case 'answered':
       return styles.shareablePillCompleted;
     case 'archived':
       return styles.shareablePillArchived;

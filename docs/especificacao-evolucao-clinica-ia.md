@@ -1579,6 +1579,8 @@ Atualizacao da decima entrega: o paciente agora pode concluir uma tarefa compart
 
 Atualizacao da decima primeira entrega: o paciente agora ve consentimentos do proprio acompanhamento em `/patient-care` e pode conceder ou revogar diretamente `portal`, `materials`, `checkins` e `notifications` por `POST /api/patients/me/consents/{professionalId}/{consentType}`. O backend valida conta de paciente ativa, vinculo por atendimento com a profissional e bloqueia consentimentos sensiveis (`ai_analysis`, `recording`, `transcription`) nesse fluxo simples. A atualizacao cria memoria/timeline e auditoria sem copiar conteudo clinico para metadata. Ainda nao existe fluxo especifico para consentimentos sensiveis de IA, gravacao ou transcricao, reabertura/edicao de tarefa, check-ins, alertas, exportacao ou gravacao/transcricao.
 
+Atualizacao da decima segunda entrega: o backend agora possui `PatientCheckIn`, persistido por paciente/profissional e criado como privado por `POST /api/clinical/appointments/{appointmentId}/check-ins`. A psicologa pode compartilhar ou recolher check-ins por endpoints explicitos, com validacao de consentimentos `portal` e `checkins`. O paciente ve check-ins compartilhados em `/patient-care` e responde por `POST /api/patients/me/check-ins/{checkInId}/respond`, usando escala de 1 a 5 e observacao opcional. A resposta cria memoria privada para revisao da psicologa e auditoria sem copiar a resposta para metadata. Ainda nao existe agenda recorrente de check-ins, templates editaveis, graficos longitudinais, alertas, IA, exportacao ou gravacao/transcricao.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1601,6 +1603,7 @@ Arquivos criados ou alterados:
 - `backend/src/PsiAgenda.Domain/Entities/TreatmentPlan.cs`
 - `backend/src/PsiAgenda.Domain/Entities/PatientTask.cs`
 - `backend/src/PsiAgenda.Domain/Entities/SharedMaterial.cs`
+- `backend/src/PsiAgenda.Domain/Entities/PatientCheckIn.cs`
 - `backend/src/PsiAgenda.Infrastructure/Services/ClinicalService.cs`
 - `backend/src/PsiAgenda.Api/Endpoints/ClinicalEndpoints.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623013000_AddClinicalWorkspaceTables.cs`
@@ -1611,6 +1614,7 @@ Arquivos criados ou alterados:
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623050000_AddTreatmentPlans.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623053000_AddPatientShareables.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623060000_AddPatientTaskResponses.cs`
+- `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623063000_AddPatientCheckIns.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/PsiAgendaDbContext.cs`
 - `backend/src/PsiAgenda.Infrastructure/DependencyInjection.cs`
 - `backend/src/PsiAgenda.Api/Program.cs`
@@ -1663,13 +1667,18 @@ Feito agora:
 44. Paciente pode conceder ou revogar `portal`, `materials`, `checkins` e `notifications` por `POST /api/patients/me/consents/{professionalId}/{consentType}`.
 45. O portal bloqueia consentimentos sensiveis de IA, gravacao e transcricao nesse fluxo direto.
 46. Atualizacao de consentimento pelo paciente cria memoria e auditoria sem conteudo clinico sensivel no metadata.
+47. `PatientCheckIn` e persistido por paciente/profissional e carregado no workspace clinico.
+48. Psicologa pode criar check-in privado, revisar a previa e compartilhar ou recolher por endpoints explicitos.
+49. Compartilhar check-in exige consentimento ativo para portal e check-ins.
+50. Paciente pode responder check-in compartilhado por `POST /api/patients/me/check-ins/{checkInId}/respond`.
+51. Resposta de check-in cria memoria privada na timeline e auditoria sem armazenar resposta no metadata.
 
 Falta para virar produto clinico real:
 
 1. Criar fluxo juridicamente revisado para consentimentos sensiveis de IA, gravacao e transcricao.
 2. Implementar exportacao de evolucoes aprovadas sem expor camadas indevidas.
 3. Implementar permissao clinica por vinculo paciente-profissional.
-4. Criar reabertura/edicao de tarefas, materiais completos e check-ins.
+4. Criar reabertura/edicao de tarefas, materiais completos e agenda recorrente de check-ins.
 5. Conectar IA somente depois de consentimento e minimizacao de dados.
 6. Criar historico completo e politicas de retencao/revogacao de consentimentos.
 7. Criar motor de alertas responsaveis com revisao humana.
@@ -1687,8 +1696,8 @@ Status por modulo:
 | Plano terapeutico vivo | Parcial | `TreatmentPlan` persistido e editavel no workspace clinico | Historico versionado, revisao periodica e sugestoes por IA |
 | Preparacao da proxima sessao | Parcial | Card de briefing conceitual | Job automatico, fontes reais e arquivamento |
 | Separar rascunho, prontuario e memoria | Parcial | Rascunho, memoria, prontuario aprovado e retificacao versionada aparecem como camadas separadas | Exportacao seletiva e politicas de retencao |
-| Portal do paciente com cuidado | Parcial | Tarefas e materiais privados no workspace, previa antes de compartilhar, share/unshare com consentimento, `/patient-care` para itens liberados, conclusao/resposta de tarefa e consentimento direto nao sensivel | Reabertura/edicao de tarefas, check-ins e historico de visualizacao |
-| Check-ins entre sessoes | Pendente | Templates e fluxo especificados | Agenda, respostas, graficos e tendencias |
+| Portal do paciente com cuidado | Parcial | Tarefas, materiais e check-ins privados no workspace; previa antes de compartilhar; share/unshare com consentimento; `/patient-care` para itens liberados, conclusao/resposta de tarefa, resposta de check-in e consentimento direto nao sensivel | Reabertura/edicao de tarefas, historico de visualizacao e refinamento de materiais |
+| Check-ins entre sessoes | Parcial | `PatientCheckIn` persistido, compartilhamento com consentimento e resposta pelo portal com escala/observacao | Agenda recorrente, templates editaveis, graficos e tendencias |
 | Alertas responsaveis | Pendente | Linguagem e estados especificados | Motor de alertas, painel e auditoria de revisao |
 | Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, shareables com consentimento, consentimento direto nao sensivel no portal e auditoria sem conteudo clinico | Consentimentos sensiveis para IA/gravacao/transcricao, politicas de retencao, criptografia de campos sensiveis e exportacao controlada |
 

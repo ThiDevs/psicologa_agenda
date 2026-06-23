@@ -13,12 +13,14 @@ public sealed record ClinicalWorkspaceDto(
     TreatmentPlanDto TreatmentPlan,
     IReadOnlyList<PatientTaskDto> Tasks,
     IReadOnlyList<SharedMaterialDto> Materials,
+    IReadOnlyList<PatientCheckInDto> CheckIns,
     IReadOnlyList<PatientTimelineItemDto> Timeline);
 
 public sealed record PatientCarePortalDto(
     Guid PatientId,
     IReadOnlyList<PatientTaskDto> Tasks,
     IReadOnlyList<SharedMaterialDto> Materials,
+    IReadOnlyList<PatientCheckInDto> CheckIns,
     IReadOnlyList<PatientPortalConsentDto> Consents);
 
 public sealed record ClinicalSessionDto(
@@ -167,6 +169,23 @@ public sealed record SharedMaterialDto(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
+public sealed record PatientCheckInDto(
+    Guid Id,
+    Guid? AppointmentId,
+    Guid PatientId,
+    Guid ProfessionalId,
+    Guid SpaceId,
+    string Prompt,
+    string? ContextNote,
+    DateTimeOffset? DueAt,
+    string Status,
+    int? MoodScore,
+    string? ResponseText,
+    DateTimeOffset? RespondedAt,
+    DateTimeOffset? SharedAt,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
 public sealed record ClinicalTagInput(
     string Label,
     string Tone);
@@ -211,11 +230,21 @@ public sealed record CreateSharedMaterialRequest(
     string? Description,
     string? Url);
 
+public sealed record CreatePatientCheckInRequest(
+    string Prompt,
+    string? ContextNote,
+    DateTimeOffset? DueAt);
+
+public sealed record RespondPatientCheckInRequest(
+    int MoodScore,
+    string? ResponseText);
+
 public interface IClinicalService
 {
     Task<ClinicalWorkspaceDto> GetAppointmentWorkspaceAsync(Guid professionalUserId, Guid appointmentId, CancellationToken cancellationToken);
     Task<PatientCarePortalDto> GetPatientCarePortalAsync(Guid patientUserId, CancellationToken cancellationToken);
     Task<PatientTaskDto> CompletePatientTaskAsync(Guid patientUserId, Guid taskId, CompletePatientTaskRequest request, CancellationToken cancellationToken);
+    Task<PatientCheckInDto> RespondPatientCheckInAsync(Guid patientUserId, Guid checkInId, RespondPatientCheckInRequest request, CancellationToken cancellationToken);
     Task<PatientPortalConsentDto> UpdatePatientPortalConsentAsync(Guid patientUserId, Guid professionalId, string consentType, UpdatePatientConsentRequest request, CancellationToken cancellationToken);
     Task<ClinicalDraftDto> CreateAppointmentDraftAsync(Guid professionalUserId, Guid appointmentId, CreateClinicalDraftRequest request, CancellationToken cancellationToken);
     Task<ClinicalDraftDto> CreateRecordRectificationDraftAsync(Guid professionalUserId, Guid recordId, CancellationToken cancellationToken);
@@ -229,6 +258,9 @@ public interface IClinicalService
     Task<SharedMaterialDto> CreateAppointmentMaterialAsync(Guid professionalUserId, Guid appointmentId, CreateSharedMaterialRequest request, CancellationToken cancellationToken);
     Task<SharedMaterialDto> ShareMaterialAsync(Guid professionalUserId, Guid materialId, CancellationToken cancellationToken);
     Task<SharedMaterialDto> UnshareMaterialAsync(Guid professionalUserId, Guid materialId, CancellationToken cancellationToken);
+    Task<PatientCheckInDto> CreateAppointmentCheckInAsync(Guid professionalUserId, Guid appointmentId, CreatePatientCheckInRequest request, CancellationToken cancellationToken);
+    Task<PatientCheckInDto> ShareCheckInAsync(Guid professionalUserId, Guid checkInId, CancellationToken cancellationToken);
+    Task<PatientCheckInDto> UnshareCheckInAsync(Guid professionalUserId, Guid checkInId, CancellationToken cancellationToken);
     Task<ClinicalSessionDto> StartAppointmentSessionAsync(Guid professionalUserId, Guid appointmentId, CancellationToken cancellationToken);
     Task<ClinicalSessionDto> CompleteAppointmentSessionAsync(Guid professionalUserId, Guid appointmentId, CancellationToken cancellationToken);
 }

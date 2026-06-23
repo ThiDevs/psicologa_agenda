@@ -422,6 +422,24 @@ export type ApiSharedMaterial = {
   updatedAt: string;
 };
 
+export type ApiPatientCheckIn = {
+  id: string;
+  appointmentId?: string | null;
+  patientId: string;
+  professionalId: string;
+  spaceId: string;
+  prompt: string;
+  contextNote?: string | null;
+  dueAt?: string | null;
+  status: ApiShareableStatus | 'answered' | string;
+  moodScore?: number | null;
+  responseText?: string | null;
+  respondedAt?: string | null;
+  sharedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ApiClinicalWorkspace = {
   appointmentId: string;
   patientId: string;
@@ -435,6 +453,7 @@ export type ApiClinicalWorkspace = {
   treatmentPlan: ApiTreatmentPlan;
   tasks: ApiPatientTask[];
   materials: ApiSharedMaterial[];
+  checkIns: ApiPatientCheckIn[];
   timeline: ApiPatientTimelineItem[];
 };
 
@@ -442,6 +461,7 @@ export type ApiPatientCarePortal = {
   patientId: string;
   tasks: ApiPatientTask[];
   materials: ApiSharedMaterial[];
+  checkIns: ApiPatientCheckIn[];
   consents: ApiPatientPortalConsent[];
 };
 
@@ -953,6 +973,17 @@ export async function completePatientCareTask(taskId: string, input: {
   });
 }
 
+export async function respondPatientCheckIn(checkInId: string, input: {
+  moodScore: number;
+  responseText?: string | null;
+}) {
+  return request<ApiPatientCheckIn>(`/patients/me/check-ins/${checkInId}/respond`, {
+    method: 'POST',
+    authenticated: true,
+    body: input,
+  });
+}
+
 export async function cancelCustomerAppointment(appointmentId: string, reason?: string) {
   return request<ApiAppointment>(`/customers/me/appointments/${appointmentId}/cancel`, {
     method: 'POST',
@@ -1153,6 +1184,32 @@ export async function shareClinicalMaterial(materialId: string) {
 
 export async function unshareClinicalMaterial(materialId: string) {
   return request<ApiSharedMaterial>(`/clinical/materials/${materialId}/unshare`, {
+    method: 'POST',
+    authenticated: true,
+  });
+}
+
+export async function createClinicalAppointmentCheckIn(appointmentId: string, input: {
+  prompt: string;
+  contextNote?: string | null;
+  dueAt?: string | null;
+}) {
+  return request<ApiPatientCheckIn>(`/clinical/appointments/${appointmentId}/check-ins`, {
+    method: 'POST',
+    authenticated: true,
+    body: input,
+  });
+}
+
+export async function shareClinicalCheckIn(checkInId: string) {
+  return request<ApiPatientCheckIn>(`/clinical/check-ins/${checkInId}/share`, {
+    method: 'POST',
+    authenticated: true,
+  });
+}
+
+export async function unshareClinicalCheckIn(checkInId: string) {
+  return request<ApiPatientCheckIn>(`/clinical/check-ins/${checkInId}/unshare`, {
     method: 'POST',
     authenticated: true,
   });

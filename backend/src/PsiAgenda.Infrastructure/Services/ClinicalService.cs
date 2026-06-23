@@ -64,6 +64,13 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         "completed",
         "archived"
     };
+    private static readonly HashSet<string> AllowedCheckInStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "private",
+        "shared",
+        "answered",
+        "archived"
+    };
     private static readonly HashSet<string> AllowedMaterialTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "text",
@@ -113,6 +120,14 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             .OrderByDescending(material => material.CreatedAt)
             .Take(20)
             .ToListAsync(cancellationToken);
+        var checkIns = await dbContext.PatientCheckIns
+            .AsNoTracking()
+            .Where(checkIn =>
+                checkIn.PatientId == appointment.CustomerId &&
+                checkIn.ProfessionalId == appointment.ProfessionalId)
+            .OrderByDescending(checkIn => checkIn.CreatedAt)
+            .Take(20)
+            .ToListAsync(cancellationToken);
         var timeline = await dbContext.PatientTimelineItems
             .AsNoTracking()
             .Where(item =>
@@ -144,6 +159,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             treatmentPlan,
             tasks.Select(ToDto).ToList(),
             materials.Select(ToDto).ToList(),
+            checkIns.Select(ToDto).ToList(),
             timeline.Select(ToDto).ToList());
     }
 
@@ -195,9 +211,34 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             .Take(50)
             .ToListAsync(cancellationToken);
 
+        var checkIns = await dbContext.PatientCheckIns
+            .AsNoTracking()
+            .Where(checkIn =>
+                checkIn.PatientId == patientUserId &&
+                (checkIn.Status == "shared" || checkIn.Status == "answered") &&
+                dbContext.PatientConsents.Any(consent =>
+                    consent.PatientId == checkIn.PatientId &&
+                    consent.ProfessionalId == checkIn.ProfessionalId &&
+                    consent.ConsentType == "portal" &&
+                    consent.Status == "granted" &&
+                    (consent.ExpiresAt == null || consent.ExpiresAt > now)) &&
+                dbContext.PatientConsents.Any(consent =>
+                    consent.PatientId == checkIn.PatientId &&
+                    consent.ProfessionalId == checkIn.ProfessionalId &&
+                    consent.ConsentType == "checkins" &&
+                    consent.Status == "granted" &&
+                    (consent.ExpiresAt == null || consent.ExpiresAt > now)))
+            .OrderBy(checkIn => checkIn.Status == "answered")
+            .ThenBy(checkIn => checkIn.DueAt == null)
+            .ThenBy(checkIn => checkIn.DueAt)
+            .ThenByDescending(checkIn => checkIn.SharedAt ?? checkIn.CreatedAt)
+            .Take(50)
+            .ToListAsync(cancellationToken);
+
         var auditedSpaceIds = tasks
             .Select(task => task.SpaceId)
             .Concat(materials.Select(material => material.SpaceId))
+            .Concat(checkIns.Select(checkIn => checkIn.SpaceId))
             .Concat(consentRelationships.Select(relationship => relationship.SpaceId))
             .Distinct()
             .ToList();
@@ -222,6 +263,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             patientUserId,
             tasks.Select(ToDto).ToList(),
             materials.Select(ToDto).ToList(),
+            checkIns.Select(ToDto).ToList(),
             consents);
     }
 
@@ -293,6 +335,80 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return ToDto(task);
+    }
+
+    public async Task<PatientCheckInDto> RespondPatientCheckInAsync(
+        Guid patientUserId,
+        Guid checkInId,
+        RespondPatientCheckInRequest request,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePatientUserAsync(patientUserId, cancellationToken);
+        var checkIn = await dbContext.PatientCheckIns
+            .FirstOrDefaultAsync(item => item.Id == checkInId && item.PatientId == patientUserId, cancellationToken);
+
+        if (checkIn is null)
+        {
+            throw new KeyNotFoundException("Check-in não encontrado no seu acompanhamento.");
+        }
+
+        if (checkIn.Status != "shared")
+        {
+            throw new InvalidOperationException("Apenas check-ins abertos podem receber resposta pelo portal.");
+        }
+
+        if (request.MoodScore is < 1 or > 5)
+        {
+            throw new InvalidOperationException("O check-in precisa de uma escala entre 1 e 5.");
+        }
+
+        await EnsureConsentGrantedAsync(
+            checkIn.PatientId,
+            checkIn.ProfessionalId,
+            "portal",
+            "Responder check-in exige consentimento ativo para o portal do paciente.",
+            cancellationToken);
+        await EnsureConsentGrantedAsync(
+            checkIn.PatientId,
+            checkIn.ProfessionalId,
+            "checkins",
+            "Responder check-in exige consentimento ativo para check-ins.",
+            cancellationToken);
+
+        var responseText = NormalizeOptionalText(request.ResponseText, 2000, "Resposta do check-in");
+        var now = DateTimeOffset.UtcNow;
+        checkIn.Status = "answered";
+        checkIn.MoodScore = request.MoodScore;
+        checkIn.ResponseText = responseText;
+        checkIn.RespondedAt = now;
+        checkIn.UpdatedAt = now;
+
+        dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+        {
+            AppointmentId = checkIn.AppointmentId,
+            PatientId = checkIn.PatientId,
+            ProfessionalId = checkIn.ProfessionalId,
+            SpaceId = checkIn.SpaceId,
+            CreatedByUserId = patientUserId,
+            SourceType = "checkin_response",
+            SourceId = checkIn.Id,
+            Title = "Check-in respondido",
+            Summary = "Paciente respondeu um check-in de acompanhamento para revisão da psicóloga.",
+            Layer = "memoria",
+            OccurredAt = now,
+            CreatedAt = now
+        });
+        await AddClinicalAuditAsync(
+            patientUserId,
+            checkIn.SpaceId,
+            "patient.checkin.responded",
+            nameof(PatientCheckIn),
+            checkIn.Id,
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(checkIn);
     }
 
     public async Task<PatientPortalConsentDto> UpdatePatientPortalConsentAsync(
@@ -1173,6 +1289,157 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         return ToDto(material);
     }
 
+    public async Task<PatientCheckInDto> CreateAppointmentCheckInAsync(
+        Guid professionalUserId,
+        Guid appointmentId,
+        CreatePatientCheckInRequest request,
+        CancellationToken cancellationToken)
+    {
+        var appointment = await EnsureProfessionalAppointmentAsync(professionalUserId, appointmentId, cancellationToken);
+        var now = DateTimeOffset.UtcNow;
+        var checkIn = new PatientCheckIn
+        {
+            AppointmentId = appointment.Id,
+            PatientId = appointment.CustomerId,
+            ProfessionalId = appointment.ProfessionalId,
+            SpaceId = appointment.SpaceId,
+            CreatedByUserId = professionalUserId,
+            Prompt = ValidateText(request.Prompt, "Pergunta do check-in", 3, 220),
+            ContextNote = NormalizeOptionalText(request.ContextNote, 1000, "Contexto do check-in"),
+            DueAt = NormalizeFutureDate(request.DueAt, "Prazo do check-in"),
+            Status = "private",
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        dbContext.PatientCheckIns.Add(checkIn);
+        dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+        {
+            AppointmentId = appointment.Id,
+            PatientId = appointment.CustomerId,
+            ProfessionalId = appointment.ProfessionalId,
+            SpaceId = appointment.SpaceId,
+            CreatedByUserId = professionalUserId,
+            SourceType = "checkin",
+            SourceId = checkIn.Id,
+            Title = "Check-in privado criado",
+            Summary = "Check-in preparado pela psicóloga. Ainda não foi compartilhado com o paciente.",
+            Layer = "memoria",
+            OccurredAt = now,
+            CreatedAt = now
+        });
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            appointment.SpaceId,
+            "clinical.checkin.created",
+            nameof(PatientCheckIn),
+            checkIn.Id,
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(checkIn);
+    }
+
+    public async Task<PatientCheckInDto> ShareCheckInAsync(
+        Guid professionalUserId,
+        Guid checkInId,
+        CancellationToken cancellationToken)
+    {
+        var professional = await GetLinkedProfessionalAsync(professionalUserId, cancellationToken);
+        var checkIn = await dbContext.PatientCheckIns
+            .FirstOrDefaultAsync(item => item.Id == checkInId, cancellationToken);
+
+        if (checkIn is null || checkIn.ProfessionalId != professional.Id)
+        {
+            throw new KeyNotFoundException("Check-in clínico não encontrado.");
+        }
+
+        EnsureCheckInCanChange(checkIn.Status);
+        await EnsureConsentGrantedAsync(checkIn.PatientId, checkIn.ProfessionalId, "portal", "Compartilhar check-in exige consentimento ativo para o portal do paciente.", cancellationToken);
+        await EnsureConsentGrantedAsync(checkIn.PatientId, checkIn.ProfessionalId, "checkins", "Compartilhar check-in exige consentimento ativo para check-ins.", cancellationToken);
+
+        var now = DateTimeOffset.UtcNow;
+        checkIn.Status = "shared";
+        checkIn.SharedAt ??= now;
+        checkIn.UpdatedAt = now;
+
+        dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+        {
+            AppointmentId = checkIn.AppointmentId,
+            PatientId = checkIn.PatientId,
+            ProfessionalId = checkIn.ProfessionalId,
+            SpaceId = checkIn.SpaceId,
+            CreatedByUserId = professionalUserId,
+            SourceType = "checkin",
+            SourceId = checkIn.Id,
+            Title = "Check-in compartilhado",
+            Summary = "Check-in liberado pela psicóloga para resposta do paciente no portal.",
+            Layer = "compartilhado",
+            OccurredAt = now,
+            CreatedAt = now
+        });
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            checkIn.SpaceId,
+            "clinical.checkin.shared",
+            nameof(PatientCheckIn),
+            checkIn.Id,
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(checkIn);
+    }
+
+    public async Task<PatientCheckInDto> UnshareCheckInAsync(
+        Guid professionalUserId,
+        Guid checkInId,
+        CancellationToken cancellationToken)
+    {
+        var professional = await GetLinkedProfessionalAsync(professionalUserId, cancellationToken);
+        var checkIn = await dbContext.PatientCheckIns
+            .FirstOrDefaultAsync(item => item.Id == checkInId, cancellationToken);
+
+        if (checkIn is null || checkIn.ProfessionalId != professional.Id)
+        {
+            throw new KeyNotFoundException("Check-in clínico não encontrado.");
+        }
+
+        EnsureCheckInCanChange(checkIn.Status);
+        var now = DateTimeOffset.UtcNow;
+        checkIn.Status = "private";
+        checkIn.SharedAt = null;
+        checkIn.UpdatedAt = now;
+
+        dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+        {
+            AppointmentId = checkIn.AppointmentId,
+            PatientId = checkIn.PatientId,
+            ProfessionalId = checkIn.ProfessionalId,
+            SpaceId = checkIn.SpaceId,
+            CreatedByUserId = professionalUserId,
+            SourceType = "checkin",
+            SourceId = checkIn.Id,
+            Title = "Check-in recolhido",
+            Summary = "Check-in deixou de ficar disponível no portal do paciente.",
+            Layer = "memoria",
+            OccurredAt = now,
+            CreatedAt = now
+        });
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            checkIn.SpaceId,
+            "clinical.checkin.unshared",
+            nameof(PatientCheckIn),
+            checkIn.Id,
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(checkIn);
+    }
+
     public async Task<ClinicalSessionDto> StartAppointmentSessionAsync(
         Guid professionalUserId,
         Guid appointmentId,
@@ -1713,6 +1980,19 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         }
     }
 
+    private static void EnsureCheckInCanChange(string status)
+    {
+        if (!AllowedCheckInStatuses.Contains(status))
+        {
+            throw new InvalidOperationException("Check-in tem status inválido.");
+        }
+
+        if (status is "answered" or "archived")
+        {
+            throw new InvalidOperationException("Check-in respondido ou arquivado não pode mudar o compartilhamento.");
+        }
+    }
+
     private async Task EnsureConsentGrantedAsync(
         Guid patientId,
         Guid professionalId,
@@ -2044,6 +2324,26 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             material.SharedAt,
             material.CreatedAt,
             material.UpdatedAt);
+    }
+
+    private static PatientCheckInDto ToDto(PatientCheckIn checkIn)
+    {
+        return new PatientCheckInDto(
+            checkIn.Id,
+            checkIn.AppointmentId,
+            checkIn.PatientId,
+            checkIn.ProfessionalId,
+            checkIn.SpaceId,
+            checkIn.Prompt,
+            checkIn.ContextNote,
+            checkIn.DueAt,
+            checkIn.Status,
+            checkIn.MoodScore,
+            checkIn.ResponseText,
+            checkIn.RespondedAt,
+            checkIn.SharedAt,
+            checkIn.CreatedAt,
+            checkIn.UpdatedAt);
     }
 
     private static IReadOnlyList<string> DeserializeStringList(string? json)
