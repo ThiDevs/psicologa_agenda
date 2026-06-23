@@ -14,6 +14,7 @@ public sealed record ClinicalWorkspaceDto(
     IReadOnlyList<PatientTaskDto> Tasks,
     IReadOnlyList<SharedMaterialDto> Materials,
     IReadOnlyList<PatientCheckInDto> CheckIns,
+    IReadOnlyList<ClinicalAlertDto> Alerts,
     IReadOnlyList<PatientTimelineItemDto> Timeline);
 
 public sealed record PatientCarePortalDto(
@@ -79,6 +80,24 @@ public sealed record ClinicalRecordDto(
     Guid? PreviousRecordId,
     DateTimeOffset ApprovedAt,
     DateTimeOffset CreatedAt);
+
+public sealed record ClinicalAlertDto(
+    Guid Id,
+    Guid? AppointmentId,
+    Guid PatientId,
+    Guid ProfessionalId,
+    Guid SpaceId,
+    string SourceType,
+    Guid? SourceId,
+    string Title,
+    string Description,
+    string Severity,
+    string Status,
+    string? ReviewNote,
+    DateTimeOffset? ReviewedAt,
+    DateTimeOffset? ResolvedAt,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
 
 public sealed record PatientTimelineItemDto(
     Guid Id,
@@ -254,6 +273,14 @@ public sealed record RespondPatientCheckInRequest(
     int MoodScore,
     string? ResponseText);
 
+public sealed record CreateClinicalAlertRequest(
+    string Title,
+    string Description,
+    string Severity);
+
+public sealed record ReviewClinicalAlertRequest(
+    string? ReviewNote);
+
 public sealed record PatientTimelineQuery(
     string? SourceType,
     string? Layer,
@@ -270,6 +297,7 @@ public sealed record ArchiveTimelineItemRequest(
 public interface IClinicalService
 {
     Task<ClinicalWorkspaceDto> GetAppointmentWorkspaceAsync(Guid professionalUserId, Guid appointmentId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<ClinicalAlertDto>> GetPatientAlertsAsync(Guid professionalUserId, Guid patientId, CancellationToken cancellationToken);
     Task<IReadOnlyList<PatientTimelineItemDto>> GetPatientTimelineAsync(Guid professionalUserId, Guid patientId, PatientTimelineQuery query, CancellationToken cancellationToken);
     Task<PatientTimelineItemDetailDto> GetTimelineItemDetailAsync(Guid professionalUserId, Guid itemId, CancellationToken cancellationToken);
     Task<PatientTimelineItemDetailDto> ArchiveTimelineItemAsync(Guid professionalUserId, Guid itemId, ArchiveTimelineItemRequest request, CancellationToken cancellationToken);
@@ -292,6 +320,8 @@ public interface IClinicalService
     Task<PatientCheckInDto> CreateAppointmentCheckInAsync(Guid professionalUserId, Guid appointmentId, CreatePatientCheckInRequest request, CancellationToken cancellationToken);
     Task<PatientCheckInDto> ShareCheckInAsync(Guid professionalUserId, Guid checkInId, CancellationToken cancellationToken);
     Task<PatientCheckInDto> UnshareCheckInAsync(Guid professionalUserId, Guid checkInId, CancellationToken cancellationToken);
+    Task<ClinicalAlertDto> CreateAppointmentAlertAsync(Guid professionalUserId, Guid appointmentId, CreateClinicalAlertRequest request, CancellationToken cancellationToken);
+    Task<ClinicalAlertDto> ReviewAlertAsync(Guid professionalUserId, Guid alertId, string status, ReviewClinicalAlertRequest request, CancellationToken cancellationToken);
     Task<ClinicalSessionDto> StartAppointmentSessionAsync(Guid professionalUserId, Guid appointmentId, CancellationToken cancellationToken);
     Task<ClinicalSessionDto> CompleteAppointmentSessionAsync(Guid professionalUserId, Guid appointmentId, CancellationToken cancellationToken);
 }

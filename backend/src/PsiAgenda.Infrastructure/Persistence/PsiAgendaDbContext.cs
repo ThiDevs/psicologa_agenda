@@ -37,6 +37,7 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
     public DbSet<PatientTask> PatientTasks => Set<PatientTask>();
     public DbSet<SharedMaterial> SharedMaterials => Set<SharedMaterial>();
     public DbSet<PatientCheckIn> PatientCheckIns => Set<PatientCheckIn>();
+    public DbSet<ClinicalAlert> ClinicalAlerts => Set<ClinicalAlert>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -726,6 +727,58 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
             entity.HasOne(consent => consent.UpdatedBy)
                 .WithMany()
                 .HasForeignKey(consent => consent.UpdatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ClinicalAlert>(entity =>
+        {
+            entity.ToTable("clinical_alerts");
+            entity.HasKey(alert => alert.Id);
+            entity.Property(alert => alert.Id).HasColumnName("id");
+            entity.Property(alert => alert.AppointmentId).HasColumnName("appointment_id");
+            entity.Property(alert => alert.PatientId).HasColumnName("patient_id");
+            entity.Property(alert => alert.ProfessionalId).HasColumnName("professional_id");
+            entity.Property(alert => alert.SpaceId).HasColumnName("space_id");
+            entity.Property(alert => alert.CreatedByUserId).HasColumnName("created_by_user_id");
+            entity.Property(alert => alert.ReviewedByUserId).HasColumnName("reviewed_by_user_id");
+            entity.Property(alert => alert.SourceType).HasColumnName("source_type").HasMaxLength(40).IsRequired();
+            entity.Property(alert => alert.SourceId).HasColumnName("source_id");
+            entity.Property(alert => alert.Title).HasColumnName("title").HasMaxLength(160).IsRequired();
+            entity.Property(alert => alert.Description).HasColumnName("description").HasMaxLength(1200).IsRequired();
+            entity.Property(alert => alert.Severity).HasColumnName("severity").HasMaxLength(20).IsRequired();
+            entity.Property(alert => alert.Status).HasColumnName("status").HasMaxLength(20).IsRequired();
+            entity.Property(alert => alert.ReviewNote).HasColumnName("review_note").HasMaxLength(500);
+            entity.Property(alert => alert.ReviewedAt).HasColumnName("reviewed_at");
+            entity.Property(alert => alert.ResolvedAt).HasColumnName("resolved_at");
+            entity.Property(alert => alert.CreatedAt).HasColumnName("created_at");
+            entity.Property(alert => alert.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(alert => new { alert.PatientId, alert.ProfessionalId, alert.Status });
+            entity.HasIndex(alert => new { alert.AppointmentId, alert.CreatedAt });
+            entity.HasIndex(alert => alert.CreatedByUserId);
+            entity.HasIndex(alert => alert.ReviewedByUserId);
+            entity.HasOne(alert => alert.Appointment)
+                .WithMany()
+                .HasForeignKey(alert => alert.AppointmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(alert => alert.Patient)
+                .WithMany()
+                .HasForeignKey(alert => alert.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(alert => alert.Professional)
+                .WithMany()
+                .HasForeignKey(alert => alert.ProfessionalId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(alert => alert.Space)
+                .WithMany()
+                .HasForeignKey(alert => alert.SpaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(alert => alert.CreatedBy)
+                .WithMany()
+                .HasForeignKey(alert => alert.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(alert => alert.ReviewedBy)
+                .WithMany()
+                .HasForeignKey(alert => alert.ReviewedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

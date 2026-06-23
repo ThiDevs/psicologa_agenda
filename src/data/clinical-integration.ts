@@ -57,9 +57,10 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Detalhe auditado de item da timeline mostra metadados seguros da origem sem copiar conteúdo sensível.',
       'Arquivamento controlado remove itens não oficiais da timeline ativa sem apagar rastreabilidade.',
       'Timeline longitudinal filtra por tag aplicada e severidade clínica das tags.',
+      'Alertas responsáveis revisados entram como memória clínica na timeline.',
     ],
     missing: [
-      'Eventos reais de alertas quando o motor responsável existir.',
+      'Motor automático de alertas por tags/check-ins.',
     ],
   },
   {
@@ -150,14 +151,17 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
     id: 'responsible_alerts',
     title: 'Alertas responsáveis',
     icon: 'alert-circle-outline',
-    status: 'pending',
+    status: 'partial',
     done: [
       'Linguagem, níveis e revisão humana foram especificados.',
+      'ClinicalAlert manual é registrado por atendimento e carregado no workspace.',
+      'Painel clínico permite confirmar, acompanhar, descartar ou resolver alertas.',
+      'Decisões geram timeline e auditoria sem enviar mensagem automática ao paciente.',
     ],
     missing: [
       'Motor de alertas por tag/check-in.',
-      'Painel de revisão de alertas.',
-      'Auditoria de confirmação, descarte e resolução.',
+      'Destaque de alertas altos no briefing pré-sessão.',
+      'Aprendizado de falso positivo para regras futuras.',
     ],
   },
   {

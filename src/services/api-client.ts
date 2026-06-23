@@ -334,6 +334,28 @@ export type ApiPatientTimelineItem = {
   createdAt: string;
 };
 
+export type ApiClinicalAlertSeverity = 'baixo' | 'medio' | 'alto';
+export type ApiClinicalAlertStatus = 'pending' | 'confirmed' | 'dismissed' | 'monitoring' | 'resolved';
+
+export type ApiClinicalAlert = {
+  id: string;
+  appointmentId?: string | null;
+  patientId: string;
+  professionalId: string;
+  spaceId: string;
+  sourceType: string;
+  sourceId?: string | null;
+  title: string;
+  description: string;
+  severity: ApiClinicalAlertSeverity | string;
+  status: ApiClinicalAlertStatus | string;
+  reviewNote?: string | null;
+  reviewedAt?: string | null;
+  resolvedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ApiClinicalTimelineFilters = {
   sourceType?: string | null;
   layer?: ApiPatientTimelineItem['layer'] | 'all' | null;
@@ -481,6 +503,7 @@ export type ApiClinicalWorkspace = {
   tasks: ApiPatientTask[];
   materials: ApiSharedMaterial[];
   checkIns: ApiPatientCheckIn[];
+  alerts: ApiClinicalAlert[];
   timeline: ApiPatientTimelineItem[];
 };
 
@@ -1115,6 +1138,10 @@ export async function getClinicalTimelineItemDetail(itemId: string) {
   return request<ApiPatientTimelineItemDetail>(`/clinical/timeline/${itemId}`, { authenticated: true });
 }
 
+export async function getClinicalPatientAlerts(patientId: string) {
+  return request<ApiClinicalAlert[]>(`/clinical/patients/${patientId}/alerts`, { authenticated: true });
+}
+
 export async function archiveClinicalTimelineItem(itemId: string, input: { reason?: string | null } = {}) {
   return request<ApiPatientTimelineItemDetail>(`/clinical/timeline/${itemId}/archive`, {
     method: 'POST',
@@ -1293,6 +1320,30 @@ export async function unshareClinicalCheckIn(checkInId: string) {
   return request<ApiPatientCheckIn>(`/clinical/check-ins/${checkInId}/unshare`, {
     method: 'POST',
     authenticated: true,
+  });
+}
+
+export async function createClinicalAppointmentAlert(appointmentId: string, input: {
+  title: string;
+  description: string;
+  severity: ApiClinicalAlertSeverity;
+}) {
+  return request<ApiClinicalAlert>(`/clinical/appointments/${appointmentId}/alerts`, {
+    method: 'POST',
+    authenticated: true,
+    body: input,
+  });
+}
+
+export async function reviewClinicalAlert(
+  alertId: string,
+  action: 'confirm' | 'dismiss' | 'monitor' | 'resolve',
+  input: { reviewNote?: string | null } = {},
+) {
+  return request<ApiClinicalAlert>(`/clinical/alerts/${alertId}/${action}`, {
+    method: 'POST',
+    authenticated: true,
+    body: input,
   });
 }
 

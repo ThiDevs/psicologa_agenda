@@ -1593,6 +1593,8 @@ Atualizacao da decima quinta entrega: a timeline agora permite arquivar item nao
 
 Atualizacao da decima sexta entrega: a consulta longitudinal da timeline passou a aceitar filtros `tag` e `severity` em `GET /api/clinical/patients/{patientId}/timeline`, usando `AppliedClinicalTag` do atendimento para selecionar eventos associados a uma tag ou ao tom clinico `neutral`, `attention` ou `risk`. A tela clinica ganhou chips de tag aplicada e severidade no painel de filtros, preservando loading, vazio real e erro sem registrar esses parametros em metadata de auditoria. Ainda nao existem eventos reais de alertas, IA, exportacao ou gravacao/transcricao.
 
+Atualizacao da decima setima entrega: o backend agora possui `ClinicalAlert`, criado manualmente por atendimento em `POST /api/clinical/appointments/{appointmentId}/alerts`, listado por paciente em `GET /api/clinical/patients/{patientId}/alerts` e revisado por acoes humanas de confirmar, acompanhar, descartar ou resolver. O workspace clinico exibe um painel compacto de alertas responsaveis, registra timeline/auditoria sem conteudo clinico sensivel em metadata e reforca que alerta nao e diagnostico nem dispara mensagem automatica ao paciente. Ainda nao existe motor automatico de alertas por tags/check-ins, destaque de alerta alto no briefing, IA, exportacao ou gravacao/transcricao.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1616,6 +1618,7 @@ Arquivos criados ou alterados:
 - `backend/src/PsiAgenda.Domain/Entities/PatientTask.cs`
 - `backend/src/PsiAgenda.Domain/Entities/SharedMaterial.cs`
 - `backend/src/PsiAgenda.Domain/Entities/PatientCheckIn.cs`
+- `backend/src/PsiAgenda.Domain/Entities/ClinicalAlert.cs`
 - `backend/src/PsiAgenda.Infrastructure/Services/ClinicalService.cs`
 - `backend/src/PsiAgenda.Api/Endpoints/ClinicalEndpoints.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623013000_AddClinicalWorkspaceTables.cs`
@@ -1628,6 +1631,7 @@ Arquivos criados ou alterados:
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623060000_AddPatientTaskResponses.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623063000_AddPatientCheckIns.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623070000_AddTimelineItemArchiving.cs`
+- `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623073000_AddClinicalAlerts.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/PsiAgendaDbContext.cs`
 - `backend/src/PsiAgenda.Infrastructure/DependencyInjection.cs`
 - `backend/src/PsiAgenda.Api/Program.cs`
@@ -1701,6 +1705,13 @@ Feito agora:
 65. Timeline longitudinal aceita filtros `tag` e `severity` sem incluir esses parametros em metadata de auditoria.
 66. Backend filtra eventos por `AppliedClinicalTag` do atendimento, respeitando o vinculo profissional-paciente.
 67. A tela clinica exibe chips compactos para tag aplicada e severidade junto aos filtros existentes.
+68. `ClinicalAlert` foi criado como entidade de alerta responsavel com fonte, motivo, severidade, status e revisao humana.
+69. Psicologa pode registrar alerta manual por atendimento com severidade `baixo`, `medio` ou `alto`.
+70. Workspace clinico lista alertas do paciente/profissional e separa estados pendentes, confirmados, em acompanhamento, descartados e resolvidos.
+71. Psicologa pode confirmar, acompanhar, descartar ou resolver alerta por endpoints explicitos.
+72. Criacao e revisao de alerta criam itens de timeline na camada `memoria`, com linguagem neutra e sem diagnostico automatico.
+73. Auditoria de alertas usa metadata segura sem copiar motivo ou conteudo clinico sensivel.
+74. A UI reforca que alerta nao notifica o paciente e nao substitui julgamento clinico.
 
 Falta para virar produto clinico real:
 
@@ -1710,7 +1721,7 @@ Falta para virar produto clinico real:
 4. Criar reabertura/edicao de tarefas, materiais completos e agenda recorrente de check-ins.
 5. Conectar IA somente depois de consentimento e minimizacao de dados.
 6. Criar historico completo e politicas de retencao/revogacao de consentimentos.
-7. Criar motor de alertas responsaveis com revisao humana.
+7. Criar motor automatico de alertas responsaveis por tags/check-ins e destacar alertas altos no briefing.
 8. Adicionar testes de contrato da API e testes de tela.
 9. Ajustar copy legal/clinica com revisao profissional.
 10. Definir politica de retencao, exportacao e retificacao.
@@ -1721,13 +1732,13 @@ Status por modulo:
 | --- | --- | --- | --- |
 | Registro pos-consulta com IA | Parcial | `ClinicalSession`, `ClinicalDraft` manual, `ClinicalRecord` aprovado manualmente e retificacao versionada por atendimento | IA, edicao assistida e exportacao |
 | Botoes rapidos e tags clinicas | Parcial | Tags salvas em `AppliedClinicalTag` por atendimento; historico longitudinal filtra por tag aplicada | Biblioteca de tags e personalizacao |
-| Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags, consentimentos, plano, tarefas, materiais e check-ins; `GET /api/clinical/patients/{patientId}/timeline` com filtros de camada, origem, periodo, busca, tag, severidade e limite; detalhe auditado por `GET /api/clinical/timeline/{itemId}`; arquivamento controlado por `POST /api/clinical/timeline/{itemId}/archive`; UI com vazio/loading/erro | Eventos reais de alertas quando o motor existir |
+| Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags, consentimentos, plano, tarefas, materiais, check-ins e alertas revisados; `GET /api/clinical/patients/{patientId}/timeline` com filtros de camada, origem, periodo, busca, tag, severidade e limite; detalhe auditado por `GET /api/clinical/timeline/{itemId}`; arquivamento controlado por `POST /api/clinical/timeline/{itemId}/archive`; UI com vazio/loading/erro | Motor automatico de alertas por tags/check-ins |
 | Plano terapeutico vivo | Parcial | `TreatmentPlan` persistido e editavel no workspace clinico | Historico versionado, revisao periodica e sugestoes por IA |
 | Preparacao da proxima sessao | Parcial | Card de briefing conceitual | Job automatico, fontes reais e arquivamento |
 | Separar rascunho, prontuario e memoria | Parcial | Rascunho, memoria, prontuario aprovado e retificacao versionada aparecem como camadas separadas | Exportacao seletiva e politicas de retencao |
 | Portal do paciente com cuidado | Parcial | Tarefas, materiais e check-ins privados no workspace; previa antes de compartilhar; share/unshare com consentimento; `/patient-care` para itens liberados, conclusao/resposta de tarefa, resposta de check-in e consentimento direto nao sensivel | Reabertura/edicao de tarefas, historico de visualizacao e refinamento de materiais |
 | Check-ins entre sessoes | Parcial | `PatientCheckIn` persistido, compartilhamento com consentimento e resposta pelo portal com escala/observacao | Agenda recorrente, templates editaveis, graficos e tendencias |
-| Alertas responsaveis | Pendente | Linguagem e estados especificados | Motor de alertas, painel e auditoria de revisao |
+| Alertas responsaveis | Parcial | `ClinicalAlert`, criacao manual por atendimento, painel no workspace, acoes de confirmar/acompanhar/descartar/resolver, timeline e auditoria sem mensagem automatica ao paciente | Motor automatico por tags/check-ins, destaque de alerta alto no briefing e aprendizado de falso positivo |
 | Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, shareables com consentimento, consentimento direto nao sensivel no portal e auditoria sem conteudo clinico | Consentimentos sensiveis para IA/gravacao/transcricao, politicas de retencao, criptografia de campos sensiveis e exportacao controlada |
 
 ### Navegacao profissional sugerida

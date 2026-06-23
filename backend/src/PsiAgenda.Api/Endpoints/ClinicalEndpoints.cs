@@ -12,6 +12,7 @@ public static class ClinicalEndpoints
             .RequireAuthorization();
 
         group.MapGet("/appointments/{appointmentId:guid}/workspace", GetAppointmentWorkspaceAsync);
+        group.MapGet("/patients/{patientId:guid}/alerts", GetPatientAlertsAsync);
         group.MapGet("/patients/{patientId:guid}/timeline", GetPatientTimelineAsync);
         group.MapGet("/timeline/{itemId:guid}", GetTimelineItemDetailAsync);
         group.MapPost("/timeline/{itemId:guid}/archive", ArchiveTimelineItemAsync)
@@ -45,6 +46,16 @@ public static class ClinicalEndpoints
         group.MapPost("/check-ins/{checkInId:guid}/share", ShareCheckInAsync)
             .RequireRateLimiting("Sensitive");
         group.MapPost("/check-ins/{checkInId:guid}/unshare", UnshareCheckInAsync)
+            .RequireRateLimiting("Sensitive");
+        group.MapPost("/appointments/{appointmentId:guid}/alerts", CreateAppointmentAlertAsync)
+            .RequireRateLimiting("Sensitive");
+        group.MapPost("/alerts/{alertId:guid}/confirm", ConfirmAlertAsync)
+            .RequireRateLimiting("Sensitive");
+        group.MapPost("/alerts/{alertId:guid}/dismiss", DismissAlertAsync)
+            .RequireRateLimiting("Sensitive");
+        group.MapPost("/alerts/{alertId:guid}/monitor", MonitorAlertAsync)
+            .RequireRateLimiting("Sensitive");
+        group.MapPost("/alerts/{alertId:guid}/resolve", ResolveAlertAsync)
             .RequireRateLimiting("Sensitive");
         group.MapPost("/drafts/{draftId:guid}/approve", ApproveDraftAsync)
             .RequireRateLimiting("Sensitive");
@@ -100,6 +111,20 @@ public static class ClinicalEndpoints
                 currentUser.UserIdOrThrow(),
                 patientId,
                 new PatientTimelineQuery(sourceType, layer, tag, severity, from, to, q, limit),
+                cancellationToken),
+            Results.Ok);
+    }
+
+    private static async Task<IResult> GetPatientAlertsAsync(
+        Guid patientId,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.GetPatientAlertsAsync(
+                currentUser.UserIdOrThrow(),
+                patientId,
                 cancellationToken),
             Results.Ok);
     }
@@ -387,6 +412,80 @@ public static class ClinicalEndpoints
                 request,
                 cancellationToken),
             checkIn => Results.Created($"/api/clinical/appointments/{appointmentId}/check-ins/{checkIn.Id}", checkIn));
+    }
+
+    private static async Task<IResult> CreateAppointmentAlertAsync(
+        Guid appointmentId,
+        CreateClinicalAlertRequest request,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.CreateAppointmentAlertAsync(
+                currentUser.UserIdOrThrow(),
+                appointmentId,
+                request,
+                cancellationToken),
+            alert => Results.Created($"/api/clinical/alerts/{alert.Id}", alert));
+    }
+
+    private static Task<IResult> ConfirmAlertAsync(
+        Guid alertId,
+        ReviewClinicalAlertRequest? request,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return ReviewAlertAsync(alertId, "confirmed", request, currentUser, clinicalService, cancellationToken);
+    }
+
+    private static Task<IResult> DismissAlertAsync(
+        Guid alertId,
+        ReviewClinicalAlertRequest? request,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return ReviewAlertAsync(alertId, "dismissed", request, currentUser, clinicalService, cancellationToken);
+    }
+
+    private static Task<IResult> MonitorAlertAsync(
+        Guid alertId,
+        ReviewClinicalAlertRequest? request,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return ReviewAlertAsync(alertId, "monitoring", request, currentUser, clinicalService, cancellationToken);
+    }
+
+    private static Task<IResult> ResolveAlertAsync(
+        Guid alertId,
+        ReviewClinicalAlertRequest? request,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return ReviewAlertAsync(alertId, "resolved", request, currentUser, clinicalService, cancellationToken);
+    }
+
+    private static async Task<IResult> ReviewAlertAsync(
+        Guid alertId,
+        string status,
+        ReviewClinicalAlertRequest? request,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.ReviewAlertAsync(
+                currentUser.UserIdOrThrow(),
+                alertId,
+                status,
+                request ?? new ReviewClinicalAlertRequest(null),
+                cancellationToken),
+            Results.Ok);
     }
 
     private static async Task<IResult> ShareCheckInAsync(

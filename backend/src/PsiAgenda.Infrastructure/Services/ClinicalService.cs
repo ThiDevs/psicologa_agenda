@@ -76,6 +76,20 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         "text",
         "link"
     };
+    private static readonly HashSet<string> AllowedAlertSeverities = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "baixo",
+        "medio",
+        "alto"
+    };
+    private static readonly HashSet<string> AllowedAlertStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "pending",
+        "confirmed",
+        "dismissed",
+        "monitoring",
+        "resolved"
+    };
     private static readonly HashSet<string> AllowedTimelineLayers = new(StringComparer.OrdinalIgnoreCase)
     {
         "rascunho",
@@ -135,6 +149,16 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             .OrderByDescending(checkIn => checkIn.CreatedAt)
             .Take(20)
             .ToListAsync(cancellationToken);
+        var alerts = await dbContext.ClinicalAlerts
+            .AsNoTracking()
+            .Where(alert =>
+                alert.PatientId == appointment.CustomerId &&
+                alert.ProfessionalId == appointment.ProfessionalId)
+            .OrderBy(alert => alert.Status == "resolved" || alert.Status == "dismissed")
+            .ThenByDescending(alert => alert.Severity == "alto")
+            .ThenByDescending(alert => alert.CreatedAt)
+            .Take(30)
+            .ToListAsync(cancellationToken);
         var timeline = await dbContext.PatientTimelineItems
             .AsNoTracking()
             .Where(item =>
@@ -168,7 +192,37 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             tasks.Select(ToDto).ToList(),
             materials.Select(ToDto).ToList(),
             checkIns.Select(ToDto).ToList(),
+            alerts.Select(ToDto).ToList(),
             timeline.Select(ToDto).ToList());
+    }
+
+    public async Task<IReadOnlyList<ClinicalAlertDto>> GetPatientAlertsAsync(
+        Guid professionalUserId,
+        Guid patientId,
+        CancellationToken cancellationToken)
+    {
+        var relationship = await EnsureProfessionalPatientRelationshipAsync(professionalUserId, patientId, cancellationToken);
+        var alerts = await dbContext.ClinicalAlerts
+            .AsNoTracking()
+            .Where(alert =>
+                alert.PatientId == patientId &&
+                alert.ProfessionalId == relationship.ProfessionalId)
+            .OrderBy(alert => alert.Status == "resolved" || alert.Status == "dismissed")
+            .ThenByDescending(alert => alert.Severity == "alto")
+            .ThenByDescending(alert => alert.CreatedAt)
+            .Take(80)
+            .ToListAsync(cancellationToken);
+
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            relationship.SpaceId,
+            "clinical.alerts.viewed",
+            "Patient",
+            patientId,
+            cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return alerts.Select(ToDto).ToList();
     }
 
     public async Task<IReadOnlyList<PatientTimelineItemDto>> GetPatientTimelineAsync(
@@ -1619,6 +1673,123 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         return ToDto(checkIn);
     }
 
+    public async Task<ClinicalAlertDto> CreateAppointmentAlertAsync(
+        Guid professionalUserId,
+        Guid appointmentId,
+        CreateClinicalAlertRequest request,
+        CancellationToken cancellationToken)
+    {
+        var appointment = await EnsureProfessionalAppointmentAsync(professionalUserId, appointmentId, cancellationToken);
+        var severity = ValidateAlertSeverity(request.Severity);
+        var now = DateTimeOffset.UtcNow;
+        var alert = new ClinicalAlert
+        {
+            AppointmentId = appointment.Id,
+            PatientId = appointment.CustomerId,
+            ProfessionalId = appointment.ProfessionalId,
+            SpaceId = appointment.SpaceId,
+            CreatedByUserId = professionalUserId,
+            SourceType = "manual",
+            Title = ValidateText(request.Title, "Título do alerta", 5, 160),
+            Description = ValidateText(request.Description, "Motivo do alerta", 5, 1200),
+            Severity = severity,
+            Status = "pending",
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        dbContext.ClinicalAlerts.Add(alert);
+        dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+        {
+            AppointmentId = appointment.Id,
+            PatientId = appointment.CustomerId,
+            ProfessionalId = appointment.ProfessionalId,
+            SpaceId = appointment.SpaceId,
+            CreatedByUserId = professionalUserId,
+            SourceType = "alert",
+            SourceId = alert.Id,
+            Title = "Alerta responsável registrado",
+            Summary = $"Possível ponto de atenção criado para revisão da psicóloga. Nível: {AlertSeverityLabel(severity)}. Não é diagnóstico.",
+            Layer = "memoria",
+            OccurredAt = now,
+            CreatedAt = now
+        });
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            appointment.SpaceId,
+            "clinical.alert.created",
+            nameof(ClinicalAlert),
+            alert.Id,
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(alert);
+    }
+
+    public async Task<ClinicalAlertDto> ReviewAlertAsync(
+        Guid professionalUserId,
+        Guid alertId,
+        string status,
+        ReviewClinicalAlertRequest request,
+        CancellationToken cancellationToken)
+    {
+        var professional = await GetLinkedProfessionalAsync(professionalUserId, cancellationToken);
+        var alert = await dbContext.ClinicalAlerts
+            .FirstOrDefaultAsync(item =>
+                    item.Id == alertId &&
+                    item.ProfessionalId == professional.Id,
+                cancellationToken);
+
+        if (alert is null)
+        {
+            throw new KeyNotFoundException("Alerta clínico não encontrado.");
+        }
+
+        await EnsureProfessionalPatientRelationshipAsync(professionalUserId, alert.PatientId, cancellationToken);
+
+        var normalizedStatus = ValidateAlertStatus(status);
+        if (normalizedStatus == "pending")
+        {
+            throw new InvalidOperationException("Use uma decisão de revisão: confirmar, descartar, acompanhar ou resolver.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        alert.Status = normalizedStatus;
+        alert.ReviewedByUserId = professionalUserId;
+        alert.ReviewedAt = now;
+        alert.ResolvedAt = normalizedStatus == "resolved" ? now : null;
+        alert.ReviewNote = NormalizeOptionalText(request.ReviewNote, 500, "Nota de revisão do alerta");
+        alert.UpdatedAt = now;
+
+        dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+        {
+            AppointmentId = alert.AppointmentId,
+            PatientId = alert.PatientId,
+            ProfessionalId = alert.ProfessionalId,
+            SpaceId = alert.SpaceId,
+            CreatedByUserId = professionalUserId,
+            SourceType = "alert",
+            SourceId = alert.Id,
+            Title = "Alerta responsável revisado",
+            Summary = $"Psicóloga marcou o alerta como {AlertStatusLabel(normalizedStatus)}. Nenhuma mensagem automática foi enviada ao paciente.",
+            Layer = "memoria",
+            OccurredAt = now,
+            CreatedAt = now
+        });
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            alert.SpaceId,
+            $"clinical.alert.{normalizedStatus}",
+            nameof(ClinicalAlert),
+            alert.Id,
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(alert);
+    }
+
     public async Task<ClinicalSessionDto> StartAppointmentSessionAsync(
         Guid professionalUserId,
         Guid appointmentId,
@@ -2236,6 +2407,19 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
                     null,
                     true))
                 .FirstOrDefaultAsync(cancellationToken) ?? MissingTimelineSource(item.SourceType),
+            "alert" => await dbContext.ClinicalAlerts
+                .AsNoTracking()
+                .Where(alert =>
+                    alert.Id == item.SourceId.Value &&
+                    alert.PatientId == item.PatientId &&
+                    alert.ProfessionalId == item.ProfessionalId)
+                .Select(alert => new TimelineSourceMetadata(
+                    "Alerta responsável",
+                    alert.Status,
+                    alert.Severity,
+                    null,
+                    true))
+                .FirstOrDefaultAsync(cancellationToken) ?? MissingTimelineSource(item.SourceType),
             _ => new TimelineSourceMetadata(
                 TimelineSourceLabel(item.SourceType),
                 null,
@@ -2297,6 +2481,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             "material" => "Material compartilhável",
             "checkin" => "Check-in",
             "checkin_response" => "Resposta de check-in",
+            "alert" => "Alerta responsável",
             _ => sourceType
         };
     }
@@ -2491,6 +2676,56 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         }
 
         return normalized;
+    }
+
+    private static string ValidateAlertSeverity(string severity)
+    {
+        var normalized = string.IsNullOrWhiteSpace(severity)
+            ? "medio"
+            : severity.Trim().ToLowerInvariant();
+
+        if (!AllowedAlertSeverities.Contains(normalized))
+        {
+            throw new InvalidOperationException("Nível do alerta inválido.");
+        }
+
+        return normalized;
+    }
+
+    private static string ValidateAlertStatus(string status)
+    {
+        var normalized = string.IsNullOrWhiteSpace(status)
+            ? "pending"
+            : status.Trim().ToLowerInvariant();
+
+        if (!AllowedAlertStatuses.Contains(normalized))
+        {
+            throw new InvalidOperationException("Status do alerta inválido.");
+        }
+
+        return normalized;
+    }
+
+    private static string AlertSeverityLabel(string severity)
+    {
+        return severity switch
+        {
+            "alto" => "alto",
+            "medio" => "médio",
+            _ => "baixo"
+        };
+    }
+
+    private static string AlertStatusLabel(string status)
+    {
+        return status switch
+        {
+            "confirmed" => "confirmado",
+            "dismissed" => "descartado",
+            "monitoring" => "em acompanhamento",
+            "resolved" => "resolvido",
+            _ => "pendente"
+        };
     }
 
     private static string? NormalizeMaterialUrl(string? url, string materialType)
@@ -2834,6 +3069,27 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             checkIn.UpdatedAt);
     }
 
+    private static ClinicalAlertDto ToDto(ClinicalAlert alert)
+    {
+        return new ClinicalAlertDto(
+            alert.Id,
+            alert.AppointmentId,
+            alert.PatientId,
+            alert.ProfessionalId,
+            alert.SpaceId,
+            alert.SourceType,
+            alert.SourceId,
+            alert.Title,
+            alert.Description,
+            alert.Severity,
+            alert.Status,
+            alert.ReviewNote,
+            alert.ReviewedAt,
+            alert.ResolvedAt,
+            alert.CreatedAt,
+            alert.UpdatedAt);
+    }
+
     private static IReadOnlyList<string> DeserializeStringList(string? json)
     {
         return string.IsNullOrWhiteSpace(json)
@@ -2874,6 +3130,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             "tag" => "Tags clínicas atualizadas neste atendimento. Consulte a seção de tags para revisar os marcadores atuais.",
             "task_response" => "Paciente concluiu uma tarefa compartilhada. Revise a resposta na seção de tarefas.",
             "checkin_response" => "Paciente respondeu um check-in de acompanhamento. Revise a resposta na seção de check-ins.",
+            "alert" => "Alerta responsável registrado para revisão humana. Abra a seção de alertas para ver motivo e decisão.",
             _ => item.Summary
         };
     }

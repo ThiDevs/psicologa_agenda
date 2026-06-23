@@ -25,6 +25,7 @@ import {
   approveClinicalDraft,
   completeClinicalAppointmentSession,
   createClinicalAppointmentMaterial,
+  createClinicalAppointmentAlert,
   createClinicalAppointmentCheckIn,
   createClinicalAppointmentDraft,
   createClinicalAppointmentTask,
@@ -34,6 +35,7 @@ import {
   getClinicalPatientTimeline,
   getClinicalTimelineItemDetail,
   getProfessionalAppointmentDetails,
+  reviewClinicalAlert,
   shareClinicalMaterial,
   shareClinicalCheckIn,
   shareClinicalTask,
@@ -44,6 +46,8 @@ import {
   updateClinicalAppointmentConsent,
   updateClinicalAppointmentTreatmentPlan,
   type ApiAppointmentDetails,
+  type ApiClinicalAlert,
+  type ApiClinicalAlertSeverity,
   type ApiClinicalSession,
   type ApiClinicalTagInput,
   type ApiClinicalWorkspace,
@@ -62,6 +66,7 @@ import type { ClinicalConsentItem, ClinicalIntegrationStatus, ClinicalQuickTag }
 
 type TimelineLayerFilter = ApiPatientTimelineItem['layer'] | 'all';
 type TimelineSeverityFilter = ApiClinicalTagInput['tone'] | 'all';
+type ClinicalAlertReviewAction = 'confirm' | 'dismiss' | 'monitor' | 'resolve';
 
 const integrationStatusLabel: Record<ClinicalIntegrationStatus, string> = {
   connected: 'Conectado',
@@ -103,6 +108,7 @@ const timelineSourceOptions = [
   { value: 'material', label: 'Materiais' },
   { value: 'checkin', label: 'Check-ins' },
   { value: 'checkin_response', label: 'Respostas de check-in' },
+  { value: 'alert', label: 'Alertas' },
 ];
 
 const timelineSourceLabels: Record<string, string> = timelineSourceOptions.reduce<Record<string, string>>(
@@ -130,6 +136,12 @@ const treatmentPlanStatusOptions: { value: ApiTreatmentPlanStatus; label: string
   { value: 'paused', label: 'Pausado' },
   { value: 'completed', label: 'Concluído' },
   { value: 'archived', label: 'Arquivado' },
+];
+
+const alertSeverityOptions: { value: ApiClinicalAlertSeverity; label: string }[] = [
+  { value: 'baixo', label: 'Baixo' },
+  { value: 'medio', label: 'Médio' },
+  { value: 'alto', label: 'Alto' },
 ];
 
 const sessionStatusLabels: Record<string, string> = {
@@ -190,6 +202,7 @@ export function ClinicalIntegrationScreen() {
         <Bullet text="Detalhe auditado da timeline já exibe origem, status e nota de acesso sem revelar conteúdo sensível fora do módulo." />
         <Bullet text="Timeline permite arquivar eventos não oficiais sem apagar rastreabilidade clínica." />
         <Bullet text="Timeline longitudinal já filtra por tag aplicada e severidade clínica." />
+        <Bullet text="Alertas responsáveis manuais já podem ser registrados, revisados e auditados sem acionar o paciente." />
         <Bullet text="Documento de especificação acompanha o status por módulo." />
       </View>
 
@@ -278,6 +291,10 @@ export function ClinicalPatientWorkspaceScreen() {
   const [checkInPrompt, setCheckInPrompt] = useState('');
   const [checkInContextNote, setCheckInContextNote] = useState('');
   const [checkInDueAt, setCheckInDueAt] = useState('');
+  const [savingAlertAction, setSavingAlertAction] = useState<string | null>(null);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertDescription, setAlertDescription] = useState('');
+  const [alertSeverity, setAlertSeverity] = useState<ApiClinicalAlertSeverity>('medio');
   const [timelineLayerFilter, setTimelineLayerFilter] = useState<TimelineLayerFilter>('all');
   const [timelineSourceFilter, setTimelineSourceFilter] = useState('all');
   const [timelineSearch, setTimelineSearch] = useState('');
@@ -375,6 +392,8 @@ export function ClinicalPatientWorkspaceScreen() {
   const patientTasks = workspace?.tasks ?? [];
   const sharedMaterials = workspace?.materials ?? [];
   const patientCheckIns = workspace?.checkIns ?? [];
+  const clinicalAlerts = workspace?.alerts ?? [];
+  const activeAlertCount = clinicalAlerts.filter((alert) => !isClosedAlertStatus(alert.status)).length;
   const sharedPortalItemsCount =
     patientTasks.filter(isPatientVisibleStatus).length +
     sharedMaterials.filter(isPatientVisibleStatus).length +
@@ -799,6 +818,46 @@ export function ClinicalPatientWorkspaceScreen() {
     }
   }
 
+  async function createResponsibleAlert() {
+    if (!appointmentId) {
+      setClinicalMessage('Abra a tela a partir de um atendimento para registrar alertas.');
+      return;
+    }
+
+    setSavingAlertAction('create-alert');
+    setClinicalMessage(null);
+
+    try {
+      await createClinicalAppointmentAlert(appointmentId, {
+        title: alertTitle,
+        description: alertDescription,
+        severity: alertSeverity,
+      });
+      setAlertTitle('');
+      setAlertDescription('');
+      setAlertSeverity('medio');
+      await refreshWorkspaceWithMessage('Alerta responsável registrado para revisão humana. Nenhuma mensagem automática foi enviada ao paciente.');
+    } catch (error) {
+      setClinicalMessage(getApiErrorMessage(error));
+    } finally {
+      setSavingAlertAction(null);
+    }
+  }
+
+  async function reviewResponsibleAlert(alert: ApiClinicalAlert, action: ClinicalAlertReviewAction) {
+    setSavingAlertAction(`${action}-alert-${alert.id}`);
+    setClinicalMessage(null);
+
+    try {
+      await reviewClinicalAlert(alert.id, action);
+      await refreshWorkspaceWithMessage(alertReviewSuccessMessage(action));
+    } catch (error) {
+      setClinicalMessage(getApiErrorMessage(error));
+    } finally {
+      setSavingAlertAction(null);
+    }
+  }
+
   async function updateSessionStatus(action: 'start' | 'complete') {
     if (!appointmentId) {
       setClinicalMessage('Abra a tela a partir de um atendimento para atualizar a sessão clínica.');
@@ -1056,6 +1115,82 @@ export function ClinicalPatientWorkspaceScreen() {
           </View>
         </>
       ) : null}
+
+      <SectionTitle appearance="dark" title="Alertas responsáveis" actionLabel={`${activeAlertCount} em revisão`} />
+      <View style={styles.card}>
+        <View style={styles.alertIntroRow}>
+          <Ionicons name="alert-circle-outline" size={18} color={UI.darkPrimary} />
+          <Text style={styles.cardText}>
+            Registre possíveis pontos de atenção para revisão da psicóloga. Alerta não é diagnóstico, não aciona o paciente e fica restrito ao vínculo clínico.
+          </Text>
+        </View>
+        <View style={styles.alertSeverityWrap}>
+          {alertSeverityOptions.map((option) => {
+            const selected = alertSeverity === option.value;
+
+            return (
+              <Pressable
+                key={option.value}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => setAlertSeverity(option.value)}
+                style={({ pressed }) => [
+                  styles.alertSeverityButton,
+                  selected && styles.alertSeverityButtonSelected,
+                  pressed && styles.pressed,
+                ]}>
+                <View style={[styles.alertSeverityDot, { backgroundColor: alertSeverityColor(option.value) }]} />
+                <Text style={[styles.alertSeverityText, selected && styles.alertSeverityTextSelected]}>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Field
+          appearance="dark"
+          label="Título do alerta"
+          value={alertTitle}
+          onChangeText={setAlertTitle}
+          placeholder="Ex.: Possível ponto de atenção"
+        />
+        <Field
+          appearance="dark"
+          label="Motivo e origem"
+          value={alertDescription}
+          multiline
+          style={styles.shareableTextArea}
+          onChangeText={setAlertDescription}
+          placeholder="Ex.: tag sensível aplicada na sessão; revisar antes do próximo atendimento."
+        />
+        <PrimaryButton
+          label="Registrar alerta"
+          icon="alert-circle-outline"
+          variant="secondary"
+          loading={savingAlertAction === 'create-alert'}
+          disabled={!appointmentId || Boolean(savingAlertAction)}
+          onPress={createResponsibleAlert}
+        />
+        <View style={styles.list}>
+          {clinicalAlerts.length ? (
+            clinicalAlerts.map((alert) => (
+              <ClinicalAlertCard
+                key={alert.id}
+                alert={alert}
+                savingAction={savingAlertAction}
+                onReview={(action) => reviewResponsibleAlert(alert, action)}
+              />
+            ))
+          ) : (
+            <EmptyState
+              appearance="dark"
+              icon="shield-checkmark-outline"
+              title="Nenhum alerta ativo"
+              text="Quando houver um possível ponto de atenção, registre aqui para decisão humana e rastreabilidade."
+            />
+          )}
+        </View>
+      </View>
 
       <SectionTitle appearance="dark" title="Linha do tempo clínica" actionLabel={timelineActionLabel} />
       <View style={styles.timelineFilterPanel}>
@@ -1715,6 +1850,93 @@ function TimelineCard({
   );
 }
 
+function ClinicalAlertCard({
+  alert,
+  savingAction,
+  onReview,
+}: {
+  alert: ApiClinicalAlert;
+  savingAction?: string | null;
+  onReview: (action: ClinicalAlertReviewAction) => void;
+}) {
+  const closed = isClosedAlertStatus(alert.status);
+
+  return (
+    <View style={styles.alertItem}>
+      <View style={styles.shareableHeader}>
+        <View style={styles.shareableTitleRow}>
+          <Ionicons name="alert-circle-outline" size={17} color={alertSeverityColor(alert.severity)} />
+          <Text style={styles.cardTitle}>{alert.title}</Text>
+        </View>
+        <View style={styles.alertPillRow}>
+          <View style={[styles.shareablePill, { borderColor: alertSeverityColor(alert.severity) }]}>
+            <Text style={[styles.shareablePillText, { color: alertSeverityColor(alert.severity) }]}>
+              {alertSeverityLabel(alert.severity)}
+            </Text>
+          </View>
+          <View style={[styles.shareablePill, alertStatusPillStyle(alert.status)]}>
+            <Text style={[styles.shareablePillText, { color: alertStatusColor(alert.status) }]}>
+              {alertStatusLabel(alert.status)}
+            </Text>
+          </View>
+        </View>
+      </View>
+      <Text style={styles.timelineSummary}>{alert.description}</Text>
+      <View style={styles.timelineMetaRow}>
+        <Text style={styles.timelineMetaText}>{alertSourceLabel(alert.sourceType)}</Text>
+        <View style={styles.timelineMetaDot} />
+        <Text style={styles.timelineMetaText}>{formatDateTimeLabel(alert.createdAt)}</Text>
+        {alert.reviewedAt ? (
+          <>
+            <View style={styles.timelineMetaDot} />
+            <Text style={styles.timelineMetaText}>revisto em {formatDateTimeLabel(alert.reviewedAt)}</Text>
+          </>
+        ) : null}
+      </View>
+      {alert.reviewNote ? (
+        <View style={styles.alertReviewNote}>
+          <Ionicons name="chatbox-ellipses-outline" size={15} color={UI.darkPrimary} />
+          <Text style={styles.timelineArchiveText}>{alert.reviewNote}</Text>
+        </View>
+      ) : null}
+      <Text style={styles.alertSafetyText}>
+        Ponto de atenção revisável. Não é diagnóstico e não envia mensagem automática ao paciente.
+      </Text>
+      <View style={styles.shareableActions}>
+        <ShareableActionButton
+          label="Confirmar"
+          icon="checkmark-circle-outline"
+          primary
+          loading={savingAction === `confirm-alert-${alert.id}`}
+          disabled={closed || Boolean(savingAction)}
+          onPress={() => onReview('confirm')}
+        />
+        <ShareableActionButton
+          label="Acompanhar"
+          icon="eye-outline"
+          loading={savingAction === `monitor-alert-${alert.id}`}
+          disabled={closed || Boolean(savingAction)}
+          onPress={() => onReview('monitor')}
+        />
+        <ShareableActionButton
+          label="Descartar"
+          icon="close-circle-outline"
+          loading={savingAction === `dismiss-alert-${alert.id}`}
+          disabled={closed || Boolean(savingAction)}
+          onPress={() => onReview('dismiss')}
+        />
+        <ShareableActionButton
+          label="Resolver"
+          icon="checkmark-done-outline"
+          loading={savingAction === `resolve-alert-${alert.id}`}
+          disabled={closed || Boolean(savingAction)}
+          onPress={() => onReview('resolve')}
+        />
+      </View>
+    </View>
+  );
+}
+
 function TimelineDetailPanel({
   detail,
   archiveReason,
@@ -2034,7 +2256,23 @@ function shortId(value: string) {
 }
 
 function isClinicalSuccessMessage(value: string) {
-  return ['salvo', 'salvas', 'carregado', 'carregada', 'criada', 'atualizado', 'iniciada', 'finalizada', 'aprovada', 'arquivado']
+  return [
+    'salvo',
+    'salvas',
+    'carregado',
+    'carregada',
+    'criada',
+    'registrado',
+    'atualizado',
+    'iniciada',
+    'finalizada',
+    'aprovada',
+    'arquivado',
+    'confirmado',
+    'acompanhamento',
+    'descartado',
+    'resolvido',
+  ]
     .some((item) => value.toLowerCase().includes(item));
 }
 
@@ -2091,6 +2329,114 @@ function timelineSourceLabel(sourceType: string) {
   return timelineSourceLabels[sourceType] ?? sourceType;
 }
 
+function alertSeverityLabel(severity: string) {
+  switch (severity) {
+    case 'baixo':
+      return 'Baixo';
+    case 'medio':
+      return 'Médio';
+    case 'alto':
+      return 'Alto';
+    default:
+      return severity;
+  }
+}
+
+function alertSeverityColor(severity: string) {
+  switch (severity) {
+    case 'alto':
+      return '#EAA0A0';
+    case 'medio':
+      return '#F3C969';
+    case 'baixo':
+    default:
+      return UI.darkPrimary;
+  }
+}
+
+function alertStatusLabel(status: string) {
+  switch (status) {
+    case 'pending':
+      return 'Pendente';
+    case 'confirmed':
+      return 'Confirmado';
+    case 'dismissed':
+      return 'Descartado';
+    case 'monitoring':
+      return 'Acompanhando';
+    case 'resolved':
+      return 'Resolvido';
+    default:
+      return status;
+  }
+}
+
+function alertStatusColor(status: string) {
+  switch (status) {
+    case 'confirmed':
+      return UI.darkPrimary;
+    case 'monitoring':
+      return '#F3C969';
+    case 'dismissed':
+      return '#EAA0A0';
+    case 'resolved':
+      return UI.darkText;
+    case 'pending':
+    default:
+      return UI.darkTextMuted;
+  }
+}
+
+function alertStatusPillStyle(status: string) {
+  switch (status) {
+    case 'confirmed':
+      return styles.shareablePillShared;
+    case 'monitoring':
+      return styles.shareablePillCompleted;
+    case 'dismissed':
+      return styles.shareablePillArchived;
+    case 'resolved':
+      return styles.shareablePillShared;
+    case 'pending':
+    default:
+      return styles.shareablePillPrivate;
+  }
+}
+
+function alertSourceLabel(sourceType: string) {
+  switch (sourceType) {
+    case 'manual':
+      return 'Registro manual';
+    case 'tag':
+      return 'Tag clínica';
+    case 'checkin':
+      return 'Check-in';
+    case 'transcription':
+      return 'Transcrição autorizada';
+    case 'ai':
+      return 'Sugestão de IA';
+    default:
+      return sourceType;
+  }
+}
+
+function isClosedAlertStatus(status: string) {
+  return status === 'dismissed' || status === 'resolved';
+}
+
+function alertReviewSuccessMessage(action: ClinicalAlertReviewAction) {
+  switch (action) {
+    case 'confirm':
+      return 'Alerta confirmado pela psicóloga. A decisão ficou auditada sem notificar o paciente.';
+    case 'monitor':
+      return 'Alerta marcado para acompanhamento. A decisão ficou auditada sem notificar o paciente.';
+    case 'dismiss':
+      return 'Alerta descartado pela psicóloga. Falso positivo preservado para rastreabilidade.';
+    case 'resolve':
+      return 'Alerta resolvido pela psicóloga. A timeline recebeu o fechamento clínico.';
+  }
+}
+
 function timelineSourceDetailLabel(value: string) {
   switch (value) {
     case 'session_evolution':
@@ -2119,6 +2465,12 @@ function timelineSourceDetailLabel(value: string) {
       return 'Texto';
     case 'link':
       return 'Link';
+    case 'baixo':
+      return 'Alerta baixo';
+    case 'medio':
+      return 'Alerta médio';
+    case 'alto':
+      return 'Alerta alto';
     default:
       return value;
   }
@@ -2751,6 +3103,72 @@ const styles = StyleSheet.create({
   },
   shareableActionTextPrimary: {
     color: UI.darkText,
+  },
+  alertIntroRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+  },
+  alertSeverityWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  alertSeverityButton: {
+    minHeight: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 247, 242, 0.12)',
+    backgroundColor: UI.darkSurfaceRaised,
+  },
+  alertSeverityButtonSelected: {
+    borderColor: 'rgba(109, 214, 180, 0.50)',
+    backgroundColor: 'rgba(109, 214, 180, 0.12)',
+  },
+  alertSeverityDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+  },
+  alertSeverityText: {
+    color: UI.darkTextMuted,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  alertSeverityTextSelected: {
+    color: UI.darkText,
+    fontWeight: '600',
+  },
+  alertItem: {
+    gap: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(237, 247, 242, 0.08)',
+  },
+  alertPillRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  alertReviewNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 7,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(109, 214, 180, 0.16)',
+    backgroundColor: 'rgba(109, 214, 180, 0.08)',
+  },
+  alertSafetyText: {
+    color: UI.darkTextMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '400',
   },
   timelineCard: {
     gap: 8,
