@@ -11,6 +11,7 @@ public sealed record ClinicalWorkspaceDto(
     IReadOnlyList<ClinicalRecordDto> Records,
     IReadOnlyList<AppliedClinicalTagDto> Tags,
     IReadOnlyList<PatientConsentDto> Consents,
+    IReadOnlyList<PatientConsentEventDto> ConsentHistory,
     TreatmentPlanDto TreatmentPlan,
     IReadOnlyList<PatientTaskDto> Tasks,
     IReadOnlyList<SharedMaterialDto> Materials,
@@ -37,7 +38,8 @@ public sealed record PatientCarePortalDto(
     IReadOnlyList<SharedMaterialDto> Materials,
     IReadOnlyList<PatientCheckInDto> CheckIns,
     IReadOnlyList<PatientPortalConsentDto> Consents,
-    IReadOnlyList<PatientPortalConsentDto> SensitiveConsents);
+    IReadOnlyList<PatientPortalConsentDto> SensitiveConsents,
+    IReadOnlyList<PatientConsentEventDto> ConsentHistory);
 
 public sealed record ClinicalSessionDto(
     Guid Id,
@@ -190,6 +192,23 @@ public sealed record PatientPortalConsentDto(
     DateTimeOffset? RevokedAt,
     DateTimeOffset? ExpiresAt,
     DateTimeOffset? UpdatedAt);
+
+public sealed record PatientConsentEventDto(
+    Guid Id,
+    Guid PatientConsentId,
+    Guid PatientId,
+    Guid ProfessionalId,
+    Guid SpaceId,
+    Guid? AppointmentId,
+    Guid ActorUserId,
+    string ConsentType,
+    string Status,
+    string Action,
+    string TermsVersion,
+    DateTimeOffset? GrantedAt,
+    DateTimeOffset? RevokedAt,
+    DateTimeOffset? ExpiresAt,
+    DateTimeOffset CreatedAt);
 
 public sealed record TreatmentPlanDto(
     Guid? Id,

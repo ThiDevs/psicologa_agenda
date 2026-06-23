@@ -1605,6 +1605,8 @@ Atualizacao da vigesima primeira entrega: o workspace clinico agora devolve `Cli
 
 Atualizacao da vigesima segunda entrega: consentimentos sensiveis agora seguem fluxo proprio. A psicologa solicita `ai_analysis`, `recording` ou `transcription` pelo workspace clinico, o paciente decide no portal em uma area separada de consentimentos sensiveis, e o backend bloqueia tentativa de marcar esses consentimentos como concedidos diretamente pela profissional. A solicitacao e a decisao geram timeline/auditoria sem conteudo clinico sensivel. Ainda nao existe revisao juridica final dos textos, historico completo de versoes do termo, IA real, gravacao ou transcricao.
 
+Atualizacao da vigesima terceira entrega: o backend agora possui `PatientConsentEvent`, trilha tecnica imutavel para solicitacoes, concessoes, revogacoes, expiracoes e versoes de termos de cada `PatientConsent`. O workspace clinico e o portal do paciente exibem historico compacto de consentimentos sem conteudo clinico sensivel, reforcando rastreabilidade antes de IA, gravacao ou transcricao. Ainda nao existe revisao juridica final dos textos, politica formal de retencao/revogacao, criptografia de campos sensiveis, IA real, gravacao ou transcricao.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1742,6 +1744,8 @@ Feito agora:
 92. Portal do paciente lista pedidos sensiveis separadamente e permite conceder ou recusar cada finalidade.
 93. Backend bloqueia concessao direta de `ai_analysis`, `recording` e `transcription` pela profissional.
 94. Solicitar ou decidir consentimento sensivel cria timeline e auditoria sem conteudo clinico sensivel.
+95. `PatientConsentEvent` preserva historico tecnico de acao, estado final, versao de termos e timestamps sem copiar conteudo clinico.
+96. Workspace clinico e portal do paciente exibem historico recente de consentimentos separado do prontuario, rascunho, memoria clinica e conteudo compartilhavel.
 
 Falta para virar produto clinico real:
 
@@ -1750,7 +1754,7 @@ Falta para virar produto clinico real:
 3. Evoluir a matriz de permissoes para supervisao clinica, revogacoes historicas e politicas avancadas por papel.
 4. Criar reabertura/edicao de tarefas, materiais completos e agenda recorrente de check-ins.
 5. Conectar IA somente depois de consentimento e minimizacao de dados.
-6. Criar historico completo e politicas de retencao/revogacao de consentimentos.
+6. Formalizar politica de retencao/revogacao de consentimentos e revisar juridicamente as versoes dos termos.
 7. Refinar alertas responsaveis com configuracao de regras, aprendizagem de falso positivo e tendencias longitudinais.
 8. Adicionar testes de contrato da API e testes de tela.
 9. Ajustar copy legal/clinica com revisao profissional.
@@ -1769,7 +1773,7 @@ Status por modulo:
 | Portal do paciente com cuidado | Parcial | Tarefas, materiais e check-ins privados no workspace; previa antes de compartilhar; share/unshare com consentimento; `/patient-care` para itens liberados, conclusao/resposta de tarefa, resposta de check-in e consentimento direto nao sensivel | Reabertura/edicao de tarefas, historico de visualizacao e refinamento de materiais |
 | Check-ins entre sessoes | Parcial | `PatientCheckIn` persistido, compartilhamento com consentimento e resposta pelo portal com escala/observacao | Agenda recorrente, templates editaveis, graficos e tendencias |
 | Alertas responsaveis | Parcial | `ClinicalAlert`, criacao manual por atendimento, motor inicial por tags `risk` e check-ins com escala 1 ou 2, painel no workspace, acoes de confirmar/acompanhar/descartar/resolver, timeline, auditoria sem mensagem automatica ao paciente e destaque de alerta alto no briefing | Configuracao de regras, aprendizado de falso positivo e tendencias longitudinais |
-| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, shareables com consentimento, consentimento direto nao sensivel no portal, solicitacao/decisao de consentimentos sensiveis, exportacao aprovada auditada, matriz efetiva de permissoes no workspace e auditoria sem conteudo clinico | Revisao juridica dos textos sensiveis, historico completo de termos, politicas avancadas por papel, politicas de retencao e criptografia de campos sensiveis |
+| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, `PatientConsentEvent` com historico tecnico/versionado, shareables com consentimento, consentimento direto nao sensivel no portal, solicitacao/decisao de consentimentos sensiveis, exportacao aprovada auditada, matriz efetiva de permissoes no workspace e auditoria sem conteudo clinico | Revisao juridica dos textos sensiveis, politica formal de retencao/revogacao, politicas avancadas por papel e criptografia de campos sensiveis |
 
 ### Navegacao profissional sugerida
 
@@ -1855,6 +1859,7 @@ Criar um bounded context clinico dentro da API:
 - `Checkins`
 - `ClinicalAlerts`
 - `PatientConsents`
+- `PatientConsentEvents`
 - `ClinicalAuditLogs`
 
 Endpoints devem sempre validar:

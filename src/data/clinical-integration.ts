@@ -184,14 +184,15 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Portal do paciente permite consentimento direto para portal, materiais, check-ins e notificações.',
       'Workspace clínico exibe matriz efetiva de permissões por vínculo e consentimento.',
       'Consentimentos sensíveis são solicitados pela psicóloga e decididos pelo paciente no portal.',
+      'Histórico técnico de consentimentos preserva versão dos termos, ação, estado e timestamps sem conteúdo clínico.',
       'API base mantém /api em produção.',
     ],
     missing: [
       'Auditoria clínica completa.',
       'Revisão jurídica final dos textos sensíveis de IA, gravação e transcrição.',
-      'Histórico completo de versões dos termos sensíveis.',
+      'Política formal de retenção e revogação dos consentimentos.',
       'Políticas avançadas por papel clínico e supervisão formal.',
-      'Criptografia/campos sensíveis e política de retenção.',
+      'Criptografia de campos sensíveis.',
     ],
   },
 ];

@@ -421,6 +421,24 @@ export type ApiPatientPortalConsent = ApiPatientConsent & {
   spaceName: string;
 };
 
+export type ApiPatientConsentEvent = {
+  id: string;
+  patientConsentId: string;
+  patientId: string;
+  professionalId: string;
+  spaceId: string;
+  appointmentId?: string | null;
+  actorUserId: string;
+  consentType: string;
+  status: ApiPatientConsentStatus;
+  action: 'requested' | ApiPatientConsentStatus | string;
+  termsVersion: string;
+  grantedAt?: string | null;
+  revokedAt?: string | null;
+  expiresAt?: string | null;
+  createdAt: string;
+};
+
 export type ApiClinicalPermission = {
   key: string;
   label: string;
@@ -535,6 +553,7 @@ export type ApiClinicalWorkspace = {
   records: ApiClinicalRecord[];
   tags: ApiAppliedClinicalTag[];
   consents: ApiPatientConsent[];
+  consentHistory: ApiPatientConsentEvent[];
   treatmentPlan: ApiTreatmentPlan;
   tasks: ApiPatientTask[];
   materials: ApiSharedMaterial[];
@@ -550,6 +569,7 @@ export type ApiPatientCarePortal = {
   checkIns: ApiPatientCheckIn[];
   consents: ApiPatientPortalConsent[];
   sensitiveConsents: ApiPatientPortalConsent[];
+  consentHistory: ApiPatientConsentEvent[];
 };
 
 export type ApiStarterSetupResponse = {

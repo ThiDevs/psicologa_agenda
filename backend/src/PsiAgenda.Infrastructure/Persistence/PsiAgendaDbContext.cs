@@ -32,6 +32,7 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
     public DbSet<AppliedClinicalTag> AppliedClinicalTags => Set<AppliedClinicalTag>();
     public DbSet<PatientTimelineItem> PatientTimelineItems => Set<PatientTimelineItem>();
     public DbSet<PatientConsent> PatientConsents => Set<PatientConsent>();
+    public DbSet<PatientConsentEvent> PatientConsentEvents => Set<PatientConsentEvent>();
     public DbSet<ClinicalSession> ClinicalSessions => Set<ClinicalSession>();
     public DbSet<TreatmentPlan> TreatmentPlans => Set<TreatmentPlan>();
     public DbSet<PatientTask> PatientTasks => Set<PatientTask>();
@@ -727,6 +728,61 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
             entity.HasOne(consent => consent.UpdatedBy)
                 .WithMany()
                 .HasForeignKey(consent => consent.UpdatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PatientConsentEvent>(entity =>
+        {
+            entity.ToTable("patient_consent_events");
+            entity.HasKey(consentEvent => consentEvent.Id);
+            entity.Property(consentEvent => consentEvent.Id).HasColumnName("id");
+            entity.Property(consentEvent => consentEvent.PatientConsentId).HasColumnName("patient_consent_id");
+            entity.Property(consentEvent => consentEvent.PatientId).HasColumnName("patient_id");
+            entity.Property(consentEvent => consentEvent.ProfessionalId).HasColumnName("professional_id");
+            entity.Property(consentEvent => consentEvent.SpaceId).HasColumnName("space_id");
+            entity.Property(consentEvent => consentEvent.AppointmentId).HasColumnName("appointment_id");
+            entity.Property(consentEvent => consentEvent.ActorUserId).HasColumnName("actor_user_id");
+            entity.Property(consentEvent => consentEvent.ConsentType).HasColumnName("consent_type").HasMaxLength(40).IsRequired();
+            entity.Property(consentEvent => consentEvent.Status).HasColumnName("status").HasMaxLength(20).IsRequired();
+            entity.Property(consentEvent => consentEvent.Action).HasColumnName("action").HasMaxLength(32).IsRequired();
+            entity.Property(consentEvent => consentEvent.TermsVersion).HasColumnName("terms_version").HasMaxLength(40).IsRequired();
+            entity.Property(consentEvent => consentEvent.GrantedAt).HasColumnName("granted_at");
+            entity.Property(consentEvent => consentEvent.RevokedAt).HasColumnName("revoked_at");
+            entity.Property(consentEvent => consentEvent.ExpiresAt).HasColumnName("expires_at");
+            entity.Property(consentEvent => consentEvent.CreatedAt).HasColumnName("created_at");
+            entity.HasIndex(consentEvent => new
+            {
+                consentEvent.PatientId,
+                consentEvent.ProfessionalId,
+                consentEvent.ConsentType,
+                consentEvent.CreatedAt
+            });
+            entity.HasIndex(consentEvent => consentEvent.PatientConsentId);
+            entity.HasIndex(consentEvent => consentEvent.AppointmentId);
+            entity.HasIndex(consentEvent => consentEvent.ActorUserId);
+            entity.HasOne(consentEvent => consentEvent.PatientConsent)
+                .WithMany()
+                .HasForeignKey(consentEvent => consentEvent.PatientConsentId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(consentEvent => consentEvent.Patient)
+                .WithMany()
+                .HasForeignKey(consentEvent => consentEvent.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(consentEvent => consentEvent.Professional)
+                .WithMany()
+                .HasForeignKey(consentEvent => consentEvent.ProfessionalId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(consentEvent => consentEvent.Space)
+                .WithMany()
+                .HasForeignKey(consentEvent => consentEvent.SpaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(consentEvent => consentEvent.Appointment)
+                .WithMany()
+                .HasForeignKey(consentEvent => consentEvent.AppointmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(consentEvent => consentEvent.ActorUser)
+                .WithMany()
+                .HasForeignKey(consentEvent => consentEvent.ActorUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

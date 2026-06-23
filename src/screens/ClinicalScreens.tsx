@@ -56,6 +56,7 @@ import {
   type ApiClinicalTagInput,
   type ApiClinicalWorkspace,
   type ApiPatientConsent,
+  type ApiPatientConsentEvent,
   type ApiPatientConsentStatus,
   type ApiPatientCheckIn,
   type ApiPatientTask,
@@ -427,6 +428,7 @@ export function ClinicalPatientWorkspaceScreen() {
   const grantedPermissionCount = accessPolicy?.permissions.filter((permission) => permission.granted).length ?? 0;
   const consentRows = useMemo(() => buildConsentRows(workspace?.consents), [workspace?.consents]);
   const grantedConsentCount = consentRows.filter((consent) => consent.status === 'granted').length;
+  const consentHistory = (workspace?.consentHistory ?? []).slice(0, 8);
 
   function toggleTag(tag: ClinicalQuickTag) {
     setSelectedTags((current) => (
@@ -2022,6 +2024,30 @@ export function ClinicalPatientWorkspaceScreen() {
             />
           );
         })}
+        <View style={styles.consentHistoryBlock}>
+          <View style={styles.consentHistoryHeader}>
+            <Text style={styles.consentHistoryTitle}>Histórico técnico</Text>
+            <Text style={styles.consentMeta}>
+              {consentHistory.length ? `${consentHistory.length} eventos recentes` : 'sem eventos'}
+            </Text>
+          </View>
+          <Text style={styles.consentDescription}>
+            Mostra decisões, solicitações e versões de termos sem registrar conteúdo clínico.
+          </Text>
+          {consentHistory.length ? (
+            consentHistory.map((event, index) => (
+              <ConsentHistoryRow
+                key={event.id}
+                event={event}
+                isFirst={index === 0}
+              />
+            ))
+          ) : (
+            <Text style={styles.consentHistoryEmpty}>
+              As próximas solicitações, concessões ou revogações aparecerão aqui.
+            </Text>
+          )}
+        </View>
       </View>
     </ScreenScaffold>
   );
@@ -2492,6 +2518,42 @@ function ConsentRow({
           ]}>
           <Text style={styles.consentButtonText}>{saving ? 'Salvando' : 'Revogar'}</Text>
         </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function ConsentHistoryRow({
+  event,
+  isFirst,
+}: {
+  event: ApiPatientConsentEvent;
+  isFirst: boolean;
+}) {
+  const color = consentStatusColor(event.status);
+  const icon: keyof typeof Ionicons.glyphMap =
+    event.action === 'requested' ? 'send-outline' : consentStatusIcon(event.status);
+
+  return (
+    <View style={[styles.consentHistoryRow, isFirst && styles.consentHistoryRowFirst]}>
+      <View style={[styles.consentIcon, event.status === 'granted' && styles.consentIconGranted]}>
+        <Ionicons name={icon} size={17} color={color} />
+      </View>
+      <View style={styles.consentCopy}>
+        <View style={styles.consentTitleRow}>
+          <Text style={styles.cardTitle}>{consentTypeLabel(event.consentType)}</Text>
+          <View style={[styles.consentStatusPill, { borderColor: color }]}>
+            <Text style={[styles.consentStatusText, { color }]}>
+              {consentActionLabel(event.action)}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.consentDescription}>
+          Estado final: {consentStatusLabel(event.status)}
+        </Text>
+        <Text style={styles.consentMeta}>
+          {formatDateTimeLabel(event.createdAt)} · Termos {event.termsVersion}
+        </Text>
       </View>
     </View>
   );
@@ -3020,6 +3082,23 @@ function consentStatusLabel(status: ApiPatientConsentStatus) {
       return 'Expirado';
     case 'pending':
       return 'Pendente';
+  }
+}
+
+function consentActionLabel(action: string) {
+  switch (action) {
+    case 'requested':
+      return 'Solicitado';
+    case 'granted':
+      return 'Concedido';
+    case 'revoked':
+      return 'Revogado';
+    case 'expired':
+      return 'Expirado';
+    case 'pending':
+      return 'Atualizado';
+    default:
+      return action;
   }
 }
 
@@ -3937,6 +4016,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  consentHistoryBlock: {
+    gap: 8,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(237, 247, 242, 0.08)',
+  },
+  consentHistoryHeader: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  consentHistoryTitle: {
+    color: UI.darkText,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  consentHistoryRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(237, 247, 242, 0.08)',
+  },
+  consentHistoryRowFirst: {
+    paddingTop: 2,
+    borderTopWidth: 0,
+  },
+  consentHistoryEmpty: {
+    color: UI.darkTextMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '400',
   },
   consentButton: {
     minHeight: 34,

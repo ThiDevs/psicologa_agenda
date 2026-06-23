@@ -132,6 +132,10 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             .Take(20)
             .ToListAsync(cancellationToken);
         var consents = await GetPatientConsentsAsync(appointment, cancellationToken);
+        var consentHistory = await GetPatientConsentHistoryAsync(
+            appointment.CustomerId,
+            [appointment.ProfessionalId],
+            cancellationToken);
         var treatmentPlan = await GetTreatmentPlanAsync(appointment, cancellationToken);
         var tasks = await dbContext.PatientTasks
             .AsNoTracking()
@@ -197,6 +201,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             records.Select(ToDto).ToList(),
             tags.Select(ToDto).ToList(),
             consents,
+            consentHistory,
             treatmentPlan,
             tasks.Select(ToDto).ToList(),
             materials.Select(ToDto).ToList(),
@@ -612,6 +617,13 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         var consentRelationships = await GetPatientConsentRelationshipsAsync(patientUserId, cancellationToken);
         var consents = await GetPatientPortalConsentsAsync(patientUserId, consentRelationships, cancellationToken);
         var sensitiveConsents = await GetPatientPortalSensitiveConsentsAsync(patientUserId, consentRelationships, cancellationToken);
+        var consentHistory = await GetPatientConsentHistoryAsync(
+            patientUserId,
+            consentRelationships
+                .Select(relationship => relationship.ProfessionalId)
+                .Distinct()
+                .ToList(),
+            cancellationToken);
 
         var tasks = await dbContext.PatientTasks
             .AsNoTracking()
@@ -706,7 +718,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             materials.Select(ToDto).ToList(),
             checkIns.Select(ToDto).ToList(),
             consents,
-            sensitiveConsents);
+            sensitiveConsents,
+            consentHistory);
     }
 
     public async Task<PatientTaskDto> CompletePatientTaskAsync(
@@ -935,6 +948,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             consent.RevokedAt = now;
         }
 
+        AddConsentEvent(consent, normalizedStatus, patientUserId, null, now);
         dbContext.PatientTimelineItems.Add(new PatientTimelineItem
         {
             PatientId = patientUserId,
@@ -1021,6 +1035,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             consent.RevokedAt = now;
         }
 
+        AddConsentEvent(consent, normalizedStatus, patientUserId, null, now);
         dbContext.PatientTimelineItems.Add(new PatientTimelineItem
         {
             PatientId = patientUserId,
@@ -1443,6 +1458,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             consent.RevokedAt = null;
         }
 
+        AddConsentEvent(consent, normalizedStatus, professionalUserId, appointment.Id, now);
         dbContext.PatientTimelineItems.Add(new PatientTimelineItem
         {
             AppointmentId = appointment.Id,
@@ -1520,6 +1536,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
                 consent.GrantedAt = null;
                 consent.RevokedAt = null;
                 consent.ExpiresAt = null;
+                AddConsentEvent(consent, "requested", professionalUserId, appointment.Id, now);
             }
 
             updatedConsents.Add(consent);
@@ -2400,6 +2417,54 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
                     null,
                     null))
             .ToList();
+    }
+
+    private async Task<IReadOnlyList<PatientConsentEventDto>> GetPatientConsentHistoryAsync(
+        Guid patientId,
+        IReadOnlyList<Guid> professionalIds,
+        CancellationToken cancellationToken)
+    {
+        if (professionalIds.Count == 0)
+        {
+            return [];
+        }
+
+        var events = await dbContext.PatientConsentEvents
+            .AsNoTracking()
+            .Where(consentEvent =>
+                consentEvent.PatientId == patientId &&
+                professionalIds.Contains(consentEvent.ProfessionalId))
+            .OrderByDescending(consentEvent => consentEvent.CreatedAt)
+            .Take(80)
+            .ToListAsync(cancellationToken);
+
+        return events.Select(ToDto).ToList();
+    }
+
+    private void AddConsentEvent(
+        PatientConsent consent,
+        string action,
+        Guid actorUserId,
+        Guid? appointmentId,
+        DateTimeOffset occurredAt)
+    {
+        dbContext.PatientConsentEvents.Add(new PatientConsentEvent
+        {
+            PatientConsentId = consent.Id,
+            PatientId = consent.PatientId,
+            ProfessionalId = consent.ProfessionalId,
+            SpaceId = consent.SpaceId,
+            AppointmentId = appointmentId,
+            ActorUserId = actorUserId,
+            ConsentType = consent.ConsentType,
+            Status = consent.Status,
+            Action = action,
+            TermsVersion = consent.TermsVersion,
+            GrantedAt = consent.GrantedAt,
+            RevokedAt = consent.RevokedAt,
+            ExpiresAt = consent.ExpiresAt,
+            CreatedAt = occurredAt
+        });
     }
 
     private async Task<IReadOnlyList<PatientConsentRelationship>> GetPatientConsentRelationshipsAsync(
@@ -3794,6 +3859,26 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             consent.RevokedAt,
             consent.ExpiresAt,
             consent.UpdatedAt);
+    }
+
+    private static PatientConsentEventDto ToDto(PatientConsentEvent consentEvent)
+    {
+        return new PatientConsentEventDto(
+            consentEvent.Id,
+            consentEvent.PatientConsentId,
+            consentEvent.PatientId,
+            consentEvent.ProfessionalId,
+            consentEvent.SpaceId,
+            consentEvent.AppointmentId,
+            consentEvent.ActorUserId,
+            consentEvent.ConsentType,
+            consentEvent.Status,
+            consentEvent.Action,
+            consentEvent.TermsVersion,
+            consentEvent.GrantedAt,
+            consentEvent.RevokedAt,
+            consentEvent.ExpiresAt,
+            consentEvent.CreatedAt);
     }
 
     private static PatientPortalConsentDto ToPortalDto(

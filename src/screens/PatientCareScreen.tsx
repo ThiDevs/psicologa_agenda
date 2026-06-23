@@ -19,6 +19,7 @@ import {
   respondPatientCheckIn,
   updatePatientPortalConsent,
   updatePatientSensitiveConsent,
+  type ApiPatientConsentEvent,
   type ApiPatientConsentStatus,
   type ApiPatientCarePortal,
   type ApiPatientCheckIn,
@@ -180,6 +181,7 @@ export function PatientCarePortalScreen() {
   const checkIns = portal?.checkIns ?? [];
   const consents = portal?.consents ?? [];
   const sensitiveConsents = portal?.sensitiveConsents ?? [];
+  const consentHistory = (portal?.consentHistory ?? []).slice(0, 8);
   const openTasks = tasks.filter((task) => task.status !== 'completed');
   const openCheckIns = checkIns.filter((checkIn) => checkIn.status !== 'answered');
   const grantedConsentCount = consents.filter((consent) => consent.status === 'granted').length;
@@ -371,6 +373,33 @@ export function PatientCarePortalScreen() {
                 icon="lock-closed-outline"
                 title="Sem pedidos sensíveis"
                 text="Pedidos de IA, gravação ou transcrição aparecerão aqui para sua decisão explícita."
+              />
+            )}
+          </View>
+
+          <SectionTitle
+            title="Histórico de consentimentos"
+            actionLabel={consentHistory.length ? `${consentHistory.length} recentes` : 'sem eventos'}
+          />
+          <View style={styles.card}>
+            {consentHistory.length ? (
+              <>
+                <Text style={styles.rowText}>
+                  Registro técnico de solicitações, concessões e revogações, sem conteúdo clínico.
+                </Text>
+                {consentHistory.map((event, index) => (
+                  <PatientConsentHistoryRow
+                    key={event.id}
+                    event={event}
+                    isFirst={index === 0}
+                  />
+                ))}
+              </>
+            ) : (
+              <EmptyState
+                icon="document-text-outline"
+                title="Sem histórico ainda"
+                text="Quando você decidir ou revogar um consentimento, a versão dos termos aparecerá aqui."
               />
             )}
           </View>
@@ -710,6 +739,40 @@ function PatientConsentRow({
   );
 }
 
+function PatientConsentHistoryRow({
+  event,
+  isFirst,
+}: {
+  event: ApiPatientConsentEvent;
+  isFirst: boolean;
+}) {
+  const statusColor = consentStatusColor(event.status);
+  const icon: keyof typeof Ionicons.glyphMap =
+    event.action === 'requested' ? 'send-outline' : consentStatusIcon(event.status);
+
+  return (
+    <View style={[styles.listRow, isFirst && styles.listRowFirst]}>
+      <View style={[styles.rowIcon, event.status === 'granted' && styles.consentIconGranted, event.status === 'revoked' && styles.consentIconRevoked]}>
+        <Ionicons name={icon} size={18} color={statusColor} />
+      </View>
+      <View style={styles.rowCopy}>
+        <View style={styles.rowHeader}>
+          <Text style={styles.rowTitle}>{consentTypeLabel(event.consentType)}</Text>
+          <View style={[styles.statusPill, styles.consentStatusPill]}>
+            <Text style={[styles.statusText, { color: statusColor }]}>
+              {consentActionLabel(event.action)}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.rowText}>Estado final: {consentStatusLabel(event.status)}</Text>
+        <Text style={styles.rowMeta}>
+          {formatDateLabel(event.createdAt)} · Termos {event.termsVersion}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 function CareStep({
   done,
   current,
@@ -777,6 +840,23 @@ function consentStatusLabel(status: ApiPatientConsentStatus) {
     expired: 'Expirado',
     pending: 'Pendente',
   }[status];
+}
+
+function consentActionLabel(action: string) {
+  switch (action) {
+    case 'requested':
+      return 'Solicitado';
+    case 'granted':
+      return 'Concedido';
+    case 'revoked':
+      return 'Revogado';
+    case 'expired':
+      return 'Expirado';
+    case 'pending':
+      return 'Atualizado';
+    default:
+      return action;
+  }
 }
 
 function consentStatusIcon(status: ApiPatientConsentStatus): keyof typeof Ionicons.glyphMap {
