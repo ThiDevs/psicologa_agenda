@@ -421,6 +421,21 @@ export type ApiPatientPortalConsent = ApiPatientConsent & {
   spaceName: string;
 };
 
+export type ApiClinicalPermission = {
+  key: string;
+  label: string;
+  granted: boolean;
+  reason: string;
+  requiresConsent: boolean;
+  consentType?: string | null;
+};
+
+export type ApiClinicalAccessPolicy = {
+  actorRole: string;
+  hasProfessionalPatientRelationship: boolean;
+  permissions: ApiClinicalPermission[];
+};
+
 export type ApiClinicalSession = {
   id: string;
   appointmentId?: string | null;
@@ -514,6 +529,7 @@ export type ApiClinicalWorkspace = {
   patientId: string;
   professionalId: string;
   spaceId: string;
+  accessPolicy: ApiClinicalAccessPolicy;
   session: ApiClinicalSession;
   drafts: ApiClinicalDraft[];
   records: ApiClinicalRecord[];

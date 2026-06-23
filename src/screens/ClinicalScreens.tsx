@@ -49,6 +49,7 @@ import {
   type ApiAppointmentDetails,
   type ApiClinicalAlert,
   type ApiClinicalAlertSeverity,
+  type ApiClinicalPermission,
   type ApiClinicalRecordExport,
   type ApiClinicalSession,
   type ApiClinicalTagInput,
@@ -421,6 +422,8 @@ export function ClinicalPatientWorkspaceScreen() {
     patientTasks.filter(isPatientVisibleStatus).length +
     sharedMaterials.filter(isPatientVisibleStatus).length +
     patientCheckIns.filter(isPatientVisibleStatus).length;
+  const accessPolicy = workspace?.accessPolicy ?? null;
+  const grantedPermissionCount = accessPolicy?.permissions.filter((permission) => permission.granted).length ?? 0;
   const consentRows = useMemo(() => buildConsentRows(workspace?.consents), [workspace?.consents]);
   const grantedConsentCount = consentRows.filter((consent) => consent.status === 'granted').length;
 
@@ -1933,6 +1936,43 @@ export function ClinicalPatientWorkspaceScreen() {
 
       <SectionTitle
         appearance="dark"
+        title="Permissões clínicas"
+        actionLabel={accessPolicy ? `${grantedPermissionCount}/${accessPolicy.permissions.length} liberadas` : 'Pendente'}
+      />
+      <View style={styles.card}>
+        <Text style={styles.cardText}>
+          Matriz efetiva deste workspace: vínculo profissional-paciente libera o núcleo clínico; portal, IA,
+          gravação e transcrição dependem de consentimentos próprios.
+        </Text>
+        {accessPolicy ? (
+          <>
+            <View style={styles.permissionSummary}>
+              <View style={styles.permissionSummaryItem}>
+                <Text style={styles.kicker}>Papel</Text>
+                <Text style={styles.permissionSummaryValue}>
+                  {accessPolicy.actorRole === 'professional' ? 'Psicóloga vinculada' : accessPolicy.actorRole}
+                </Text>
+              </View>
+              <View style={styles.permissionSummaryItem}>
+                <Text style={styles.kicker}>Vínculo clínico</Text>
+                <Text style={styles.permissionSummaryValue}>
+                  {accessPolicy.hasProfessionalPatientRelationship ? 'Confirmado' : 'Bloqueado'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.permissionList}>
+              {accessPolicy.permissions.map((permission) => (
+                <ClinicalPermissionRow key={permission.key} permission={permission} />
+              ))}
+            </View>
+          </>
+        ) : (
+          <Text style={styles.mutedText}>As permissões serão calculadas ao carregar o workspace clínico.</Text>
+        )}
+      </View>
+
+      <SectionTitle
+        appearance="dark"
         title="Consentimentos"
         actionLabel={`${grantedConsentCount}/${consentRows.length} liberados`}
       />
@@ -2320,6 +2360,35 @@ type ConsentRowModel = ClinicalConsentItem & {
   revokedAt?: string | null;
   expiresAt?: string | null;
 };
+
+function ClinicalPermissionRow({ permission }: { permission: ApiClinicalPermission }) {
+  const icon = permission.granted ? 'checkmark-circle-outline' : 'lock-closed-outline';
+  const color = permission.granted ? UI.darkPrimary : '#F3C969';
+
+  return (
+    <View style={styles.permissionRow}>
+      <View style={[styles.consentIcon, permission.granted && styles.consentIconGranted]}>
+        <Ionicons name={icon} size={17} color={color} />
+      </View>
+      <View style={styles.consentCopy}>
+        <View style={styles.consentTitleRow}>
+          <Text style={styles.cardTitle}>{permission.label}</Text>
+          <View style={[styles.consentStatusPill, { borderColor: color }]}>
+            <Text style={[styles.consentStatusText, { color }]}>
+              {permission.granted ? 'Liberado' : 'Bloqueado'}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.consentDescription}>{permission.reason}</Text>
+        <Text style={styles.consentMeta}>
+          {permission.requiresConsent
+            ? `Consentimento: ${permission.consentType ? consentTypeLabel(permission.consentType) : 'necessário'}`
+            : 'Base: vínculo profissional-paciente'}
+        </Text>
+      </View>
+    </View>
+  );
+}
 
 function ConsentRow({
   consent,
@@ -2893,6 +2962,10 @@ function buildConsentRows(consents?: ApiPatientConsent[]): ConsentRowModel[] {
       expiresAt: saved?.expiresAt,
     };
   });
+}
+
+function consentTypeLabel(consentType: string) {
+  return clinicalConsentPreview.find((definition) => definition.id === consentType)?.label ?? consentType;
 }
 
 function consentStatusLabel(status: ApiPatientConsentStatus) {
@@ -3728,6 +3801,40 @@ const styles = StyleSheet.create({
     color: UI.darkPrimary,
     fontSize: 11,
     fontWeight: '600',
+  },
+  permissionSummary: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    paddingTop: 12,
+  },
+  permissionSummaryItem: {
+    minWidth: 150,
+    flex: 1,
+    gap: 4,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 247, 242, 0.09)',
+    backgroundColor: UI.darkSurface,
+  },
+  permissionSummaryValue: {
+    color: UI.darkText,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  permissionList: {
+    gap: 0,
+    paddingTop: 2,
+  },
+  permissionRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(237, 247, 242, 0.08)',
   },
   consentRow: {
     gap: 10,

@@ -5,6 +5,7 @@ public sealed record ClinicalWorkspaceDto(
     Guid PatientId,
     Guid ProfessionalId,
     Guid SpaceId,
+    ClinicalAccessPolicyDto AccessPolicy,
     ClinicalSessionDto Session,
     IReadOnlyList<ClinicalDraftDto> Drafts,
     IReadOnlyList<ClinicalRecordDto> Records,
@@ -16,6 +17,19 @@ public sealed record ClinicalWorkspaceDto(
     IReadOnlyList<PatientCheckInDto> CheckIns,
     IReadOnlyList<ClinicalAlertDto> Alerts,
     IReadOnlyList<PatientTimelineItemDto> Timeline);
+
+public sealed record ClinicalAccessPolicyDto(
+    string ActorRole,
+    bool HasProfessionalPatientRelationship,
+    IReadOnlyList<ClinicalPermissionDto> Permissions);
+
+public sealed record ClinicalPermissionDto(
+    string Key,
+    string Label,
+    bool Granted,
+    string Reason,
+    bool RequiresConsent,
+    string? ConsentType);
 
 public sealed record PatientCarePortalDto(
     Guid PatientId,

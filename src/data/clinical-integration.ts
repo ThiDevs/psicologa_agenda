@@ -182,11 +182,13 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Ações clínicas geram AuditLog sem gravar conteúdo clínico no metadata.',
       'Compartilhar tarefas e materiais exige consentimento granular ativo.',
       'Portal do paciente permite consentimento direto para portal, materiais, check-ins e notificações.',
+      'Workspace clínico exibe matriz efetiva de permissões por vínculo e consentimento.',
       'API base mantém /api em produção.',
     ],
     missing: [
       'Auditoria clínica completa.',
       'Fluxo específico para consentimentos sensíveis de IA, gravação e transcrição.',
+      'Políticas avançadas por papel clínico e supervisão formal.',
       'Criptografia/campos sensíveis e política de retenção.',
     ],
   },

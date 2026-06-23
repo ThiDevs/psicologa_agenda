@@ -1601,6 +1601,8 @@ Atualizacao da decima nona entrega: o backend agora possui um motor inicial de a
 
 Atualizacao da vigesima entrega: o backend agora exporta prontuarios aprovados por paciente em `GET /api/clinical/patients/{patientId}/records/export`, validando vinculo profissional-paciente e retornando somente `ClinicalRecord` com `status = approved`. A exportacao inclui aviso de escopo, texto consolidado e metadados das versoes aprovadas, deixando fora rascunhos, memoria clinica, alertas, check-ins, tarefas, materiais compartilhaveis e timeline interna. A consulta gera auditoria `clinical.records.exported` sem gravar conteudo clinico em metadata. A tela clinica ganhou painel de exportacao aprovada com resultado selecionavel. Ainda nao existe exportacao seletiva de outras camadas, politica completa de retencao, matriz formal de permissoes, IA, gravacao ou transcricao.
 
+Atualizacao da vigesima primeira entrega: o workspace clinico agora devolve `ClinicalAccessPolicy`, uma matriz efetiva de permissoes calculada a partir do papel profissional, vinculo paciente-profissional e consentimentos granulares. A UI exibe o que esta liberado ou bloqueado, separando permissoes por vinculo clinico, portal/check-ins/materiais e capacidades sensiveis de IA, gravacao e transcricao. IA, gravacao e transcricao continuam bloqueadas sem consentimento sensivel ativo e a matriz nao inclui conteudo clinico em metadata de auditoria. Ainda nao existe fluxo juridicamente revisado para captar consentimentos sensiveis, politica completa de retencao, IA real, gravacao ou transcricao.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1730,12 +1732,16 @@ Feito agora:
 84. Exportacao valida vinculo profissional-paciente, retorna somente `ClinicalRecord` aprovado e exclui rascunho, memoria, alertas, check-ins, tarefas, materiais e timeline interna.
 85. Exportacao cria auditoria `clinical.records.exported` sem armazenar conteudo clinico no metadata.
 86. A tela clinica mostra painel de exportacao aprovada com texto selecionavel e aviso de escopo.
+87. Workspace clinico retorna `ClinicalAccessPolicy` com papel, vinculo profissional-paciente e lista de permissoes efetivas.
+88. Permissoes de portal, materiais e check-ins sao liberadas somente quando os consentimentos aplicaveis estao ativos.
+89. Permissoes sensiveis de IA, gravacao e transcricao aparecem bloqueadas ate consentimento especifico ativo.
+90. Tela clinica exibe matriz de permissoes sem misturar rascunho, prontuario, memoria ou conteudo compartilhavel.
 
 Falta para virar produto clinico real:
 
 1. Criar fluxo juridicamente revisado para consentimentos sensiveis de IA, gravacao e transcricao.
 2. Ampliar exportacao seletiva para outros cenarios permitidos e formalizar politica de retencao.
-3. Formalizar matriz de permissoes clinicas alem do vinculo profissional-paciente ja validado nos endpoints atuais.
+3. Evoluir a matriz de permissoes para supervisao clinica, revogacoes historicas e politicas avancadas por papel.
 4. Criar reabertura/edicao de tarefas, materiais completos e agenda recorrente de check-ins.
 5. Conectar IA somente depois de consentimento e minimizacao de dados.
 6. Criar historico completo e politicas de retencao/revogacao de consentimentos.
@@ -1757,7 +1763,7 @@ Status por modulo:
 | Portal do paciente com cuidado | Parcial | Tarefas, materiais e check-ins privados no workspace; previa antes de compartilhar; share/unshare com consentimento; `/patient-care` para itens liberados, conclusao/resposta de tarefa, resposta de check-in e consentimento direto nao sensivel | Reabertura/edicao de tarefas, historico de visualizacao e refinamento de materiais |
 | Check-ins entre sessoes | Parcial | `PatientCheckIn` persistido, compartilhamento com consentimento e resposta pelo portal com escala/observacao | Agenda recorrente, templates editaveis, graficos e tendencias |
 | Alertas responsaveis | Parcial | `ClinicalAlert`, criacao manual por atendimento, motor inicial por tags `risk` e check-ins com escala 1 ou 2, painel no workspace, acoes de confirmar/acompanhar/descartar/resolver, timeline, auditoria sem mensagem automatica ao paciente e destaque de alerta alto no briefing | Configuracao de regras, aprendizado de falso positivo e tendencias longitudinais |
-| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, shareables com consentimento, consentimento direto nao sensivel no portal, exportacao aprovada auditada e auditoria sem conteudo clinico | Consentimentos sensiveis para IA/gravacao/transcricao, matriz formal de permissoes, politicas de retencao e criptografia de campos sensiveis |
+| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, shareables com consentimento, consentimento direto nao sensivel no portal, exportacao aprovada auditada, matriz efetiva de permissoes no workspace e auditoria sem conteudo clinico | Consentimentos sensiveis para IA/gravacao/transcricao, politicas avancadas por papel, politicas de retencao e criptografia de campos sensiveis |
 
 ### Navegacao profissional sugerida
 
