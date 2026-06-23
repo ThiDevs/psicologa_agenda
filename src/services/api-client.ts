@@ -431,6 +431,12 @@ export type ApiClinicalWorkspace = {
   timeline: ApiPatientTimelineItem[];
 };
 
+export type ApiPatientCarePortal = {
+  patientId: string;
+  tasks: ApiPatientTask[];
+  materials: ApiSharedMaterial[];
+};
+
 export type ApiStarterSetupResponse = {
   space: ApiSpace;
   services: ApiService[];
@@ -923,6 +929,10 @@ export async function getCustomerAppointments() {
 
 export async function getCustomerAppointmentDetails(appointmentId: string) {
   return request<ApiAppointmentDetails>(`/customers/me/appointments/${appointmentId}`, { authenticated: true });
+}
+
+export async function getPatientCarePortal() {
+  return request<ApiPatientCarePortal>('/patients/me/care', { authenticated: true });
 }
 
 export async function cancelCustomerAppointment(appointmentId: string, reason?: string) {

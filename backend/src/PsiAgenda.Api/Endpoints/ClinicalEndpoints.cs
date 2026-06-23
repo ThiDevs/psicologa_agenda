@@ -41,6 +41,10 @@ public static class ClinicalEndpoints
         group.MapPost("/records/{recordId:guid}/rectifications", CreateRecordRectificationDraftAsync)
             .RequireRateLimiting("Sensitive");
 
+        app.MapGet("/api/patients/me/care", GetPatientCarePortalAsync)
+            .WithTags("Clinical")
+            .RequireAuthorization();
+
         return app;
     }
 
@@ -52,6 +56,16 @@ public static class ClinicalEndpoints
     {
         return await ExecuteAsync(
             () => clinicalService.GetAppointmentWorkspaceAsync(currentUser.UserIdOrThrow(), appointmentId, cancellationToken),
+            Results.Ok);
+    }
+
+    private static async Task<IResult> GetPatientCarePortalAsync(
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.GetPatientCarePortalAsync(currentUser.UserIdOrThrow(), cancellationToken),
             Results.Ok);
     }
 

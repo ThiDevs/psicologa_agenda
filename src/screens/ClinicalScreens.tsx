@@ -128,6 +128,7 @@ export function ClinicalIntegrationScreen() {
         <Bullet text="Tags, rascunho e timeline inicial já persistem por atendimento." />
         <Bullet text="Plano terapêutico e consentimentos já persistem; briefing segue como interface de preparação." />
         <Bullet text="Tarefas e materiais já nascem privados e podem ser compartilhados ou recolhidos com consentimento." />
+        <Bullet text="Paciente já vê em Meu acompanhamento apenas tarefas e materiais compartilhados." />
         <Bullet text="Documento de especificação acompanha o status por módulo." />
       </View>
 

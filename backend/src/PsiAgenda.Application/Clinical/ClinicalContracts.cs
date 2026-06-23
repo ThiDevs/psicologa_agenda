@@ -15,6 +15,11 @@ public sealed record ClinicalWorkspaceDto(
     IReadOnlyList<SharedMaterialDto> Materials,
     IReadOnlyList<PatientTimelineItemDto> Timeline);
 
+public sealed record PatientCarePortalDto(
+    Guid PatientId,
+    IReadOnlyList<PatientTaskDto> Tasks,
+    IReadOnlyList<SharedMaterialDto> Materials);
+
 public sealed record ClinicalSessionDto(
     Guid Id,
     Guid? AppointmentId,
@@ -188,6 +193,7 @@ public sealed record CreateSharedMaterialRequest(
 public interface IClinicalService
 {
     Task<ClinicalWorkspaceDto> GetAppointmentWorkspaceAsync(Guid professionalUserId, Guid appointmentId, CancellationToken cancellationToken);
+    Task<PatientCarePortalDto> GetPatientCarePortalAsync(Guid patientUserId, CancellationToken cancellationToken);
     Task<ClinicalDraftDto> CreateAppointmentDraftAsync(Guid professionalUserId, Guid appointmentId, CreateClinicalDraftRequest request, CancellationToken cancellationToken);
     Task<ClinicalDraftDto> CreateRecordRectificationDraftAsync(Guid professionalUserId, Guid recordId, CancellationToken cancellationToken);
     Task<IReadOnlyList<AppliedClinicalTagDto>> ApplyAppointmentTagsAsync(Guid professionalUserId, Guid appointmentId, ApplyClinicalTagsRequest request, CancellationToken cancellationToken);

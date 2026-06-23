@@ -161,27 +161,12 @@ export default function HomeScreen() {
   }
 
   function openCareWorkspace() {
-    const appointment = upcomingAppointments[0];
-
-    if (!appointment) {
-      router.push('/clinical-patient');
+    if (!user) {
+      router.push('/login');
       return;
     }
 
-    const params: Record<string, string> = {
-      appointmentId: appointment.id,
-      startDateTime: appointment.startDateTime,
-    };
-
-    if (user?.id) {
-      params.patientId = user.id;
-    }
-
-    if (user?.name) {
-      params.patientName = user.name;
-    }
-
-    router.push({ pathname: '/clinical-patient', params });
+    router.push('/patient-care');
   }
 
   async function handleDeleteAccount() {

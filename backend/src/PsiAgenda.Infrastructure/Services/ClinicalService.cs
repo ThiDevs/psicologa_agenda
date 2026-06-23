@@ -139,6 +139,79 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             timeline.Select(ToDto).ToList());
     }
 
+    public async Task<PatientCarePortalDto> GetPatientCarePortalAsync(
+        Guid patientUserId,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePatientUserAsync(patientUserId, cancellationToken);
+        var now = DateTimeOffset.UtcNow;
+
+        var tasks = await dbContext.PatientTasks
+            .AsNoTracking()
+            .Where(task =>
+                task.PatientId == patientUserId &&
+                task.Status == "shared" &&
+                dbContext.PatientConsents.Any(consent =>
+                    consent.PatientId == task.PatientId &&
+                    consent.ProfessionalId == task.ProfessionalId &&
+                    consent.ConsentType == "portal" &&
+                    consent.Status == "granted" &&
+                    (consent.ExpiresAt == null || consent.ExpiresAt > now)))
+            .OrderBy(task => task.DueAt == null)
+            .ThenBy(task => task.DueAt)
+            .ThenByDescending(task => task.CreatedAt)
+            .Take(50)
+            .ToListAsync(cancellationToken);
+
+        var materials = await dbContext.SharedMaterials
+            .AsNoTracking()
+            .Where(material =>
+                material.PatientId == patientUserId &&
+                material.Status == "shared" &&
+                dbContext.PatientConsents.Any(consent =>
+                    consent.PatientId == material.PatientId &&
+                    consent.ProfessionalId == material.ProfessionalId &&
+                    consent.ConsentType == "portal" &&
+                    consent.Status == "granted" &&
+                    (consent.ExpiresAt == null || consent.ExpiresAt > now)) &&
+                dbContext.PatientConsents.Any(consent =>
+                    consent.PatientId == material.PatientId &&
+                    consent.ProfessionalId == material.ProfessionalId &&
+                    consent.ConsentType == "materials" &&
+                    consent.Status == "granted" &&
+                    (consent.ExpiresAt == null || consent.ExpiresAt > now)))
+            .OrderByDescending(material => material.SharedAt ?? material.CreatedAt)
+            .Take(50)
+            .ToListAsync(cancellationToken);
+
+        var auditedSpaceIds = tasks
+            .Select(task => task.SpaceId)
+            .Concat(materials.Select(material => material.SpaceId))
+            .Distinct()
+            .ToList();
+
+        foreach (var spaceId in auditedSpaceIds)
+        {
+            await AddClinicalAuditAsync(
+                patientUserId,
+                spaceId,
+                "patient.portal.viewed",
+                "Patient",
+                patientUserId,
+                cancellationToken);
+        }
+
+        if (auditedSpaceIds.Count > 0)
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        return new PatientCarePortalDto(
+            patientUserId,
+            tasks.Select(ToDto).ToList(),
+            materials.Select(ToDto).ToList());
+    }
+
     public async Task<ClinicalDraftDto> CreateAppointmentDraftAsync(
         Guid professionalUserId,
         Guid appointmentId,
@@ -1159,6 +1232,20 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         }
 
         return appointment;
+    }
+
+    private async Task EnsurePatientUserAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var user = await dbContext.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == userId && item.Active, cancellationToken);
+
+        if (user is null || user.Role != UserRole.Customer)
+        {
+            throw new UnauthorizedAccessException("Portal do paciente exige uma conta de paciente ativa.");
+        }
     }
 
     private async Task<Professional> GetLinkedProfessionalAsync(

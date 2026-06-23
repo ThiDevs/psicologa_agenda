@@ -1573,9 +1573,14 @@ Atualizacao da setima entrega: o backend agora possui `TreatmentPlan` persistido
 
 Atualizacao da oitava entrega: o backend agora possui `PatientTask` e `SharedMaterial`, exibidos no workspace clinico e criados como conteudo privado por `POST /api/clinical/appointments/{appointmentId}/tasks` e `POST /api/clinical/appointments/{appointmentId}/materials`. O compartilhamento e o recolhimento sao acoes explicitas da psicologa, exigem consentimento ativo quando aplicavel e registram timeline/auditoria sem copiar conteudo clinico sensivel para metadata. Ainda nao existe area do paciente para consumir tarefas/materiais, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
 
+Atualizacao da nona entrega: o paciente agora possui a area "Meu acompanhamento" em `/patient-care`, alimentada por `GET /api/patients/me/care`. Esse endpoint retorna apenas `PatientTask` e `SharedMaterial` com `status = shared`, validando consentimento ativo de portal e, para materiais, consentimento de materiais. A rota nao retorna rascunhos, prontuarios, tags privadas, plano terapeutico ou timeline interna. Ainda nao existe resposta/conclusao de tarefa pelo paciente, consentimento direto pelo portal, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
+
 Arquivos criados ou alterados:
 
+- `src/app/patient-care.tsx`
 - `src/screens/ClinicalScreens.tsx`
+- `src/screens/HomeScreen.tsx`
+- `src/screens/PatientCareScreen.tsx`
 - `src/app/clinical-integration.tsx`
 - `src/app/clinical-patient.tsx`
 - `src/types/clinical.ts`
@@ -1643,13 +1648,16 @@ Feito agora:
 34. Psicologa pode compartilhar ou recolher tarefas e materiais por endpoints explicitos.
 35. Compartilhamento de tarefa exige consentimento ativo para portal; compartilhamento de material exige consentimento ativo para portal e materiais.
 36. Criacao, compartilhamento e recolhimento entram na timeline com camadas `memoria` ou `compartilhado` e auditoria sem conteudo clinico no metadata.
+37. Paciente acessa `/patient-care` a partir da home e ve apenas tarefas e materiais ja compartilhados.
+38. `GET /api/patients/me/care` filtra conteudo por paciente autenticado, status compartilhado e consentimentos ativos.
+39. Portal do paciente nao retorna rascunho, prontuario, memoria interna, tags privadas nem plano terapeutico.
 
 Falta para virar produto clinico real:
 
-1. Criar area do paciente para consumir tarefas e materiais liberados.
+1. Permitir que o paciente conclua ou responda tarefas liberadas.
 2. Implementar exportacao de evolucoes aprovadas sem expor camadas indevidas.
 3. Implementar permissao clinica por vinculo paciente-profissional.
-4. Criar portal do paciente para consentimento direto, respostas de tarefas, materiais e check-ins.
+4. Criar consentimento direto pelo portal do paciente, respostas de tarefas, materiais completos e check-ins.
 5. Conectar IA somente depois de consentimento e minimizacao de dados.
 6. Criar telas e politicas de retencao/revogacao de consentimentos.
 7. Criar motor de alertas responsaveis com revisao humana.
@@ -1667,7 +1675,7 @@ Status por modulo:
 | Plano terapeutico vivo | Parcial | `TreatmentPlan` persistido e editavel no workspace clinico | Historico versionado, revisao periodica e sugestoes por IA |
 | Preparacao da proxima sessao | Parcial | Card de briefing conceitual | Job automatico, fontes reais e arquivamento |
 | Separar rascunho, prontuario e memoria | Parcial | Rascunho, memoria, prontuario aprovado e retificacao versionada aparecem como camadas separadas | Exportacao seletiva e politicas de retencao |
-| Portal do paciente com cuidado | Parcial | Tarefas e materiais privados no workspace, previa antes de compartilhar e share/unshare com consentimento | Rotas/telas do paciente, respostas de tarefas, listagem de materiais liberados e consentimento direto |
+| Portal do paciente com cuidado | Parcial | Tarefas e materiais privados no workspace, previa antes de compartilhar, share/unshare com consentimento e `/patient-care` para itens liberados | Respostas/conclusao de tarefas, consentimento direto, check-ins e historico de visualizacao |
 | Check-ins entre sessoes | Pendente | Templates e fluxo especificados | Agenda, respostas, graficos e tendencias |
 | Alertas responsaveis | Pendente | Linguagem e estados especificados | Motor de alertas, painel e auditoria de revisao |
 | Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, shareables com consentimento e auditoria sem conteudo clinico | Portal para consentimento direto, politicas de retencao, criptografia de campos sensiveis e exportacao controlada |
