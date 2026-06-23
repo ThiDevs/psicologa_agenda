@@ -377,6 +377,24 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         return string.Join(", ", consentTypes.Select(ConsentTypeLabel));
     }
 
+    public async Task<int> ExpireDuePatientConsentsAsync(CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var expiredConsents = await dbContext.PatientConsents
+            .Where(consent =>
+                consent.Status == "granted" &&
+                consent.ExpiresAt != null &&
+                consent.ExpiresAt <= now)
+            .ToListAsync(cancellationToken);
+
+        return await PersistExpiredPatientConsentsAsync(
+            expiredConsents,
+            null,
+            systemAudit: true,
+            now,
+            cancellationToken);
+    }
+
     public async Task<IReadOnlyList<ClinicalAlertDto>> GetPatientAlertsAsync(
         Guid professionalUserId,
         Guid patientId,
@@ -2468,7 +2486,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         return events.Select(ToDto).ToList();
     }
 
-    private async Task ExpirePatientConsentsAsync(
+    private async Task<int> ExpirePatientConsentsAsync(
         Guid patientId,
         IReadOnlyList<Guid> professionalIds,
         Guid? appointmentId,
@@ -2476,7 +2494,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
     {
         if (professionalIds.Count == 0)
         {
-            return;
+            return 0;
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -2491,31 +2509,52 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
 
         if (expiredConsents.Count == 0)
         {
-            return;
+            return 0;
+        }
+
+        return await PersistExpiredPatientConsentsAsync(
+            expiredConsents,
+            appointmentId,
+            systemAudit: false,
+            now,
+            cancellationToken);
+    }
+
+    private async Task<int> PersistExpiredPatientConsentsAsync(
+        IReadOnlyList<PatientConsent> expiredConsents,
+        Guid? appointmentId,
+        bool systemAudit,
+        DateTimeOffset occurredAt,
+        CancellationToken cancellationToken)
+    {
+        if (expiredConsents.Count == 0)
+        {
+            return 0;
         }
 
         foreach (var consent in expiredConsents)
         {
+            var actorUserId = consent.UpdatedByUserId;
             consent.Status = "expired";
-            consent.UpdatedAt = now;
-            AddConsentEvent(consent, "expired", consent.UpdatedByUserId, appointmentId, now);
+            consent.UpdatedAt = occurredAt;
+            AddConsentEvent(consent, "expired", actorUserId, appointmentId, occurredAt);
             dbContext.PatientTimelineItems.Add(new PatientTimelineItem
             {
                 AppointmentId = appointmentId,
                 PatientId = consent.PatientId,
                 ProfessionalId = consent.ProfessionalId,
                 SpaceId = consent.SpaceId,
-                CreatedByUserId = consent.UpdatedByUserId,
+                CreatedByUserId = actorUserId,
                 SourceType = "consent",
                 SourceId = consent.Id,
                 Title = "Consentimento expirado",
                 Summary = $"Consentimento para {ConsentTypeLabel(consent.ConsentType)} expirou conforme prazo configurado.",
                 Layer = "memoria",
-                OccurredAt = now,
-                CreatedAt = now
+                OccurredAt = occurredAt,
+                CreatedAt = occurredAt
             });
             await AddClinicalAuditAsync(
-                consent.UpdatedByUserId,
+                systemAudit ? null : actorUserId,
                 consent.SpaceId,
                 "clinical.consent.expired",
                 nameof(PatientConsent),
@@ -2524,6 +2563,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        return expiredConsents.Count;
     }
 
     private async Task<IReadOnlyList<PatientConsentTermDto>> GetConsentTermsAsync(
@@ -2978,7 +3018,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
     }
 
     private async Task AddClinicalAuditAsync(
-        Guid userId,
+        Guid? userId,
         Guid spaceId,
         string action,
         string entity,

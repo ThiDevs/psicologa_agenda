@@ -713,6 +713,7 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
             entity.Property(consent => consent.UpdatedAt).HasColumnName("updated_at");
             entity.HasIndex(consent => new { consent.PatientId, consent.ProfessionalId, consent.ConsentType }).IsUnique();
             entity.HasIndex(consent => new { consent.ProfessionalId, consent.Status });
+            entity.HasIndex(consent => new { consent.Status, consent.ExpiresAt });
             entity.HasIndex(consent => consent.SpaceId);
             entity.HasOne(consent => consent.Patient)
                 .WithMany()

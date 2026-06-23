@@ -1611,6 +1611,8 @@ Atualizacao da vigesima quarta entrega: o backend agora possui `PatientConsentTe
 
 Atualizacao da vigesima quinta entrega: consentimentos concedidos com `expiresAt` vencido agora sao materializados como `expired` quando o workspace clinico ou o portal do paciente carregam o relacionamento. Essa transicao cria `PatientConsentEvent`, memoria na timeline e auditoria segura `clinical.consent.expired`, mantendo permissao, portal, materiais, check-ins, IA, gravacao e transcricao bloqueados apos o prazo. Ainda faltam jobs agendados dedicados, politica operacional completa de retencao/revogacao, revisao juridica final dos textos, criptografia de campos sensiveis, IA real, gravacao e transcricao.
 
+Atualizacao da vigesima sexta entrega: a API agora registra `ClinicalConsentExpirationWorker`, um job dedicado que expira consentimentos vencidos em segundo plano e tambem roda ao subir a aplicacao. O job reutiliza a trilha `PatientConsentEvent`, cria memoria na timeline, audita `clinical.consent.expired` com `UserId` nulo para indicar execucao de sistema e usa indice por `status`/`expiresAt` para varrer apenas consentimentos candidatos. Ainda faltam politica operacional completa de retencao/revogacao, revisao juridica final dos textos, criptografia de campos sensiveis, IA real, gravacao e transcricao.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1636,6 +1638,7 @@ Arquivos criados ou alterados:
 - `backend/src/PsiAgenda.Domain/Entities/PatientCheckIn.cs`
 - `backend/src/PsiAgenda.Domain/Entities/ClinicalAlert.cs`
 - `backend/src/PsiAgenda.Infrastructure/Services/ClinicalService.cs`
+- `backend/src/PsiAgenda.Infrastructure/Services/ClinicalConsentExpirationWorker.cs`
 - `backend/src/PsiAgenda.Api/Endpoints/ClinicalEndpoints.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623013000_AddClinicalWorkspaceTables.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623020000_AddClinicalRecords.cs`
@@ -1648,6 +1651,7 @@ Arquivos criados ou alterados:
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623063000_AddPatientCheckIns.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623070000_AddTimelineItemArchiving.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623073000_AddClinicalAlerts.cs`
+- `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623085000_AddPatientConsentExpirationIndex.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/PsiAgendaDbContext.cs`
 - `backend/src/PsiAgenda.Infrastructure/DependencyInjection.cs`
 - `backend/src/PsiAgenda.Api/Program.cs`
@@ -1755,6 +1759,8 @@ Feito agora:
 99. Workspace clinico e portal do paciente exibem resumo, politica de retencao e aviso de revisao juridica do termo ativo.
 100. Consentimentos concedidos com `expiresAt` vencido sao materializados como `expired` antes de calcular permissoes ou conteudo visivel.
 101. Expiracao cria evento tecnico, memoria na timeline e auditoria segura sem metadata clinica sensivel.
+102. `ClinicalConsentExpirationWorker` executa expiracao dedicada em segundo plano e ao subir a API.
+103. Consulta de expiracao ganhou indice por `status` e `expiresAt`.
 
 Falta para virar produto clinico real:
 
@@ -1782,7 +1788,7 @@ Status por modulo:
 | Portal do paciente com cuidado | Parcial | Tarefas, materiais e check-ins privados no workspace; previa antes de compartilhar; share/unshare com consentimento; `/patient-care` para itens liberados, conclusao/resposta de tarefa, resposta de check-in e consentimento direto nao sensivel | Reabertura/edicao de tarefas, historico de visualizacao e refinamento de materiais |
 | Check-ins entre sessoes | Parcial | `PatientCheckIn` persistido, compartilhamento com consentimento e resposta pelo portal com escala/observacao | Agenda recorrente, templates editaveis, graficos e tendencias |
 | Alertas responsaveis | Parcial | `ClinicalAlert`, criacao manual por atendimento, motor inicial por tags `risk` e check-ins com escala 1 ou 2, painel no workspace, acoes de confirmar/acompanhar/descartar/resolver, timeline, auditoria sem mensagem automatica ao paciente e destaque de alerta alto no briefing | Configuracao de regras, aprendizado de falso positivo e tendencias longitudinais |
-| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, `PatientConsentEvent` com historico tecnico/versionado, `PatientConsentTerm` com catalogo versionado e validacao de versao ativa, expiracao materializada por `expiresAt`, shareables com consentimento, consentimento direto nao sensivel no portal, solicitacao/decisao de consentimentos sensiveis, exportacao aprovada auditada, matriz efetiva de permissoes no workspace e auditoria sem conteudo clinico | Revisao juridica dos textos sensiveis, jobs dedicados/politica formal de retencao e revogacao, politicas avancadas por papel e criptografia de campos sensiveis |
+| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, `PatientConsentEvent` com historico tecnico/versionado, `PatientConsentTerm` com catalogo versionado e validacao de versao ativa, expiracao materializada por `expiresAt`, job dedicado de expiracao, shareables com consentimento, consentimento direto nao sensivel no portal, solicitacao/decisao de consentimentos sensiveis, exportacao aprovada auditada, matriz efetiva de permissoes no workspace e auditoria sem conteudo clinico | Revisao juridica dos textos sensiveis, politica formal de retencao e revogacao, politicas avancadas por papel e criptografia de campos sensiveis |
 
 ### Navegacao profissional sugerida
 

@@ -371,6 +371,7 @@ public sealed record ArchiveTimelineItemRequest(
 
 public interface IClinicalService
 {
+    Task<int> ExpireDuePatientConsentsAsync(CancellationToken cancellationToken);
     Task<ClinicalWorkspaceDto> GetAppointmentWorkspaceAsync(Guid professionalUserId, Guid appointmentId, CancellationToken cancellationToken);
     Task<IReadOnlyList<ClinicalAlertDto>> GetPatientAlertsAsync(Guid professionalUserId, Guid patientId, CancellationToken cancellationToken);
     Task<IReadOnlyList<PatientTimelineItemDto>> GetPatientTimelineAsync(Guid professionalUserId, Guid patientId, PatientTimelineQuery query, CancellationToken cancellationToken);

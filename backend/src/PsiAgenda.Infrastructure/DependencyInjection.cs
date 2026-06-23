@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddHostedService<ExpiredReservationsWorker>();
+        services.AddHostedService<ClinicalConsentExpirationWorker>();
 
         return services;
     }
