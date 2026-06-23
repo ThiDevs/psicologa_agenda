@@ -331,6 +331,15 @@ export type ApiPatientTimelineItem = {
   createdAt: string;
 };
 
+export type ApiClinicalTimelineFilters = {
+  sourceType?: string | null;
+  layer?: ApiPatientTimelineItem['layer'] | 'all' | null;
+  from?: string | null;
+  to?: string | null;
+  q?: string | null;
+  limit?: number | null;
+};
+
 export type ApiPatientConsentStatus = 'pending' | 'granted' | 'revoked' | 'expired';
 
 export type ApiPatientConsent = {
@@ -1040,6 +1049,40 @@ export async function markProfessionalAppointmentNoShow(appointmentId: string) {
 
 export async function getClinicalAppointmentWorkspace(appointmentId: string) {
   return request<ApiClinicalWorkspace>(`/clinical/appointments/${appointmentId}/workspace`, { authenticated: true });
+}
+
+export async function getClinicalPatientTimeline(patientId: string, filters: ApiClinicalTimelineFilters = {}) {
+  const params = new URLSearchParams();
+
+  if (filters.sourceType && filters.sourceType !== 'all') {
+    params.set('sourceType', filters.sourceType);
+  }
+
+  if (filters.layer && filters.layer !== 'all') {
+    params.set('layer', filters.layer);
+  }
+
+  if (filters.from) {
+    params.set('from', filters.from);
+  }
+
+  if (filters.to) {
+    params.set('to', filters.to);
+  }
+
+  if (filters.q?.trim()) {
+    params.set('q', filters.q.trim());
+  }
+
+  if (filters.limit) {
+    params.set('limit', String(filters.limit));
+  }
+
+  const query = params.toString();
+  return request<ApiPatientTimelineItem[]>(
+    `/clinical/patients/${patientId}/timeline${query ? `?${query}` : ''}`,
+    { authenticated: true },
+  );
 }
 
 export async function startClinicalAppointmentSession(appointmentId: string) {

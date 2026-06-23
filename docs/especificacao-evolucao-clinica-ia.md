@@ -1581,6 +1581,8 @@ Atualizacao da decima primeira entrega: o paciente agora ve consentimentos do pr
 
 Atualizacao da decima segunda entrega: o backend agora possui `PatientCheckIn`, persistido por paciente/profissional e criado como privado por `POST /api/clinical/appointments/{appointmentId}/check-ins`. A psicologa pode compartilhar ou recolher check-ins por endpoints explicitos, com validacao de consentimentos `portal` e `checkins`. O paciente ve check-ins compartilhados em `/patient-care` e responde por `POST /api/patients/me/check-ins/{checkInId}/respond`, usando escala de 1 a 5 e observacao opcional. A resposta cria memoria privada para revisao da psicologa e auditoria sem copiar a resposta para metadata. Ainda nao existe agenda recorrente de check-ins, templates editaveis, graficos longitudinais, alertas, IA, exportacao ou gravacao/transcricao.
 
+Atualizacao da decima terceira entrega: a timeline clinica ganhou consulta longitudinal por paciente em `GET /api/clinical/patients/{patientId}/timeline`, restrita a profissional vinculada por atendimento nao expirado/rejeitado. O endpoint aceita filtros de camada, origem, periodo, busca textual e limite, retornando eventos reais de sessao, rascunhos, prontuario, tags, consentimentos, plano, tarefas, materiais e check-ins quando existirem. A tela clinica passou a ter busca e chips de filtro, mostrando vazio real quando nenhum evento corresponde, sem expor timeline interna no portal do paciente. A auditoria da consulta nao grava termo de busca nem conteudo clinico em metadata. Ainda nao existe detalhe/arquivamento de item da timeline, filtro por tag aplicada/severidade, alertas, IA, exportacao ou gravacao/transcricao.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1672,12 +1674,17 @@ Feito agora:
 49. Compartilhar check-in exige consentimento ativo para portal e check-ins.
 50. Paciente pode responder check-in compartilhado por `POST /api/patients/me/check-ins/{checkInId}/respond`.
 51. Resposta de check-in cria memoria privada na timeline e auditoria sem armazenar resposta no metadata.
+52. Psicologa pode consultar timeline longitudinal por paciente em `GET /api/clinical/patients/{patientId}/timeline`.
+53. A consulta longitudinal valida vinculo paciente-profissional por atendimento ativo antes de retornar itens.
+54. Timeline aceita filtros por camada, origem, periodo, busca textual e limite seguro.
+55. Tela clinica ganhou painel de filtros e estados de loading, vazio real e erro para timeline.
+56. Visual da timeline foi refinado para separar rascunho, prontuario, memoria e compartilhado com chips e cards compactos.
 
 Falta para virar produto clinico real:
 
 1. Criar fluxo juridicamente revisado para consentimentos sensiveis de IA, gravacao e transcricao.
 2. Implementar exportacao de evolucoes aprovadas sem expor camadas indevidas.
-3. Implementar permissao clinica por vinculo paciente-profissional.
+3. Formalizar matriz de permissoes clinicas alem do vinculo profissional-paciente ja validado nos endpoints atuais.
 4. Criar reabertura/edicao de tarefas, materiais completos e agenda recorrente de check-ins.
 5. Conectar IA somente depois de consentimento e minimizacao de dados.
 6. Criar historico completo e politicas de retencao/revogacao de consentimentos.
@@ -1692,7 +1699,7 @@ Status por modulo:
 | --- | --- | --- | --- |
 | Registro pos-consulta com IA | Parcial | `ClinicalSession`, `ClinicalDraft` manual, `ClinicalRecord` aprovado manualmente e retificacao versionada por atendimento | IA, edicao assistida e exportacao |
 | Botoes rapidos e tags clinicas | Parcial | Tags salvas em `AppliedClinicalTag` por atendimento | Biblioteca de tags, personalizacao, filtros e gestao completa |
-| Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags, consentimentos, plano, tarefas e materiais | Timeline longitudinal por paciente, filtros, busca e eventos reais de todos os modulos |
+| Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags, consentimentos, plano, tarefas, materiais e check-ins; `GET /api/clinical/patients/{patientId}/timeline` com filtros de camada, origem, periodo, busca e limite; UI com vazio/loading/erro | Detalhe/arquivamento de item, filtro por tag aplicada/severidade e eventos reais de alertas quando o motor existir |
 | Plano terapeutico vivo | Parcial | `TreatmentPlan` persistido e editavel no workspace clinico | Historico versionado, revisao periodica e sugestoes por IA |
 | Preparacao da proxima sessao | Parcial | Card de briefing conceitual | Job automatico, fontes reais e arquivamento |
 | Separar rascunho, prontuario e memoria | Parcial | Rascunho, memoria, prontuario aprovado e retificacao versionada aparecem como camadas separadas | Exportacao seletiva e politicas de retencao |

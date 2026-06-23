@@ -53,11 +53,12 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Início e finalização da sessão clínica entram como memória na timeline.',
       'Itens exibem camada: rascunho, memória, prontuário ou compartilhado.',
       'Tarefas e materiais compartilhados entram na camada compartilhado.',
+      'Endpoint longitudinal por paciente busca itens reais com filtros de camada, origem, período e texto.',
     ],
     missing: [
-      'Endpoint longitudinal por paciente fora do atendimento.',
-      'Filtros por data, tag, origem e severidade.',
-      'Busca longitudinal no histórico.',
+      'Filtro por tags aplicadas e severidade.',
+      'Tela de detalhe/arquivamento de item da timeline.',
+      'Eventos reais de alertas quando o motor responsável existir.',
     ],
   },
   {

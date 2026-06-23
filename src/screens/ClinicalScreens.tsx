@@ -30,6 +30,7 @@ import {
   createClinicalRecordRectification,
   getApiErrorMessage,
   getClinicalAppointmentWorkspace,
+  getClinicalPatientTimeline,
   getProfessionalAppointmentDetails,
   shareClinicalMaterial,
   shareClinicalCheckIn,
@@ -56,6 +57,8 @@ import {
 } from '@/services/api-client';
 import type { ClinicalConsentItem, ClinicalIntegrationStatus, ClinicalQuickTag } from '@/types/clinical';
 
+type TimelineLayerFilter = ApiPatientTimelineItem['layer'] | 'all';
+
 const integrationStatusLabel: Record<ClinicalIntegrationStatus, string> = {
   connected: 'Conectado',
   partial: 'Parcial',
@@ -74,6 +77,37 @@ const layerLabels = {
   memoria: 'Memória',
   compartilhado: 'Compartilhado',
 };
+
+const timelineLayerOptions: { value: TimelineLayerFilter; label: string }[] = [
+  { value: 'all', label: 'Todas' },
+  { value: 'rascunho', label: 'Rascunhos' },
+  { value: 'prontuario', label: 'Prontuário' },
+  { value: 'memoria', label: 'Memória' },
+  { value: 'compartilhado', label: 'Compartilhado' },
+];
+
+const timelineSourceOptions = [
+  { value: 'all', label: 'Todas' },
+  { value: 'session', label: 'Sessões' },
+  { value: 'draft', label: 'Rascunhos' },
+  { value: 'record', label: 'Prontuário' },
+  { value: 'tag', label: 'Tags' },
+  { value: 'consent', label: 'Consentimentos' },
+  { value: 'plan_update', label: 'Plano' },
+  { value: 'task', label: 'Tarefas' },
+  { value: 'task_response', label: 'Respostas' },
+  { value: 'material', label: 'Materiais' },
+  { value: 'checkin', label: 'Check-ins' },
+  { value: 'checkin_response', label: 'Respostas de check-in' },
+];
+
+const timelineSourceLabels: Record<string, string> = timelineSourceOptions.reduce<Record<string, string>>(
+  (accumulator, option) => {
+    accumulator[option.value] = option.label;
+    return accumulator;
+  },
+  {},
+);
 
 const treatmentPlanStatusOptions: { value: ApiTreatmentPlanStatus; label: string }[] = [
   { value: 'active', label: 'Ativo' },
@@ -136,6 +170,7 @@ export function ClinicalIntegrationScreen() {
         <Bullet text="Paciente pode concluir tarefas compartilhadas com resposta opcional para revisão da psicóloga." />
         <Bullet text="Paciente pode conceder ou revogar consentimentos não sensíveis no portal." />
         <Bullet text="Check-ins manuais já podem ser compartilhados e respondidos pelo paciente com consentimento ativo." />
+        <Bullet text="Timeline longitudinal já busca eventos reais por paciente com filtros e busca clínica." />
         <Bullet text="Documento de especificação acompanha o status por módulo." />
       </View>
 
@@ -224,6 +259,12 @@ export function ClinicalPatientWorkspaceScreen() {
   const [checkInPrompt, setCheckInPrompt] = useState('');
   const [checkInContextNote, setCheckInContextNote] = useState('');
   const [checkInDueAt, setCheckInDueAt] = useState('');
+  const [timelineLayerFilter, setTimelineLayerFilter] = useState<TimelineLayerFilter>('all');
+  const [timelineSourceFilter, setTimelineSourceFilter] = useState('all');
+  const [timelineSearch, setTimelineSearch] = useState('');
+  const [timelineFrom, setTimelineFrom] = useState('');
+  const [timelineTo, setTimelineTo] = useState('');
+  const [loadingTimeline, setLoadingTimeline] = useState(false);
 
   const hydrateTreatmentPlan = useCallback((plan: ApiTreatmentPlan) => {
     setPlanStatus(toTreatmentPlanStatus(plan.status));
@@ -300,7 +341,8 @@ export function ClinicalPatientWorkspaceScreen() {
     () => clinicalQuickTags.filter((tag) => selectedTags.includes(tag.id)).map((tag) => tag.label),
     [selectedTags],
   );
-  const timelineItems = workspace?.timeline.length ? workspace.timeline : clinicalTimelinePreview;
+  const timelineItems = workspace ? workspace.timeline : clinicalTimelinePreview;
+  const timelineActionLabel = workspace ? `${workspace.timeline.length} eventos` : 'Prévia';
   const clinicalSession = workspace?.session ?? null;
   const latestDraft = workspace?.drafts[0] ?? null;
   const latestRecord = workspace?.records[0] ?? null;
@@ -495,6 +537,45 @@ export function ClinicalPatientWorkspaceScreen() {
     setWorkspace(updated);
     hydrateFromWorkspace(updated);
     setClinicalMessage(successMessage);
+  }
+
+  async function loadPatientTimeline() {
+    const timelinePatientId = workspace?.patientId ?? patientId;
+    if (!workspace || !timelinePatientId || timelinePatientId === 'sem-id') {
+      setClinicalMessage('Carregue um atendimento clínico antes de consultar a timeline longitudinal.');
+      return;
+    }
+
+    let from: string | null;
+    let to: string | null;
+    try {
+      from = normalizeOptionalTimelineDateInput(timelineFrom, 'Início');
+      to = normalizeOptionalTimelineDateInput(timelineTo, 'Fim');
+    } catch (error) {
+      setClinicalMessage(error instanceof Error ? error.message : 'Informe um período válido.');
+      return;
+    }
+
+    setLoadingTimeline(true);
+    setClinicalMessage(null);
+
+    try {
+      const timeline = await getClinicalPatientTimeline(timelinePatientId, {
+        sourceType: timelineSourceFilter,
+        layer: timelineLayerFilter,
+        from,
+        to,
+        q: timelineSearch,
+        limit: 80,
+      });
+
+      setWorkspace((current) => current ? { ...current, timeline } : current);
+      setClinicalMessage('Timeline longitudinal filtrada carregada. Conteúdo clínico segue restrito à profissional vinculada.');
+    } catch (error) {
+      setClinicalMessage(getApiErrorMessage(error));
+    } finally {
+      setLoadingTimeline(false);
+    }
   }
 
   async function createPatientTask() {
@@ -909,9 +990,70 @@ export function ClinicalPatientWorkspaceScreen() {
         </>
       ) : null}
 
-      <SectionTitle appearance="dark" title={workspace?.timeline.length ? 'Linha do tempo salva' : 'Linha do tempo inicial'} />
+      <SectionTitle appearance="dark" title="Linha do tempo clínica" actionLabel={timelineActionLabel} />
+      <View style={styles.timelineFilterPanel}>
+        <View style={styles.timelineFilterIntro}>
+          <Ionicons name="git-branch-outline" size={18} color={UI.darkPrimary} />
+          <Text style={styles.timelineFilterText}>
+            Histórico privado da relação clínica. Use filtros para preparar sessão sem misturar rascunho, prontuário, memória e conteúdo compartilhado.
+          </Text>
+        </View>
+        <Field
+          appearance="dark"
+          label="Buscar na timeline"
+          value={timelineSearch}
+          onChangeText={setTimelineSearch}
+          placeholder="Ex.: check-in, plano, consentimento"
+        />
+        <View style={styles.timelineDateRow}>
+          <Field
+            appearance="dark"
+            label="Início"
+            value={timelineFrom}
+            style={styles.timelineDateField}
+            onChangeText={setTimelineFrom}
+            placeholder="2026-06-01"
+          />
+          <Field
+            appearance="dark"
+            label="Fim"
+            value={timelineTo}
+            style={styles.timelineDateField}
+            onChangeText={setTimelineTo}
+            placeholder="2026-06-30"
+          />
+        </View>
+        <TimelineFilterGroup
+          label="Camada"
+          options={timelineLayerOptions}
+          value={timelineLayerFilter}
+          onChange={setTimelineLayerFilter}
+        />
+        <TimelineFilterGroup
+          label="Origem"
+          options={timelineSourceOptions}
+          value={timelineSourceFilter}
+          onChange={setTimelineSourceFilter}
+        />
+        <PrimaryButton
+          label="Aplicar filtros"
+          icon="filter-outline"
+          loading={loadingTimeline}
+          disabled={!workspace || loadingTimeline}
+          onPress={loadPatientTimeline}
+        />
+      </View>
       <View style={styles.list}>
-        {timelineItems.map((item) => <TimelineCard key={item.id} item={item} />)}
+        {timelineItems.length ? (
+          timelineItems.map((item) => <TimelineCard key={item.id} item={item} />)
+        ) : (
+          <EmptyState
+            appearance="dark"
+            icon="calendar-clear-outline"
+            title="Nenhum evento encontrado"
+            text="A timeline real desse paciente não possui itens para os filtros selecionados."
+          />
+        )}
       </View>
 
       <SectionTitle appearance="dark" title="Plano terapêutico" />
@@ -1435,17 +1577,62 @@ function TimelineCard({
   item: ApiPatientTimelineItem | (typeof clinicalTimelinePreview)[number];
 }) {
   const dateLabel = 'dateLabel' in item ? item.dateLabel : formatDateTimeLabel(item.occurredAt);
+  const sourceLabel = 'sourceType' in item ? timelineSourceLabel(item.sourceType) : 'Prévia';
 
   return (
     <View style={styles.timelineCard}>
       <View style={styles.timelineHeader}>
-        <Text style={styles.cardTitle}>{item.title}</Text>
+        <Text style={styles.timelineTitle}>{item.title}</Text>
         <View style={styles.layerPill}>
           <Text style={styles.layerText}>{layerLabels[item.layer]}</Text>
         </View>
       </View>
-      <Text style={styles.cardText}>{item.summary}</Text>
-      <Text style={styles.mutedText}>{dateLabel}</Text>
+      <Text style={styles.timelineSummary}>{item.summary}</Text>
+      <View style={styles.timelineMetaRow}>
+        <Text style={styles.timelineMetaText}>{sourceLabel}</Text>
+        <View style={styles.timelineMetaDot} />
+        <Text style={styles.timelineMetaText}>{dateLabel}</Text>
+      </View>
+    </View>
+  );
+}
+
+function TimelineFilterGroup<TValue extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { value: TValue; label: string }[];
+  value: TValue;
+  onChange: (value: TValue) => void;
+}) {
+  return (
+    <View style={styles.timelineFilterGroup}>
+      <Text style={styles.timelineFilterLabel}>{label}</Text>
+      <View style={styles.timelineChipRow}>
+        {options.map((option) => {
+          const selected = option.value === value;
+
+          return (
+            <Pressable
+              key={option.value}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              onPress={() => onChange(option.value)}
+              style={({ pressed }) => [
+                styles.timelineChip,
+                selected && styles.timelineChipSelected,
+                pressed && styles.pressed,
+              ]}>
+              <Text style={[styles.timelineChipText, selected && styles.timelineChipTextSelected]}>
+                {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -1619,7 +1806,7 @@ function shortId(value: string) {
 }
 
 function isClinicalSuccessMessage(value: string) {
-  return ['salvo', 'salvas', 'carregado', 'criada', 'atualizado', 'iniciada', 'finalizada', 'aprovada']
+  return ['salvo', 'salvas', 'carregado', 'carregada', 'criada', 'atualizado', 'iniciada', 'finalizada', 'aprovada']
     .some((item) => value.toLowerCase().includes(item));
 }
 
@@ -1655,6 +1842,25 @@ function normalizeOptionalDateInput(value: string) {
   }
 
   return parsed.toISOString();
+}
+
+function normalizeOptionalTimelineDateInput(value: string, label: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`${label} da timeline precisa estar em um formato de data válido.`);
+  }
+
+  return parsed.toISOString();
+}
+
+function timelineSourceLabel(sourceType: string) {
+  return timelineSourceLabels[sourceType] ?? sourceType;
 }
 
 function isSharedStatus(item: ApiPatientTask | ApiSharedMaterial | ApiPatientCheckIn | string) {
@@ -2056,6 +2262,67 @@ const styles = StyleSheet.create({
     minHeight: 92,
     textAlignVertical: 'top',
   },
+  timelineFilterPanel: {
+    gap: 12,
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 247, 242, 0.10)',
+    backgroundColor: UI.darkSurface,
+  },
+  timelineFilterIntro: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+  },
+  timelineFilterText: {
+    flex: 1,
+    color: UI.darkTextMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '400',
+  },
+  timelineDateRow: {
+    gap: 10,
+  },
+  timelineDateField: {
+    minHeight: 42,
+  },
+  timelineFilterGroup: {
+    gap: 7,
+  },
+  timelineFilterLabel: {
+    color: UI.darkText,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  timelineChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  timelineChip: {
+    minHeight: 32,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 247, 242, 0.12)',
+    backgroundColor: UI.darkSurfaceRaised,
+  },
+  timelineChipSelected: {
+    borderColor: 'rgba(109, 214, 180, 0.50)',
+    backgroundColor: 'rgba(109, 214, 180, 0.12)',
+  },
+  timelineChipText: {
+    color: UI.darkTextMuted,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  timelineChipTextSelected: {
+    color: UI.darkText,
+    fontWeight: '600',
+  },
   shareableBlock: {
     gap: 10,
   },
@@ -2221,7 +2488,7 @@ const styles = StyleSheet.create({
   timelineCard: {
     gap: 8,
     padding: 14,
-    borderRadius: 20,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(237, 247, 242, 0.10)',
     backgroundColor: UI.darkSurface,
@@ -2232,16 +2499,48 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
   },
+  timelineTitle: {
+    flex: 1,
+    color: UI.darkText,
+    fontSize: 15,
+    lineHeight: 19,
+    fontWeight: '600',
+  },
+  timelineSummary: {
+    color: UI.darkTextMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '400',
+  },
+  timelineMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 7,
+  },
+  timelineMetaText: {
+    color: UI.darkTextMuted,
+    fontSize: 12,
+    fontWeight: '400',
+  },
+  timelineMetaDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(169, 184, 177, 0.55)',
+  },
   layerPill: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: UI.darkSurfaceRaised,
+    borderWidth: 1,
+    borderColor: 'rgba(109, 214, 180, 0.22)',
+    backgroundColor: 'rgba(109, 214, 180, 0.08)',
   },
   layerText: {
     color: UI.darkPrimary,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   consentRow: {
     gap: 10,

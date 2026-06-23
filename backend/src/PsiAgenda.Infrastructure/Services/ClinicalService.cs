@@ -76,6 +76,13 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         "text",
         "link"
     };
+    private static readonly HashSet<string> AllowedTimelineLayers = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "rascunho",
+        "prontuario",
+        "memoria",
+        "compartilhado"
+    };
 
     public async Task<ClinicalWorkspaceDto> GetAppointmentWorkspaceAsync(
         Guid professionalUserId,
@@ -161,6 +168,82 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             materials.Select(ToDto).ToList(),
             checkIns.Select(ToDto).ToList(),
             timeline.Select(ToDto).ToList());
+    }
+
+    public async Task<IReadOnlyList<PatientTimelineItemDto>> GetPatientTimelineAsync(
+        Guid professionalUserId,
+        Guid patientId,
+        PatientTimelineQuery query,
+        CancellationToken cancellationToken)
+    {
+        var relationship = await EnsureProfessionalPatientRelationshipAsync(professionalUserId, patientId, cancellationToken);
+        var sourceType = NormalizeTimelineSourceType(query.SourceType);
+        var layer = NormalizeTimelineLayer(query.Layer);
+        var search = NormalizeOptionalText(query.Search, 120, "Busca da timeline");
+        var limit = query.Limit ?? 80;
+
+        if (limit is < 1 or > 120)
+        {
+            throw new InvalidOperationException("Limite da timeline deve ficar entre 1 e 120 itens.");
+        }
+
+        var from = query.From?.ToUniversalTime();
+        var to = query.To?.ToUniversalTime();
+        if (from.HasValue && to.HasValue && from.Value > to.Value)
+        {
+            throw new InvalidOperationException("Período da timeline inválido.");
+        }
+
+        var timelineQuery = dbContext.PatientTimelineItems
+            .AsNoTracking()
+            .Where(item =>
+                item.PatientId == patientId &&
+                item.ProfessionalId == relationship.ProfessionalId);
+
+        if (sourceType is not null)
+        {
+            timelineQuery = timelineQuery.Where(item => item.SourceType == sourceType);
+        }
+
+        if (layer is not null)
+        {
+            timelineQuery = timelineQuery.Where(item => item.Layer == layer);
+        }
+
+        if (from is DateTimeOffset fromValue)
+        {
+            timelineQuery = timelineQuery.Where(item => item.OccurredAt >= fromValue);
+        }
+
+        if (to is DateTimeOffset toValue)
+        {
+            timelineQuery = timelineQuery.Where(item => item.OccurredAt <= toValue);
+        }
+
+        if (search is not null)
+        {
+            var normalizedSearch = search.ToLowerInvariant();
+            timelineQuery = timelineQuery.Where(item =>
+                item.Title.ToLower().Contains(normalizedSearch) ||
+                item.Summary.ToLower().Contains(normalizedSearch));
+        }
+
+        var items = await timelineQuery
+            .OrderByDescending(item => item.OccurredAt)
+            .ThenByDescending(item => item.CreatedAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            relationship.SpaceId,
+            "clinical.timeline.viewed",
+            "Patient",
+            patientId,
+            cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return items.Select(ToDto).ToList();
     }
 
     public async Task<PatientCarePortalDto> GetPatientCarePortalAsync(
@@ -1810,6 +1893,32 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         return appointment;
     }
 
+    private async Task<ProfessionalPatientRelationship> EnsureProfessionalPatientRelationshipAsync(
+        Guid professionalUserId,
+        Guid patientId,
+        CancellationToken cancellationToken)
+    {
+        var professional = await GetLinkedProfessionalAsync(professionalUserId, cancellationToken);
+        var appointment = await dbContext.Appointments
+            .AsNoTracking()
+            .Where(item =>
+                item.CustomerId == patientId &&
+                item.ProfessionalId == professional.Id &&
+                item.Status != AppointmentStatus.Expired &&
+                item.Status != AppointmentStatus.Rejected)
+            .OrderByDescending(item => item.StartDateTime)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (appointment is null)
+        {
+            throw new KeyNotFoundException("Paciente clínico não encontrado para esta profissional.");
+        }
+
+        return new ProfessionalPatientRelationship(
+            professional.Id,
+            appointment.SpaceId);
+    }
+
     private async Task EnsurePatientUserAsync(
         Guid userId,
         CancellationToken cancellationToken)
@@ -2059,6 +2168,27 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             uri.Scheme is not ("http" or "https"))
         {
             throw new InvalidOperationException("Link do material deve ser uma URL http ou https válida.");
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeTimelineSourceType(string? sourceType)
+    {
+        return NormalizeOptionalText(sourceType, 80, "Origem da timeline")?.ToLowerInvariant();
+    }
+
+    private static string? NormalizeTimelineLayer(string? layer)
+    {
+        var normalized = NormalizeOptionalText(layer, 40, "Camada da timeline")?.ToLowerInvariant();
+        if (normalized is null)
+        {
+            return null;
+        }
+
+        if (!AllowedTimelineLayers.Contains(normalized))
+        {
+            throw new InvalidOperationException("Camada da timeline inválida.");
         }
 
         return normalized;
@@ -2412,4 +2542,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         Guid SpaceId,
         string ProfessionalName,
         string SpaceName);
+
+    private sealed record ProfessionalPatientRelationship(
+        Guid ProfessionalId,
+        Guid SpaceId);
 }
