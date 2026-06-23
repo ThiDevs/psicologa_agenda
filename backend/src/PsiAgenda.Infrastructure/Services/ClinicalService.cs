@@ -34,7 +34,15 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         "recording",
         "transcription"
     ];
+    private static readonly IReadOnlyList<string> PatientPortalConsentTypes =
+    [
+        "portal",
+        "materials",
+        "checkins",
+        "notifications"
+    ];
     private static readonly HashSet<string> AllowedConsentTypes = new(ConsentTypes, StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<string> AllowedPatientPortalConsentTypes = new(PatientPortalConsentTypes, StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> AllowedConsentStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
         "pending",
@@ -145,6 +153,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
     {
         await EnsurePatientUserAsync(patientUserId, cancellationToken);
         var now = DateTimeOffset.UtcNow;
+        var consentRelationships = await GetPatientConsentRelationshipsAsync(patientUserId, cancellationToken);
+        var consents = await GetPatientPortalConsentsAsync(patientUserId, consentRelationships, cancellationToken);
 
         var tasks = await dbContext.PatientTasks
             .AsNoTracking()
@@ -188,6 +198,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         var auditedSpaceIds = tasks
             .Select(task => task.SpaceId)
             .Concat(materials.Select(material => material.SpaceId))
+            .Concat(consentRelationships.Select(relationship => relationship.SpaceId))
             .Distinct()
             .ToList();
 
@@ -210,7 +221,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         return new PatientCarePortalDto(
             patientUserId,
             tasks.Select(ToDto).ToList(),
-            materials.Select(ToDto).ToList());
+            materials.Select(ToDto).ToList(),
+            consents);
     }
 
     public async Task<PatientTaskDto> CompletePatientTaskAsync(
@@ -281,6 +293,98 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return ToDto(task);
+    }
+
+    public async Task<PatientPortalConsentDto> UpdatePatientPortalConsentAsync(
+        Guid patientUserId,
+        Guid professionalId,
+        string consentType,
+        UpdatePatientConsentRequest request,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePatientUserAsync(patientUserId, cancellationToken);
+        var normalizedType = ValidatePatientPortalConsentType(consentType);
+        var normalizedStatus = ValidateConsentStatus(request.Status);
+
+        if (normalizedStatus is not ("granted" or "revoked"))
+        {
+            throw new InvalidOperationException("O portal do paciente permite conceder ou revogar este consentimento.");
+        }
+
+        var relationship = await GetPatientConsentRelationshipAsync(patientUserId, professionalId, cancellationToken);
+        if (relationship is null)
+        {
+            throw new KeyNotFoundException("Profissional não encontrada no seu acompanhamento.");
+        }
+
+        var termsVersion = NormalizeOptionalText(request.TermsVersion, 40, "Versão dos termos") ?? "clinical-consent-v1";
+        var now = DateTimeOffset.UtcNow;
+        var consent = await dbContext.PatientConsents
+            .FirstOrDefaultAsync(item =>
+                    item.PatientId == patientUserId &&
+                    item.ProfessionalId == relationship.ProfessionalId &&
+                    item.ConsentType == normalizedType,
+                cancellationToken);
+
+        if (consent is null)
+        {
+            consent = new PatientConsent
+            {
+                PatientId = patientUserId,
+                ProfessionalId = relationship.ProfessionalId,
+                SpaceId = relationship.SpaceId,
+                UpdatedByUserId = patientUserId,
+                ConsentType = normalizedType,
+                Status = normalizedStatus,
+                TermsVersion = termsVersion,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            dbContext.PatientConsents.Add(consent);
+        }
+
+        consent.SpaceId = relationship.SpaceId;
+        consent.Status = normalizedStatus;
+        consent.TermsVersion = termsVersion;
+        consent.UpdatedByUserId = patientUserId;
+        consent.UpdatedAt = now;
+        consent.ExpiresAt = normalizedStatus == "granted" ? request.ExpiresAt : null;
+
+        if (normalizedStatus == "granted")
+        {
+            consent.GrantedAt = now;
+            consent.RevokedAt = null;
+        }
+        else
+        {
+            consent.RevokedAt = now;
+        }
+
+        dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+        {
+            PatientId = patientUserId,
+            ProfessionalId = relationship.ProfessionalId,
+            SpaceId = relationship.SpaceId,
+            CreatedByUserId = patientUserId,
+            SourceType = "consent",
+            SourceId = consent.Id,
+            Title = "Consentimento atualizado pelo paciente",
+            Summary = $"Paciente atualizou consentimento para {ConsentTypeLabel(normalizedType)}: {ConsentStatusLabel(normalizedStatus)}.",
+            Layer = "memoria",
+            OccurredAt = now,
+            CreatedAt = now
+        });
+        await AddClinicalAuditAsync(
+            patientUserId,
+            relationship.SpaceId,
+            "patient.consent.updated",
+            nameof(PatientConsent),
+            consent.Id,
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToPortalDto(consent, relationship.ProfessionalName, relationship.SpaceName);
     }
 
     public async Task<ClinicalDraftDto> CreateAppointmentDraftAsync(
@@ -1193,6 +1297,140 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             .ToList();
     }
 
+    private async Task<IReadOnlyList<PatientConsentRelationship>> GetPatientConsentRelationshipsAsync(
+        Guid patientUserId,
+        CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.Appointments
+            .AsNoTracking()
+            .Where(appointment =>
+                appointment.CustomerId == patientUserId &&
+                appointment.Status != AppointmentStatus.Expired &&
+                appointment.Status != AppointmentStatus.Rejected)
+            .Join(
+                dbContext.Professionals.AsNoTracking(),
+                appointment => appointment.ProfessionalId,
+                professional => professional.Id,
+                (appointment, professional) => new { appointment, professional })
+            .Join(
+                dbContext.Spaces.AsNoTracking(),
+                item => item.appointment.SpaceId,
+                space => space.Id,
+                (item, space) => new
+                {
+                    item.appointment.ProfessionalId,
+                    item.appointment.SpaceId,
+                    item.appointment.StartDateTime,
+                    ProfessionalName = item.professional.Name,
+                    SpaceName = space.Name
+                })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .GroupBy(row => new { row.ProfessionalId, row.SpaceId })
+            .Select(group =>
+            {
+                var row = group.OrderByDescending(item => item.StartDateTime).First();
+
+                return new PatientConsentRelationship(
+                    row.ProfessionalId,
+                    row.SpaceId,
+                    row.ProfessionalName,
+                    row.SpaceName);
+            })
+            .OrderBy(relationship => relationship.ProfessionalName)
+            .ThenBy(relationship => relationship.SpaceName)
+            .ToList();
+    }
+
+    private async Task<IReadOnlyList<PatientPortalConsentDto>> GetPatientPortalConsentsAsync(
+        Guid patientUserId,
+        IReadOnlyList<PatientConsentRelationship> relationships,
+        CancellationToken cancellationToken)
+    {
+        if (relationships.Count == 0)
+        {
+            return [];
+        }
+
+        var professionalIds = relationships
+            .Select(relationship => relationship.ProfessionalId)
+            .Distinct()
+            .ToList();
+        var consentTypes = PatientPortalConsentTypes.ToArray();
+        var stored = await dbContext.PatientConsents
+            .AsNoTracking()
+            .Where(consent =>
+                consent.PatientId == patientUserId &&
+                professionalIds.Contains(consent.ProfessionalId) &&
+                consentTypes.Contains(consent.ConsentType))
+            .ToListAsync(cancellationToken);
+        var byProfessionalAndType = stored.ToDictionary(
+            consent => PatientPortalConsentKey(consent.ProfessionalId, consent.ConsentType),
+            StringComparer.OrdinalIgnoreCase);
+
+        return relationships
+            .SelectMany(relationship => PatientPortalConsentTypes.Select(type =>
+                byProfessionalAndType.TryGetValue(PatientPortalConsentKey(relationship.ProfessionalId, type), out var consent)
+                    ? ToPortalDto(consent, relationship.ProfessionalName, relationship.SpaceName)
+                    : new PatientPortalConsentDto(
+                        null,
+                        patientUserId,
+                        relationship.ProfessionalId,
+                        relationship.SpaceId,
+                        relationship.ProfessionalName,
+                        relationship.SpaceName,
+                        type,
+                        "pending",
+                        "clinical-consent-v1",
+                        null,
+                        null,
+                        null,
+                        null)))
+            .ToList();
+    }
+
+    private async Task<PatientConsentRelationship?> GetPatientConsentRelationshipAsync(
+        Guid patientUserId,
+        Guid professionalId,
+        CancellationToken cancellationToken)
+    {
+        var row = await dbContext.Appointments
+            .AsNoTracking()
+            .Where(appointment =>
+                appointment.CustomerId == patientUserId &&
+                appointment.ProfessionalId == professionalId &&
+                appointment.Status != AppointmentStatus.Expired &&
+                appointment.Status != AppointmentStatus.Rejected)
+            .Join(
+                dbContext.Professionals.AsNoTracking(),
+                appointment => appointment.ProfessionalId,
+                professional => professional.Id,
+                (appointment, professional) => new { appointment, professional })
+            .Join(
+                dbContext.Spaces.AsNoTracking(),
+                item => item.appointment.SpaceId,
+                space => space.Id,
+                (item, space) => new
+                {
+                    item.appointment.ProfessionalId,
+                    item.appointment.SpaceId,
+                    item.appointment.StartDateTime,
+                    ProfessionalName = item.professional.Name,
+                    SpaceName = space.Name
+                })
+            .OrderByDescending(item => item.StartDateTime)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return row is null
+            ? null
+            : new PatientConsentRelationship(
+                row.ProfessionalId,
+                row.SpaceId,
+                row.ProfessionalName,
+                row.SpaceName);
+    }
+
     private async Task<TreatmentPlanDto> GetTreatmentPlanAsync(
         Appointment appointment,
         CancellationToken cancellationToken)
@@ -1426,6 +1664,18 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         return normalized;
     }
 
+    private static string ValidatePatientPortalConsentType(string consentType)
+    {
+        var normalized = string.IsNullOrWhiteSpace(consentType) ? string.Empty : consentType.Trim().ToLowerInvariant();
+
+        if (!AllowedPatientPortalConsentTypes.Contains(normalized))
+        {
+            throw new InvalidOperationException("Este consentimento não pode ser atualizado diretamente pelo portal do paciente.");
+        }
+
+        return normalized;
+    }
+
     private static string ValidateConsentStatus(string status)
     {
         var normalized = string.IsNullOrWhiteSpace(status) ? string.Empty : status.Trim().ToLowerInvariant();
@@ -1558,6 +1808,11 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             "expired" => "expirado",
             _ => "pendente"
         };
+    }
+
+    private static string PatientPortalConsentKey(Guid professionalId, string consentType)
+    {
+        return $"{professionalId:N}:{consentType}";
     }
 
     private static string ValidateText(string value, string fieldName, int minLength, int maxLength)
@@ -1830,4 +2085,31 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             consent.ExpiresAt,
             consent.UpdatedAt);
     }
+
+    private static PatientPortalConsentDto ToPortalDto(
+        PatientConsent consent,
+        string professionalName,
+        string spaceName)
+    {
+        return new PatientPortalConsentDto(
+            consent.Id,
+            consent.PatientId,
+            consent.ProfessionalId,
+            consent.SpaceId,
+            professionalName,
+            spaceName,
+            consent.ConsentType,
+            consent.Status,
+            consent.TermsVersion,
+            consent.GrantedAt,
+            consent.RevokedAt,
+            consent.ExpiresAt,
+            consent.UpdatedAt);
+    }
+
+    private sealed record PatientConsentRelationship(
+        Guid ProfessionalId,
+        Guid SpaceId,
+        string ProfessionalName,
+        string SpaceName);
 }

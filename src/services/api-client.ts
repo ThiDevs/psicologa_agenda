@@ -347,6 +347,11 @@ export type ApiPatientConsent = {
   updatedAt?: string | null;
 };
 
+export type ApiPatientPortalConsent = ApiPatientConsent & {
+  professionalName: string;
+  spaceName: string;
+};
+
 export type ApiClinicalSession = {
   id: string;
   appointmentId?: string | null;
@@ -437,6 +442,7 @@ export type ApiPatientCarePortal = {
   patientId: string;
   tasks: ApiPatientTask[];
   materials: ApiSharedMaterial[];
+  consents: ApiPatientPortalConsent[];
 };
 
 export type ApiStarterSetupResponse = {
@@ -1065,6 +1071,18 @@ export async function updateClinicalAppointmentConsent(appointmentId: string, co
   expiresAt?: string | null;
 }) {
   return request<ApiPatientConsent>(`/clinical/appointments/${appointmentId}/consents/${consentType}`, {
+    method: 'POST',
+    authenticated: true,
+    body: input,
+  });
+}
+
+export async function updatePatientPortalConsent(professionalId: string, consentType: string, input: {
+  status: ApiPatientConsentStatus;
+  termsVersion?: string | null;
+  expiresAt?: string | null;
+}) {
+  return request<ApiPatientPortalConsent>(`/patients/me/consents/${professionalId}/${consentType}`, {
     method: 'POST',
     authenticated: true,
     body: input,

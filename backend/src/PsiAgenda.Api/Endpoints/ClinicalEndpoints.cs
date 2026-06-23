@@ -48,6 +48,10 @@ public static class ClinicalEndpoints
             .WithTags("Clinical")
             .RequireAuthorization()
             .RequireRateLimiting("Sensitive");
+        app.MapPost("/api/patients/me/consents/{professionalId:guid}/{consentType}", UpdatePatientPortalConsentAsync)
+            .WithTags("Clinical")
+            .RequireAuthorization()
+            .RequireRateLimiting("Sensitive");
 
         return app;
     }
@@ -84,6 +88,24 @@ public static class ClinicalEndpoints
             () => clinicalService.CompletePatientTaskAsync(
                 currentUser.UserIdOrThrow(),
                 taskId,
+                request,
+                cancellationToken),
+            Results.Ok);
+    }
+
+    private static async Task<IResult> UpdatePatientPortalConsentAsync(
+        Guid professionalId,
+        string consentType,
+        UpdatePatientConsentRequest request,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.UpdatePatientPortalConsentAsync(
+                currentUser.UserIdOrThrow(),
+                professionalId,
+                consentType,
                 request,
                 cancellationToken),
             Results.Ok);

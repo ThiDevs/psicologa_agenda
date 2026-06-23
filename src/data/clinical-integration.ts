@@ -120,10 +120,11 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Compartilhamento consulta consentimento ativo antes de liberar conteúdo.',
       'Área Meu acompanhamento lista apenas tarefas e materiais já compartilhados.',
       'Paciente pode concluir tarefa compartilhada e enviar resposta opcional.',
+      'Paciente pode conceder ou revogar consentimentos não sensíveis pelo portal.',
     ],
     missing: [
-      'Consentimento direto pelo portal do paciente.',
       'Edição/reabertura de tarefa após revisão da psicóloga.',
+      'Check-ins e histórico de visualização do portal.',
     ],
   },
   {
@@ -166,11 +167,12 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'PatientConsent persistido por paciente/profissional e exibido no workspace clínico.',
       'Ações clínicas geram AuditLog sem gravar conteúdo clínico no metadata.',
       'Compartilhar tarefas e materiais exige consentimento granular ativo.',
+      'Portal do paciente permite consentimento direto para portal, materiais, check-ins e notificações.',
       'API base mantém /api em produção.',
     ],
     missing: [
-      'Portal do paciente para consentimento direto.',
       'Auditoria clínica completa.',
+      'Fluxo específico para consentimentos sensíveis de IA, gravação e transcrição.',
       'Criptografia/campos sensíveis e política de retenção.',
     ],
   },

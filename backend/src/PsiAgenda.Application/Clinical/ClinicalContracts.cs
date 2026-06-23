@@ -18,7 +18,8 @@ public sealed record ClinicalWorkspaceDto(
 public sealed record PatientCarePortalDto(
     Guid PatientId,
     IReadOnlyList<PatientTaskDto> Tasks,
-    IReadOnlyList<SharedMaterialDto> Materials);
+    IReadOnlyList<SharedMaterialDto> Materials,
+    IReadOnlyList<PatientPortalConsentDto> Consents);
 
 public sealed record ClinicalSessionDto(
     Guid Id,
@@ -96,6 +97,21 @@ public sealed record PatientConsentDto(
     Guid PatientId,
     Guid ProfessionalId,
     Guid SpaceId,
+    string ConsentType,
+    string Status,
+    string TermsVersion,
+    DateTimeOffset? GrantedAt,
+    DateTimeOffset? RevokedAt,
+    DateTimeOffset? ExpiresAt,
+    DateTimeOffset? UpdatedAt);
+
+public sealed record PatientPortalConsentDto(
+    Guid? Id,
+    Guid PatientId,
+    Guid ProfessionalId,
+    Guid SpaceId,
+    string ProfessionalName,
+    string SpaceName,
     string ConsentType,
     string Status,
     string TermsVersion,
@@ -200,6 +216,7 @@ public interface IClinicalService
     Task<ClinicalWorkspaceDto> GetAppointmentWorkspaceAsync(Guid professionalUserId, Guid appointmentId, CancellationToken cancellationToken);
     Task<PatientCarePortalDto> GetPatientCarePortalAsync(Guid patientUserId, CancellationToken cancellationToken);
     Task<PatientTaskDto> CompletePatientTaskAsync(Guid patientUserId, Guid taskId, CompletePatientTaskRequest request, CancellationToken cancellationToken);
+    Task<PatientPortalConsentDto> UpdatePatientPortalConsentAsync(Guid patientUserId, Guid professionalId, string consentType, UpdatePatientConsentRequest request, CancellationToken cancellationToken);
     Task<ClinicalDraftDto> CreateAppointmentDraftAsync(Guid professionalUserId, Guid appointmentId, CreateClinicalDraftRequest request, CancellationToken cancellationToken);
     Task<ClinicalDraftDto> CreateRecordRectificationDraftAsync(Guid professionalUserId, Guid recordId, CancellationToken cancellationToken);
     Task<IReadOnlyList<AppliedClinicalTagDto>> ApplyAppointmentTagsAsync(Guid professionalUserId, Guid appointmentId, ApplyClinicalTagsRequest request, CancellationToken cancellationToken);

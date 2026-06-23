@@ -1577,6 +1577,8 @@ Atualizacao da nona entrega: o paciente agora possui a area "Meu acompanhamento"
 
 Atualizacao da decima entrega: o paciente agora pode concluir uma tarefa compartilhada por `POST /api/patients/me/tasks/{taskId}/complete`, enviando uma resposta opcional quando a tarefa aceita resposta. A conclusao muda a tarefa para `completed`, registra `responseText`, `responseSubmittedAt` e `completedAt`, e cria memoria/timeline privada para revisao da psicologa sem copiar a resposta para metadata de auditoria. Ainda nao existe consentimento direto pelo portal, reabertura/edicao de tarefa, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
 
+Atualizacao da decima primeira entrega: o paciente agora ve consentimentos do proprio acompanhamento em `/patient-care` e pode conceder ou revogar diretamente `portal`, `materials`, `checkins` e `notifications` por `POST /api/patients/me/consents/{professionalId}/{consentType}`. O backend valida conta de paciente ativa, vinculo por atendimento com a profissional e bloqueia consentimentos sensiveis (`ai_analysis`, `recording`, `transcription`) nesse fluxo simples. A atualizacao cria memoria/timeline e auditoria sem copiar conteudo clinico para metadata. Ainda nao existe fluxo especifico para consentimentos sensiveis de IA, gravacao ou transcricao, reabertura/edicao de tarefa, check-ins, alertas, exportacao ou gravacao/transcricao.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1657,15 +1659,19 @@ Feito agora:
 40. Paciente pode concluir tarefa compartilhada por `POST /api/patients/me/tasks/{taskId}/complete`.
 41. Resposta opcional de tarefa fica visivel para paciente e psicologa, mas nao entra em metadata de auditoria.
 42. Conclusao de tarefa cria memoria privada na timeline para revisao da psicologa.
+43. `GET /api/patients/me/care` retorna consentimentos nao sensiveis do acompanhamento do paciente.
+44. Paciente pode conceder ou revogar `portal`, `materials`, `checkins` e `notifications` por `POST /api/patients/me/consents/{professionalId}/{consentType}`.
+45. O portal bloqueia consentimentos sensiveis de IA, gravacao e transcricao nesse fluxo direto.
+46. Atualizacao de consentimento pelo paciente cria memoria e auditoria sem conteudo clinico sensivel no metadata.
 
 Falta para virar produto clinico real:
 
-1. Criar consentimento direto pelo portal do paciente.
+1. Criar fluxo juridicamente revisado para consentimentos sensiveis de IA, gravacao e transcricao.
 2. Implementar exportacao de evolucoes aprovadas sem expor camadas indevidas.
 3. Implementar permissao clinica por vinculo paciente-profissional.
 4. Criar reabertura/edicao de tarefas, materiais completos e check-ins.
 5. Conectar IA somente depois de consentimento e minimizacao de dados.
-6. Criar telas e politicas de retencao/revogacao de consentimentos.
+6. Criar historico completo e politicas de retencao/revogacao de consentimentos.
 7. Criar motor de alertas responsaveis com revisao humana.
 8. Adicionar testes de contrato da API e testes de tela.
 9. Ajustar copy legal/clinica com revisao profissional.
@@ -1681,10 +1687,10 @@ Status por modulo:
 | Plano terapeutico vivo | Parcial | `TreatmentPlan` persistido e editavel no workspace clinico | Historico versionado, revisao periodica e sugestoes por IA |
 | Preparacao da proxima sessao | Parcial | Card de briefing conceitual | Job automatico, fontes reais e arquivamento |
 | Separar rascunho, prontuario e memoria | Parcial | Rascunho, memoria, prontuario aprovado e retificacao versionada aparecem como camadas separadas | Exportacao seletiva e politicas de retencao |
-| Portal do paciente com cuidado | Parcial | Tarefas e materiais privados no workspace, previa antes de compartilhar, share/unshare com consentimento, `/patient-care` para itens liberados e conclusao/resposta de tarefa | Consentimento direto, reabertura/edicao de tarefas, check-ins e historico de visualizacao |
+| Portal do paciente com cuidado | Parcial | Tarefas e materiais privados no workspace, previa antes de compartilhar, share/unshare com consentimento, `/patient-care` para itens liberados, conclusao/resposta de tarefa e consentimento direto nao sensivel | Reabertura/edicao de tarefas, check-ins e historico de visualizacao |
 | Check-ins entre sessoes | Pendente | Templates e fluxo especificados | Agenda, respostas, graficos e tendencias |
 | Alertas responsaveis | Pendente | Linguagem e estados especificados | Motor de alertas, painel e auditoria de revisao |
-| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, shareables com consentimento e auditoria sem conteudo clinico | Portal para consentimento direto, politicas de retencao, criptografia de campos sensiveis e exportacao controlada |
+| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, shareables com consentimento, consentimento direto nao sensivel no portal e auditoria sem conteudo clinico | Consentimentos sensiveis para IA/gravacao/transcricao, politicas de retencao, criptografia de campos sensiveis e exportacao controlada |
 
 ### Navegacao profissional sugerida
 

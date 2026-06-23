@@ -130,6 +130,7 @@ export function ClinicalIntegrationScreen() {
         <Bullet text="Tarefas e materiais já nascem privados e podem ser compartilhados ou recolhidos com consentimento." />
         <Bullet text="Paciente já vê em Meu acompanhamento apenas tarefas e materiais compartilhados." />
         <Bullet text="Paciente pode concluir tarefas compartilhadas com resposta opcional para revisão da psicóloga." />
+        <Bullet text="Paciente pode conceder ou revogar consentimentos não sensíveis no portal." />
         <Bullet text="Documento de especificação acompanha o status por módulo." />
       </View>
 

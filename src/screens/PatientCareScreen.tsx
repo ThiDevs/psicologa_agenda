@@ -16,7 +16,10 @@ import {
   completePatientCareTask,
   getApiErrorMessage,
   getPatientCarePortal,
+  updatePatientPortalConsent,
+  type ApiPatientConsentStatus,
   type ApiPatientCarePortal,
+  type ApiPatientPortalConsent,
   type ApiPatientTask,
   type ApiSharedMaterial,
 } from '@/services/api-client';
@@ -35,6 +38,8 @@ const CARE_COLORS = {
   sageSoft: '#EAF6F0',
   amber: '#C77A1B',
   amberSoft: '#FFF5E6',
+  danger: '#B42318',
+  dangerSoft: '#FDECEC',
 } as const;
 
 export function PatientCarePortalScreen() {
@@ -46,6 +51,7 @@ export function PatientCarePortalScreen() {
   const [portalMessageTone, setPortalMessageTone] = useState<'success' | 'warning'>('success');
   const [taskResponses, setTaskResponses] = useState<Record<string, string>>({});
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+  const [savingConsentKey, setSavingConsentKey] = useState<string | null>(null);
 
   const loadPortal = useCallback(async (showLoading = true) => {
     if (showLoading) {
@@ -91,13 +97,40 @@ export function PatientCarePortalScreen() {
     }
   }
 
+  async function updateConsent(consent: ApiPatientPortalConsent, status: ApiPatientConsentStatus) {
+    const key = consentKey(consent);
+
+    setSavingConsentKey(key);
+    setPortalMessage(null);
+    setErrorMessage(null);
+
+    try {
+      await updatePatientPortalConsent(consent.professionalId, consent.consentType, {
+        status,
+        termsVersion: consent.termsVersion || 'clinical-consent-v1',
+      });
+      await loadPortal(false);
+      setPortalMessageTone('success');
+      setPortalMessage(status === 'granted'
+        ? 'Consentimento concedido para próximos usos.'
+        : 'Consentimento revogado para próximos usos.');
+    } catch (error) {
+      setPortalMessageTone('warning');
+      setPortalMessage(getApiErrorMessage(error));
+    } finally {
+      setSavingConsentKey(null);
+    }
+  }
+
   useEffect(() => {
     loadPortal();
   }, [loadPortal]);
 
   const tasks = portal?.tasks ?? [];
   const materials = portal?.materials ?? [];
+  const consents = portal?.consents ?? [];
   const openTasks = tasks.filter((task) => task.status !== 'completed');
+  const grantedConsentCount = consents.filter((consent) => consent.status === 'granted').length;
 
   return (
     <ScreenScaffold>
@@ -151,6 +184,7 @@ export function PatientCarePortalScreen() {
           <View style={styles.summaryGrid}>
             <SummaryTile icon="checkbox-outline" label="Tarefas abertas" value={String(openTasks.length)} />
             <SummaryTile icon="library-outline" label="Materiais" value={String(materials.length)} />
+            <SummaryTile icon="shield-checkmark-outline" label="Consentimentos" value={`${grantedConsentCount}/${consents.length}`} />
           </View>
 
           <SectionTitle title="Tarefas combinadas" actionLabel={`${tasks.length} itens`} />
@@ -196,6 +230,32 @@ export function PatientCarePortalScreen() {
                 icon="library-outline"
                 title="Sem materiais liberados"
                 text="Materiais enviados pela psicóloga aparecerão nesta área."
+              />
+            )}
+          </View>
+
+          <SectionTitle
+            title="Consentimentos"
+            actionLabel={consents.length ? `${grantedConsentCount}/${consents.length} ativos` : 'sem vínculo'}
+          />
+          <View style={styles.card}>
+            {consents.length ? (
+              consents.map((consent, index) => (
+                <PatientConsentRow
+                  key={consentKey(consent)}
+                  consent={consent}
+                  isFirst={index === 0}
+                  saving={savingConsentKey === consentKey(consent)}
+                  disabled={savingConsentKey !== null}
+                  onGrant={() => updateConsent(consent, 'granted')}
+                  onRevoke={() => updateConsent(consent, 'revoked')}
+                />
+              ))
+            ) : (
+              <EmptyState
+                icon="shield-checkmark-outline"
+                title="Sem consentimentos"
+                text="Quando houver um vínculo de atendimento, seus consentimentos aparecerão aqui."
               />
             )}
           </View>
@@ -356,6 +416,81 @@ function SharedMaterialRow({
   );
 }
 
+function PatientConsentRow({
+  consent,
+  isFirst,
+  saving,
+  disabled,
+  onGrant,
+  onRevoke,
+}: {
+  consent: ApiPatientPortalConsent;
+  isFirst: boolean;
+  saving: boolean;
+  disabled: boolean;
+  onGrant: () => void;
+  onRevoke: () => void;
+}) {
+  const granted = consent.status === 'granted';
+  const revoked = consent.status === 'revoked';
+  const statusColor = consentStatusColor(consent.status);
+  const statusDate = consent.grantedAt ?? consent.revokedAt ?? consent.updatedAt;
+
+  return (
+    <View style={[styles.listRow, isFirst && styles.listRowFirst]}>
+      <View style={[styles.rowIcon, granted && styles.consentIconGranted, revoked && styles.consentIconRevoked]}>
+        <Ionicons name={consentStatusIcon(consent.status)} size={18} color={statusColor} />
+      </View>
+      <View style={styles.rowCopy}>
+        <View style={styles.rowHeader}>
+          <Text style={styles.rowTitle}>{consentTypeLabel(consent.consentType)}</Text>
+          <View style={[styles.statusPill, styles.consentStatusPill]}>
+            <Text style={[styles.statusText, { color: statusColor }]}>
+              {consentStatusLabel(consent.status)}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.rowText}>{consentTypeDescription(consent.consentType)}</Text>
+        <Text style={styles.rowMeta}>
+          {consent.professionalName} · {consent.spaceName}
+          {statusDate ? ` · ${formatDateLabel(statusDate)}` : ''}
+        </Text>
+        <Text style={styles.consentTerms}>Termos {consent.termsVersion}</Text>
+        <View style={styles.consentActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Conceder ${consentTypeLabel(consent.consentType)}`}
+            disabled={disabled || granted}
+            onPress={onGrant}
+            style={({ pressed }) => [
+              styles.consentButton,
+              styles.consentButtonPrimary,
+              (disabled || granted) && styles.consentButtonDisabled,
+              pressed && styles.pressed,
+            ]}>
+            <Ionicons name="checkmark-outline" size={14} color={CARE_COLORS.surface} />
+            <Text style={styles.consentButtonTextPrimary}>{saving ? 'Salvando' : 'Conceder'}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Revogar ${consentTypeLabel(consent.consentType)}`}
+            disabled={disabled || revoked}
+            onPress={onRevoke}
+            style={({ pressed }) => [
+              styles.consentButton,
+              styles.consentButtonMuted,
+              (disabled || revoked) && styles.consentButtonDisabled,
+              pressed && styles.pressed,
+            ]}>
+            <Ionicons name="close-outline" size={14} color={CARE_COLORS.primary} />
+            <Text style={styles.consentButtonText}>Revogar</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 function CareStep({
   done,
   current,
@@ -382,6 +517,73 @@ function CareStep({
       <Text numberOfLines={1} style={styles.careStepText}>{text}</Text>
     </View>
   );
+}
+
+function consentKey(consent: ApiPatientPortalConsent) {
+  return `${consent.professionalId}:${consent.consentType}`;
+}
+
+function consentTypeLabel(consentType: string) {
+  const labels: Record<string, string> = {
+    portal: 'Portal do paciente',
+    materials: 'Materiais compartilhados',
+    checkins: 'Check-ins',
+    notifications: 'Notificações',
+  };
+
+  return labels[consentType] ?? consentType;
+}
+
+function consentTypeDescription(consentType: string) {
+  const descriptions: Record<string, string> = {
+    portal: 'Permite usar esta área para acompanhar itens liberados.',
+    materials: 'Permite receber materiais escolhidos pela psicóloga.',
+    checkins: 'Permite responder check-ins de acompanhamento quando forem ativados.',
+    notifications: 'Permite receber avisos relacionados ao seu cuidado.',
+  };
+
+  return descriptions[consentType] ?? 'Consentimento granular do seu acompanhamento.';
+}
+
+function consentStatusLabel(status: ApiPatientConsentStatus) {
+  return {
+    granted: 'Concedido',
+    revoked: 'Revogado',
+    expired: 'Expirado',
+    pending: 'Pendente',
+  }[status];
+}
+
+function consentStatusIcon(status: ApiPatientConsentStatus): keyof typeof Ionicons.glyphMap {
+  if (status === 'granted') {
+    return 'shield-checkmark-outline';
+  }
+
+  if (status === 'revoked') {
+    return 'close-circle-outline';
+  }
+
+  if (status === 'expired') {
+    return 'time-outline';
+  }
+
+  return 'shield-outline';
+}
+
+function consentStatusColor(status: ApiPatientConsentStatus) {
+  if (status === 'granted') {
+    return CARE_COLORS.sage;
+  }
+
+  if (status === 'revoked') {
+    return CARE_COLORS.danger;
+  }
+
+  if (status === 'expired') {
+    return CARE_COLORS.amber;
+  }
+
+  return CARE_COLORS.primary;
 }
 
 function formatDateLabel(value: string) {
@@ -544,6 +746,62 @@ const styles = StyleSheet.create({
   },
   materialStatusText: {
     color: CARE_COLORS.amber,
+  },
+  consentIconGranted: {
+    backgroundColor: CARE_COLORS.sageSoft,
+  },
+  consentIconRevoked: {
+    backgroundColor: CARE_COLORS.dangerSoft,
+  },
+  consentStatusPill: {
+    backgroundColor: CARE_COLORS.surface,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+  },
+  consentTerms: {
+    color: CARE_COLORS.muted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '400',
+  },
+  consentActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingTop: 4,
+  },
+  consentButton: {
+    minHeight: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: 11,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  consentButtonPrimary: {
+    borderColor: CARE_COLORS.primary,
+    backgroundColor: CARE_COLORS.primary,
+  },
+  consentButtonMuted: {
+    borderColor: CARE_COLORS.border,
+    backgroundColor: CARE_COLORS.surfaceBlue,
+  },
+  consentButtonDisabled: {
+    opacity: 0.46,
+  },
+  consentButtonText: {
+    color: CARE_COLORS.primary,
+    fontSize: 12.5,
+    lineHeight: 16,
+    fontWeight: '600',
+  },
+  consentButtonTextPrimary: {
+    color: CARE_COLORS.surface,
+    fontSize: 12.5,
+    lineHeight: 16,
+    fontWeight: '600',
   },
   linkButton: {
     minHeight: 32,
