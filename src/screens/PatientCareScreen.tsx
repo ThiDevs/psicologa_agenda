@@ -854,6 +854,8 @@ function consentActionLabel(action: string) {
       return 'Expirado';
     case 'pending':
       return 'Atualizado';
+    case 'migrated':
+      return 'Estado inicial';
     default:
       return action;
   }

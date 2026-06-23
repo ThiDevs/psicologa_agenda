@@ -431,7 +431,7 @@ export type ApiPatientConsentEvent = {
   actorUserId: string;
   consentType: string;
   status: ApiPatientConsentStatus;
-  action: 'requested' | ApiPatientConsentStatus | string;
+  action: 'requested' | 'migrated' | ApiPatientConsentStatus | string;
   termsVersion: string;
   grantedAt?: string | null;
   revokedAt?: string | null;
