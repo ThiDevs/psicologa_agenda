@@ -394,6 +394,25 @@ export function ClinicalPatientWorkspaceScreen() {
   const patientCheckIns = workspace?.checkIns ?? [];
   const clinicalAlerts = workspace?.alerts ?? [];
   const activeAlertCount = clinicalAlerts.filter((alert) => !isClosedAlertStatus(alert.status)).length;
+  const briefingHighAlerts = clinicalAlerts.filter(isHighPriorityAlert);
+  const briefingActiveAlerts = clinicalAlerts.filter(isActiveAlert).slice(0, 3);
+  const briefingTasks = patientTasks.filter(isBriefingTask).slice(0, 3);
+  const briefingCheckIns = patientCheckIns.filter(isBriefingCheckIn).slice(0, 3);
+  const briefingTags = (workspace?.tags ?? []).slice(0, 5);
+  const briefingGoals = (treatmentPlan?.goals ?? []).slice(0, 3);
+  const briefingQuestions = buildBriefingQuestions({
+    hasAlerts: briefingActiveAlerts.length > 0,
+    hasTasks: briefingTasks.length > 0,
+    hasCheckIns: briefingCheckIns.length > 0,
+    hasGoals: briefingGoals.length > 0,
+  });
+  const briefingSources = buildBriefingSources({
+    alerts: briefingActiveAlerts.length,
+    tasks: briefingTasks.length,
+    checkIns: briefingCheckIns.length,
+    tags: briefingTags.length,
+    goals: briefingGoals.length,
+  });
   const sharedPortalItemsCount =
     patientTasks.filter(isPatientVisibleStatus).length +
     sharedMaterials.filter(isPatientVisibleStatus).length +
@@ -1727,11 +1746,132 @@ export function ClinicalPatientWorkspaceScreen() {
         </View>
       </View>
 
-      <SectionTitle appearance="dark" title="Briefing da próxima sessão" />
+      <SectionTitle
+        appearance="dark"
+        title="Briefing da próxima sessão"
+        actionLabel={briefingHighAlerts.length ? `${briefingHighAlerts.length} alerta alto` : 'Privado'}
+      />
       <View style={styles.card}>
-        <Bullet text="Última sessão, tags marcadas e tarefas pendentes entram aqui." />
-        <Bullet text="Perguntas sugeridas devem ser neutras e revisáveis." />
-        <Bullet text="Este briefing é memória de trabalho, não prontuário." />
+        <View style={styles.briefingIntro}>
+          <Ionicons name="reader-outline" size={18} color={UI.darkPrimary} />
+          <Text style={styles.cardText}>
+            Preparação privada montada com dados reais do workspace. Não é prontuário, não usa IA e não envia mensagem automática ao paciente.
+          </Text>
+        </View>
+
+        <View style={[styles.briefingPriorityBox, briefingHighAlerts.length > 0 && styles.briefingPriorityBoxActive]}>
+          <View style={styles.briefingSectionHeader}>
+            <Ionicons
+              name={briefingHighAlerts.length > 0 ? 'alert-circle-outline' : 'shield-checkmark-outline'}
+              size={17}
+              color={briefingHighAlerts.length > 0 ? '#EAA0A0' : UI.darkPrimary}
+            />
+            <Text style={styles.briefingSectionTitle}>Atenção prioritária</Text>
+          </View>
+          {briefingHighAlerts.length ? (
+            briefingHighAlerts.map((alert) => (
+              <BriefingRow
+                key={alert.id}
+                icon="alert-circle-outline"
+                title={alert.title}
+                text={alert.description}
+                meta={`Alerta ${alertSeverityLabel(alert.severity).toLowerCase()} · ${alertStatusLabel(alert.status)} · ${alertSourceLabel(alert.sourceType)}`}
+                tone="alert"
+              />
+            ))
+          ) : (
+            <Text style={styles.timelineSummary}>
+              Nenhum alerta alto ativo no momento. Continue revisando tags, check-ins e tarefas antes da sessão.
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.briefingGrid}>
+          <View style={styles.briefingColumn}>
+            <Text style={styles.kicker}>Alertas ativos</Text>
+            {briefingActiveAlerts.length ? (
+              briefingActiveAlerts.map((alert) => (
+                <BriefingRow
+                  key={alert.id}
+                  icon="alert-circle-outline"
+                  title={alert.title}
+                  text={alert.description}
+                  meta={`${alertSeverityLabel(alert.severity)} · ${alertStatusLabel(alert.status)}`}
+                  tone={alert.severity === 'alto' ? 'alert' : 'default'}
+                />
+              ))
+            ) : (
+              <Text style={styles.mutedText}>Sem alertas pendentes ou em acompanhamento.</Text>
+            )}
+          </View>
+
+          <View style={styles.briefingColumn}>
+            <Text style={styles.kicker}>Pendências entre sessões</Text>
+            {briefingTasks.length || briefingCheckIns.length ? (
+              <>
+                {briefingTasks.map((task) => (
+                  <BriefingRow
+                    key={task.id}
+                    icon="checkbox-outline"
+                    title={task.title}
+                    text={task.description ?? 'Tarefa sem descrição adicional.'}
+                    meta={`${shareableStatusLabel(task.status)} · ${task.dueAt ? formatDateTimeLabel(task.dueAt) : 'sem prazo'}`}
+                  />
+                ))}
+                {briefingCheckIns.map((checkIn) => (
+                  <BriefingRow
+                    key={checkIn.id}
+                    icon="pulse-outline"
+                    title={checkIn.prompt}
+                    text={checkIn.responseText ?? checkIn.contextNote ?? 'Check-in sem observação textual.'}
+                    meta={`${shareableStatusLabel(checkIn.status)} · ${checkIn.moodScore ? `escala ${checkIn.moodScore}/5` : 'sem escala registrada'}`}
+                  />
+                ))}
+              </>
+            ) : (
+              <Text style={styles.mutedText}>Sem tarefas ou check-ins pendentes para preparar.</Text>
+            )}
+          </View>
+
+          <View style={styles.briefingColumn}>
+            <Text style={styles.kicker}>Contexto clínico</Text>
+            {briefingTags.length || briefingGoals.length ? (
+              <>
+                {briefingTags.map((tag) => (
+                  <BriefingRow
+                    key={tag.id}
+                    icon="pricetag-outline"
+                    title={tag.label}
+                    text={tag.note ?? 'Tag aplicada no acompanhamento.'}
+                    meta={`Tag · ${tagToneLabel(tag.tone)}`}
+                  />
+                ))}
+                {briefingGoals.map((goal, index) => (
+                  <BriefingRow
+                    key={`${goal}-${index}`}
+                    icon="flag-outline"
+                    title={goal}
+                    text="Objetivo ativo do plano terapêutico privado."
+                    meta="Plano terapêutico"
+                  />
+                ))}
+              </>
+            ) : (
+              <Text style={styles.mutedText}>Sem tags ou objetivos persistidos para este vínculo.</Text>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.briefingQuestionBox}>
+          <View style={styles.briefingSectionHeader}>
+            <Ionicons name="chatbubbles-outline" size={17} color={UI.darkPrimary} />
+            <Text style={styles.briefingSectionTitle}>Perguntas neutras para revisar</Text>
+          </View>
+          {briefingQuestions.map((question) => (
+            <Bullet key={question} text={question} compact />
+          ))}
+          <Text style={styles.mutedText}>Fontes exibidas: {briefingSources}.</Text>
+        </View>
       </View>
 
       <SectionTitle
@@ -1802,6 +1942,35 @@ function Bullet({ text, compact }: { text: string; compact?: boolean }) {
     <View style={[styles.bulletRow, compact && styles.bulletCompact]}>
       <View style={styles.bulletDot} />
       <Text style={[styles.cardText, compact && styles.compactText]}>{text}</Text>
+    </View>
+  );
+}
+
+function BriefingRow({
+  icon,
+  title,
+  text,
+  meta,
+  tone = 'default',
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  text: string;
+  meta: string;
+  tone?: 'default' | 'alert';
+}) {
+  const accentColor = tone === 'alert' ? '#EAA0A0' : UI.darkPrimary;
+
+  return (
+    <View style={styles.briefingRow}>
+      <View style={[styles.briefingIcon, tone === 'alert' && styles.briefingIconAlert]}>
+        <Ionicons name={icon} size={16} color={accentColor} />
+      </View>
+      <View style={styles.briefingCopy}>
+        <Text style={styles.briefingTitle}>{title}</Text>
+        <Text style={styles.timelineSummary}>{text}</Text>
+        <Text style={[styles.timelineMetaText, tone === 'alert' && { color: accentColor }]}>{meta}</Text>
+      </View>
     </View>
   );
 }
@@ -2422,6 +2591,104 @@ function alertSourceLabel(sourceType: string) {
 
 function isClosedAlertStatus(status: string) {
   return status === 'dismissed' || status === 'resolved';
+}
+
+function isActiveAlert(alert: ApiClinicalAlert) {
+  return !isClosedAlertStatus(alert.status);
+}
+
+function isHighPriorityAlert(alert: ApiClinicalAlert) {
+  return alert.severity === 'alto' && isActiveAlert(alert);
+}
+
+function isBriefingTask(task: ApiPatientTask) {
+  return task.status === 'private' || task.status === 'shared';
+}
+
+function isBriefingCheckIn(checkIn: ApiPatientCheckIn) {
+  return checkIn.status === 'private' || checkIn.status === 'shared' || checkIn.status === 'answered';
+}
+
+function tagToneLabel(tone: string) {
+  switch (tone) {
+    case 'risk':
+      return 'risco';
+    case 'attention':
+      return 'atenção';
+    case 'neutral':
+    default:
+      return 'neutro';
+  }
+}
+
+function buildBriefingQuestions({
+  hasAlerts,
+  hasTasks,
+  hasCheckIns,
+  hasGoals,
+}: {
+  hasAlerts: boolean;
+  hasTasks: boolean;
+  hasCheckIns: boolean;
+  hasGoals: boolean;
+}) {
+  const questions = ['O que a paciente considera mais importante priorizar nesta sessão?'];
+
+  if (hasAlerts) {
+    questions.push('Há algum ponto de atenção que precise ser compreendido com calma antes de qualquer conclusão?');
+  }
+
+  if (hasTasks) {
+    questions.push('Como foi a experiência com os combinados ou tarefas desde o último contato?');
+  }
+
+  if (hasCheckIns) {
+    questions.push('O que mudou desde a última resposta de check-in ou escala registrada?');
+  }
+
+  if (hasGoals) {
+    questions.push('Algum objetivo do plano precisa ser ajustado ou apenas observado hoje?');
+  }
+
+  return questions;
+}
+
+function buildBriefingSources({
+  alerts,
+  tasks,
+  checkIns,
+  tags,
+  goals,
+}: {
+  alerts: number;
+  tasks: number;
+  checkIns: number;
+  tags: number;
+  goals: number;
+}) {
+  const sources = [];
+
+  if (alerts > 0) {
+    sources.push(`${alerts} alerta${alerts === 1 ? '' : 's'}`);
+  }
+
+  if (tasks > 0) {
+    sources.push(`${tasks} tarefa${tasks === 1 ? '' : 's'}`);
+  }
+
+  if (checkIns > 0) {
+    sources.push(`${checkIns} check-in${checkIns === 1 ? '' : 's'}`);
+  }
+
+  if (tags > 0) {
+    sources.push(`${tags} tag${tags === 1 ? '' : 's'}`);
+  }
+
+  if (goals > 0) {
+    sources.push(`${goals} objetivo${goals === 1 ? '' : 's'}`);
+  }
+
+  return sources.length ? sources.join(', ') : 'nenhuma fonte clínica persistida ainda';
 }
 
 function alertReviewSuccessMessage(action: ClinicalAlertReviewAction) {
@@ -3169,6 +3436,76 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     fontWeight: '400',
+  },
+  briefingIntro: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+  },
+  briefingPriorityBox: {
+    gap: 9,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(237, 247, 242, 0.08)',
+  },
+  briefingPriorityBoxActive: {
+    borderTopColor: 'rgba(234, 160, 160, 0.28)',
+  },
+  briefingSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  briefingSectionTitle: {
+    color: UI.darkText,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  briefingGrid: {
+    gap: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(237, 247, 242, 0.08)',
+  },
+  briefingColumn: {
+    gap: 8,
+  },
+  briefingRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(237, 247, 242, 0.06)',
+  },
+  briefingIcon: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: 'rgba(109, 214, 180, 0.10)',
+  },
+  briefingIconAlert: {
+    backgroundColor: 'rgba(234, 160, 160, 0.10)',
+  },
+  briefingCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  briefingTitle: {
+    color: UI.darkText,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  briefingQuestionBox: {
+    gap: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(237, 247, 242, 0.08)',
   },
   timelineCard: {
     gap: 8,

@@ -88,11 +88,13 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
     done: [
       'Card de briefing pré-sessão foi desenhado na tela clínica.',
       'Fontes esperadas aparecem separadas de prontuário.',
+      'Briefing do workspace usa dados reais de alertas ativos, tarefas, check-ins, tags e plano.',
+      'Alertas altos ativos aparecem em área de atenção prioritária sem mensagem automática ao paciente.',
     ],
     missing: [
       'Job automático antes da consulta.',
-      'Resumo por IA usando fontes autorizadas.',
-      'Arquivamento automático após sessão.',
+      'Resumo por IA usando fontes autorizadas e consentimento sensível.',
+      'Itens fixados e arquivamento automático após sessão.',
     ],
   },
   {
@@ -157,10 +159,10 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'ClinicalAlert manual é registrado por atendimento e carregado no workspace.',
       'Painel clínico permite confirmar, acompanhar, descartar ou resolver alertas.',
       'Decisões geram timeline e auditoria sem enviar mensagem automática ao paciente.',
+      'Alertas altos ativos aparecem no briefing pré-sessão.',
     ],
     missing: [
       'Motor de alertas por tag/check-in.',
-      'Destaque de alertas altos no briefing pré-sessão.',
       'Aprendizado de falso positivo para regras futuras.',
     ],
   },

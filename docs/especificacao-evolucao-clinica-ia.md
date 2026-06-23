@@ -1595,6 +1595,8 @@ Atualizacao da decima sexta entrega: a consulta longitudinal da timeline passou 
 
 Atualizacao da decima setima entrega: o backend agora possui `ClinicalAlert`, criado manualmente por atendimento em `POST /api/clinical/appointments/{appointmentId}/alerts`, listado por paciente em `GET /api/clinical/patients/{patientId}/alerts` e revisado por acoes humanas de confirmar, acompanhar, descartar ou resolver. O workspace clinico exibe um painel compacto de alertas responsaveis, registra timeline/auditoria sem conteudo clinico sensivel em metadata e reforca que alerta nao e diagnostico nem dispara mensagem automatica ao paciente. Ainda nao existe motor automatico de alertas por tags/check-ins, destaque de alerta alto no briefing, IA, exportacao ou gravacao/transcricao.
 
+Atualizacao da decima oitava entrega: o briefing da proxima sessao no workspace clinico deixou de ser apenas conceitual e passou a usar dados reais ja carregados no atendimento: alertas ativos, tarefas, check-ins, tags aplicadas e objetivos do plano terapeutico. Alertas ativos de severidade `alto` aparecem em uma area de atencao prioritaria, com linguagem neutra, sem diagnostico automatico, sem prontuario e sem notificar o paciente. Ainda nao existe entidade `SessionBriefing` persistida, job automatico, itens fixados, IA, exportacao ou gravacao/transcricao.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1712,6 +1714,10 @@ Feito agora:
 72. Criacao e revisao de alerta criam itens de timeline na camada `memoria`, com linguagem neutra e sem diagnostico automatico.
 73. Auditoria de alertas usa metadata segura sem copiar motivo ou conteudo clinico sensivel.
 74. A UI reforca que alerta nao notifica o paciente e nao substitui julgamento clinico.
+75. Briefing da proxima sessao usa dados reais do workspace clinico: alertas ativos, tarefas, check-ins, tags e plano.
+76. Alertas ativos de severidade `alto` aparecem em area de atencao prioritaria no briefing.
+77. Briefing exibe fontes e perguntas neutras sem IA, sem prontuario e sem mensagem automatica ao paciente.
+78. O status do modulo de preparacao foi atualizado para deixar claro que ainda faltam job automatico, persistencia e itens fixados.
 
 Falta para virar produto clinico real:
 
@@ -1721,7 +1727,7 @@ Falta para virar produto clinico real:
 4. Criar reabertura/edicao de tarefas, materiais completos e agenda recorrente de check-ins.
 5. Conectar IA somente depois de consentimento e minimizacao de dados.
 6. Criar historico completo e politicas de retencao/revogacao de consentimentos.
-7. Criar motor automatico de alertas responsaveis por tags/check-ins e destacar alertas altos no briefing.
+7. Criar motor automatico de alertas responsaveis por tags/check-ins.
 8. Adicionar testes de contrato da API e testes de tela.
 9. Ajustar copy legal/clinica com revisao profissional.
 10. Definir politica de retencao, exportacao e retificacao.
@@ -1734,11 +1740,11 @@ Status por modulo:
 | Botoes rapidos e tags clinicas | Parcial | Tags salvas em `AppliedClinicalTag` por atendimento; historico longitudinal filtra por tag aplicada | Biblioteca de tags e personalizacao |
 | Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags, consentimentos, plano, tarefas, materiais, check-ins e alertas revisados; `GET /api/clinical/patients/{patientId}/timeline` com filtros de camada, origem, periodo, busca, tag, severidade e limite; detalhe auditado por `GET /api/clinical/timeline/{itemId}`; arquivamento controlado por `POST /api/clinical/timeline/{itemId}/archive`; UI com vazio/loading/erro | Motor automatico de alertas por tags/check-ins |
 | Plano terapeutico vivo | Parcial | `TreatmentPlan` persistido e editavel no workspace clinico | Historico versionado, revisao periodica e sugestoes por IA |
-| Preparacao da proxima sessao | Parcial | Card de briefing conceitual | Job automatico, fontes reais e arquivamento |
+| Preparacao da proxima sessao | Parcial | Briefing no workspace usa fontes reais ja carregadas: alertas ativos, tarefas, check-ins, tags e plano; alertas altos aparecem em area prioritaria; perguntas neutras nao viram prontuario | `SessionBriefing` persistido, job automatico, itens fixados, arquivamento e IA somente com consentimento |
 | Separar rascunho, prontuario e memoria | Parcial | Rascunho, memoria, prontuario aprovado e retificacao versionada aparecem como camadas separadas | Exportacao seletiva e politicas de retencao |
 | Portal do paciente com cuidado | Parcial | Tarefas, materiais e check-ins privados no workspace; previa antes de compartilhar; share/unshare com consentimento; `/patient-care` para itens liberados, conclusao/resposta de tarefa, resposta de check-in e consentimento direto nao sensivel | Reabertura/edicao de tarefas, historico de visualizacao e refinamento de materiais |
 | Check-ins entre sessoes | Parcial | `PatientCheckIn` persistido, compartilhamento com consentimento e resposta pelo portal com escala/observacao | Agenda recorrente, templates editaveis, graficos e tendencias |
-| Alertas responsaveis | Parcial | `ClinicalAlert`, criacao manual por atendimento, painel no workspace, acoes de confirmar/acompanhar/descartar/resolver, timeline e auditoria sem mensagem automatica ao paciente | Motor automatico por tags/check-ins, destaque de alerta alto no briefing e aprendizado de falso positivo |
+| Alertas responsaveis | Parcial | `ClinicalAlert`, criacao manual por atendimento, painel no workspace, acoes de confirmar/acompanhar/descartar/resolver, timeline, auditoria sem mensagem automatica ao paciente e destaque de alerta alto no briefing | Motor automatico por tags/check-ins e aprendizado de falso positivo |
 | Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, shareables com consentimento, consentimento direto nao sensivel no portal e auditoria sem conteudo clinico | Consentimentos sensiveis para IA/gravacao/transcricao, politicas de retencao, criptografia de campos sensiveis e exportacao controlada |
 
 ### Navegacao profissional sugerida
