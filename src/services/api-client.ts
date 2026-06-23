@@ -361,6 +361,23 @@ export type ApiClinicalSession = {
   updatedAt: string;
 };
 
+export type ApiTreatmentPlanStatus = 'active' | 'paused' | 'completed' | 'archived';
+
+export type ApiTreatmentPlan = {
+  id?: string | null;
+  patientId: string;
+  professionalId: string;
+  spaceId: string;
+  status: ApiTreatmentPlanStatus | string;
+  caseFormulation?: string | null;
+  goals: string[];
+  strategies: string[];
+  obstacles: string[];
+  reviewCadence?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
 export type ApiClinicalWorkspace = {
   appointmentId: string;
   patientId: string;
@@ -371,6 +388,7 @@ export type ApiClinicalWorkspace = {
   records: ApiClinicalRecord[];
   tags: ApiAppliedClinicalTag[];
   consents: ApiPatientConsent[];
+  treatmentPlan: ApiTreatmentPlan;
   timeline: ApiPatientTimelineItem[];
 };
 
@@ -986,6 +1004,21 @@ export async function updateClinicalAppointmentConsent(appointmentId: string, co
   expiresAt?: string | null;
 }) {
   return request<ApiPatientConsent>(`/clinical/appointments/${appointmentId}/consents/${consentType}`, {
+    method: 'POST',
+    authenticated: true,
+    body: input,
+  });
+}
+
+export async function updateClinicalAppointmentTreatmentPlan(appointmentId: string, input: {
+  status: ApiTreatmentPlanStatus;
+  caseFormulation?: string | null;
+  goals: string[];
+  strategies: string[];
+  obstacles: string[];
+  reviewCadence?: string | null;
+}) {
+  return request<ApiTreatmentPlan>(`/clinical/appointments/${appointmentId}/treatment-plan`, {
     method: 'POST',
     authenticated: true,
     body: input,

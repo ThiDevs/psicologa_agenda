@@ -10,6 +10,7 @@ public sealed record ClinicalWorkspaceDto(
     IReadOnlyList<ClinicalRecordDto> Records,
     IReadOnlyList<AppliedClinicalTagDto> Tags,
     IReadOnlyList<PatientConsentDto> Consents,
+    TreatmentPlanDto TreatmentPlan,
     IReadOnlyList<PatientTimelineItemDto> Timeline);
 
 public sealed record ClinicalSessionDto(
@@ -96,6 +97,20 @@ public sealed record PatientConsentDto(
     DateTimeOffset? ExpiresAt,
     DateTimeOffset? UpdatedAt);
 
+public sealed record TreatmentPlanDto(
+    Guid? Id,
+    Guid PatientId,
+    Guid ProfessionalId,
+    Guid SpaceId,
+    string Status,
+    string? CaseFormulation,
+    IReadOnlyList<string> Goals,
+    IReadOnlyList<string> Strategies,
+    IReadOnlyList<string> Obstacles,
+    string? ReviewCadence,
+    DateTimeOffset? CreatedAt,
+    DateTimeOffset? UpdatedAt);
+
 public sealed record ClinicalTagInput(
     string Label,
     string Tone);
@@ -117,6 +132,14 @@ public sealed record UpdatePatientConsentRequest(
     string? TermsVersion,
     DateTimeOffset? ExpiresAt);
 
+public sealed record UpdateTreatmentPlanRequest(
+    string Status,
+    string? CaseFormulation,
+    IReadOnlyList<string> Goals,
+    IReadOnlyList<string> Strategies,
+    IReadOnlyList<string> Obstacles,
+    string? ReviewCadence);
+
 public interface IClinicalService
 {
     Task<ClinicalWorkspaceDto> GetAppointmentWorkspaceAsync(Guid professionalUserId, Guid appointmentId, CancellationToken cancellationToken);
@@ -125,6 +148,7 @@ public interface IClinicalService
     Task<IReadOnlyList<AppliedClinicalTagDto>> ApplyAppointmentTagsAsync(Guid professionalUserId, Guid appointmentId, ApplyClinicalTagsRequest request, CancellationToken cancellationToken);
     Task<ClinicalRecordDto> ApproveDraftAsync(Guid professionalUserId, Guid draftId, ApproveClinicalDraftRequest request, CancellationToken cancellationToken);
     Task<PatientConsentDto> UpdateAppointmentConsentAsync(Guid professionalUserId, Guid appointmentId, string consentType, UpdatePatientConsentRequest request, CancellationToken cancellationToken);
+    Task<TreatmentPlanDto> UpdateAppointmentTreatmentPlanAsync(Guid professionalUserId, Guid appointmentId, UpdateTreatmentPlanRequest request, CancellationToken cancellationToken);
     Task<ClinicalSessionDto> StartAppointmentSessionAsync(Guid professionalUserId, Guid appointmentId, CancellationToken cancellationToken);
     Task<ClinicalSessionDto> CompleteAppointmentSessionAsync(Guid professionalUserId, Guid appointmentId, CancellationToken cancellationToken);
 }

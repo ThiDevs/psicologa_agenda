@@ -67,9 +67,11 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
     done: [
       'Bloco visual de objetivos terapêuticos foi conectado à tela clínica.',
       'Estados iniciais de objetivo aparecem no app.',
+      'TreatmentPlan persistido por paciente/profissional no backend.',
+      'Atualização do plano cria memória na timeline sem expor conteúdo sensível.',
     ],
     missing: [
-      'Persistência de TreatmentPlan e TreatmentGoal.',
+      'Histórico versionado de alterações do plano.',
       'Sugestões de atualização por IA.',
       'Revisão periódica e histórico de alterações.',
     ],

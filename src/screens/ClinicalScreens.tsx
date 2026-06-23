@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -18,7 +18,6 @@ import {
   clinicalIntegrationModules,
   clinicalQuickTags,
   clinicalTimelinePreview,
-  clinicalTreatmentGoalsPreview,
 } from '@/data/clinical-integration';
 import {
   applyClinicalAppointmentTags,
@@ -31,6 +30,7 @@ import {
   getProfessionalAppointmentDetails,
   startClinicalAppointmentSession,
   updateClinicalAppointmentConsent,
+  updateClinicalAppointmentTreatmentPlan,
   type ApiAppointmentDetails,
   type ApiClinicalSession,
   type ApiClinicalTagInput,
@@ -38,6 +38,8 @@ import {
   type ApiPatientConsent,
   type ApiPatientConsentStatus,
   type ApiPatientTimelineItem,
+  type ApiTreatmentPlan,
+  type ApiTreatmentPlanStatus,
 } from '@/services/api-client';
 import type { ClinicalConsentItem, ClinicalIntegrationStatus, ClinicalQuickTag } from '@/types/clinical';
 
@@ -60,11 +62,12 @@ const layerLabels = {
   compartilhado: 'Compartilhado',
 };
 
-const goalStatusLabels = {
-  ativo: 'Ativo',
-  revisar: 'Revisar',
-  pausado: 'Pausado',
-};
+const treatmentPlanStatusOptions: { value: ApiTreatmentPlanStatus; label: string }[] = [
+  { value: 'active', label: 'Ativo' },
+  { value: 'paused', label: 'Pausado' },
+  { value: 'completed', label: 'Concluído' },
+  { value: 'archived', label: 'Arquivado' },
+];
 
 const sessionStatusLabels: Record<string, string> = {
   scheduled: 'Agendada',
@@ -114,7 +117,7 @@ export function ClinicalIntegrationScreen() {
         <Bullet text="Agenda profissional agora abre o núcleo clínico do atendimento." />
         <Bullet text="Tela clínica usa o detalhe real do agendamento e o workspace clínico do backend." />
         <Bullet text="Tags, rascunho e timeline inicial já persistem por atendimento." />
-        <Bullet text="Plano, briefing e consentimentos continuam como interface de preparação." />
+        <Bullet text="Plano terapêutico e consentimentos já persistem; briefing segue como interface de preparação." />
         <Bullet text="Documento de especificação acompanha o status por módulo." />
       </View>
 
@@ -184,6 +187,42 @@ export function ClinicalPatientWorkspaceScreen() {
   const [savingSessionAction, setSavingSessionAction] = useState<'start' | 'complete' | null>(null);
   const [approvingDraft, setApprovingDraft] = useState(false);
   const [rectifyingRecordId, setRectifyingRecordId] = useState<string | null>(null);
+  const [savingTreatmentPlan, setSavingTreatmentPlan] = useState(false);
+  const [planStatus, setPlanStatus] = useState<ApiTreatmentPlanStatus>('active');
+  const [planCaseFormulation, setPlanCaseFormulation] = useState('');
+  const [planGoalsText, setPlanGoalsText] = useState('');
+  const [planStrategiesText, setPlanStrategiesText] = useState('');
+  const [planObstaclesText, setPlanObstaclesText] = useState('');
+  const [planReviewCadence, setPlanReviewCadence] = useState('');
+
+  const hydrateTreatmentPlan = useCallback((plan: ApiTreatmentPlan) => {
+    setPlanStatus(toTreatmentPlanStatus(plan.status));
+    setPlanCaseFormulation(plan.caseFormulation ?? '');
+    setPlanGoalsText(plan.goals.join('\n'));
+    setPlanStrategiesText(plan.strategies.join('\n'));
+    setPlanObstaclesText(plan.obstacles.join('\n'));
+    setPlanReviewCadence(plan.reviewCadence ?? '');
+  }, []);
+
+  const hydrateFromWorkspace = useCallback((clinicalWorkspace: ApiClinicalWorkspace) => {
+    if (clinicalWorkspace.tags.length) {
+      const nextTagIds = clinicalWorkspace.tags
+        .map((tag) => tagIdFromLabel(tag.label))
+        .filter((tagId): tagId is string => Boolean(tagId));
+
+      if (nextTagIds.length) {
+        setSelectedTags(nextTagIds);
+      }
+    }
+
+    const firstDraft = clinicalWorkspace.drafts[0];
+    if (firstDraft) {
+      setSessionNote(firstDraft.sessionNote ?? '');
+      setDraftText(firstDraft.contentText);
+    }
+
+    hydrateTreatmentPlan(clinicalWorkspace.treatmentPlan);
+  }, [hydrateTreatmentPlan]);
 
   useEffect(() => {
     let mounted = true;
@@ -222,7 +261,7 @@ export function ClinicalPatientWorkspaceScreen() {
     return () => {
       mounted = false;
     };
-  }, [appointmentId]);
+  }, [appointmentId, hydrateFromWorkspace]);
 
   const patientName = details?.customer.name ?? fallbackPatientName ?? 'Paciente';
   const patientId = details?.customer.id ?? fallbackPatientId ?? 'sem-id';
@@ -235,6 +274,7 @@ export function ClinicalPatientWorkspaceScreen() {
   const clinicalSession = workspace?.session ?? null;
   const latestDraft = workspace?.drafts[0] ?? null;
   const latestRecord = workspace?.records[0] ?? null;
+  const treatmentPlan = workspace?.treatmentPlan ?? null;
   const consentRows = useMemo(() => buildConsentRows(workspace?.consents), [workspace?.consents]);
   const grantedConsentCount = consentRows.filter((consent) => consent.status === 'granted').length;
 
@@ -380,6 +420,35 @@ export function ClinicalPatientWorkspaceScreen() {
     }
   }
 
+  async function saveTreatmentPlan() {
+    if (!appointmentId) {
+      setClinicalMessage('Abra a tela a partir de um atendimento para salvar o plano terapêutico.');
+      return;
+    }
+
+    setSavingTreatmentPlan(true);
+    setClinicalMessage(null);
+
+    try {
+      await updateClinicalAppointmentTreatmentPlan(appointmentId, {
+        status: planStatus,
+        caseFormulation: planCaseFormulation,
+        goals: linesToList(planGoalsText),
+        strategies: linesToList(planStrategiesText),
+        obstacles: linesToList(planObstaclesText),
+        reviewCadence: planReviewCadence,
+      });
+      const updated = await getClinicalAppointmentWorkspace(appointmentId);
+      setWorkspace(updated);
+      hydrateFromWorkspace(updated);
+      setClinicalMessage('Plano terapêutico salvo como memória clínica privada.');
+    } catch (error) {
+      setClinicalMessage(getApiErrorMessage(error));
+    } finally {
+      setSavingTreatmentPlan(false);
+    }
+  }
+
   async function updateSessionStatus(action: 'start' | 'complete') {
     if (!appointmentId) {
       setClinicalMessage('Abra a tela a partir de um atendimento para atualizar a sessão clínica.');
@@ -406,24 +475,6 @@ export function ClinicalPatientWorkspaceScreen() {
       setClinicalMessage(getApiErrorMessage(error));
     } finally {
       setSavingSessionAction(null);
-    }
-  }
-
-  function hydrateFromWorkspace(clinicalWorkspace: ApiClinicalWorkspace) {
-    if (clinicalWorkspace.tags.length) {
-      const nextTagIds = clinicalWorkspace.tags
-        .map((tag) => tagIdFromLabel(tag.label))
-        .filter((tagId): tagId is string => Boolean(tagId));
-
-      if (nextTagIds.length) {
-        setSelectedTags(nextTagIds);
-      }
-    }
-
-    const firstDraft = clinicalWorkspace.drafts[0];
-    if (firstDraft) {
-      setSessionNote(firstDraft.sessionNote ?? '');
-      setDraftText(firstDraft.contentText);
     }
   }
 
@@ -663,14 +714,87 @@ export function ClinicalPatientWorkspaceScreen() {
 
       <SectionTitle appearance="dark" title="Plano terapêutico" />
       <View style={styles.card}>
-        {clinicalTreatmentGoalsPreview.map((goal) => (
+        <Text style={styles.cardText}>
+          Plano privado da psicóloga. Não é compartilhado com o paciente e não substitui prontuário aprovado.
+        </Text>
+        <View style={styles.planStatusWrap}>
+          {treatmentPlanStatusOptions.map((option) => {
+            const selected = planStatus === option.value;
+
+            return (
+              <Pressable
+                key={option.value}
+                accessibilityRole="button"
+                onPress={() => setPlanStatus(option.value)}
+                style={({ pressed }) => [
+                  styles.planStatusButton,
+                  selected && styles.planStatusButtonSelected,
+                  pressed && styles.pressed,
+                ]}>
+                <Text style={[styles.planStatusText, selected && styles.planStatusTextSelected]}>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Field
+          appearance="dark"
+          label="Formulação do caso"
+          value={planCaseFormulation}
+          multiline
+          style={styles.planTextArea}
+          onChangeText={setPlanCaseFormulation}
+          placeholder="Hipóteses clínicas, contexto e pontos de cuidado."
+        />
+        <Field
+          appearance="dark"
+          label="Objetivos (um por linha)"
+          value={planGoalsText}
+          multiline
+          style={styles.planTextArea}
+          onChangeText={setPlanGoalsText}
+          placeholder="Ex.: acompanhar padrões de ansiedade."
+        />
+        <Field
+          appearance="dark"
+          label="Estratégias (uma por linha)"
+          value={planStrategiesText}
+          multiline
+          style={styles.planTextArea}
+          onChangeText={setPlanStrategiesText}
+          placeholder="Ex.: revisar tarefa combinada ao início da sessão."
+        />
+        <Field
+          appearance="dark"
+          label="Pontos de atenção (um por linha)"
+          value={planObstaclesText}
+          multiline
+          style={styles.planTextArea}
+          onChangeText={setPlanObstaclesText}
+          placeholder="Ex.: barreiras de adesão ou temas para manejar com cuidado."
+        />
+        <Field
+          appearance="dark"
+          label="Cadência de revisão"
+          value={planReviewCadence}
+          onChangeText={setPlanReviewCadence}
+          placeholder="Ex.: revisar a cada 4 sessões"
+        />
+        {treatmentPlan?.updatedAt ? (
           <DetailRow
-            key={goal.id}
-            icon="flag-outline"
-            label={goalStatusLabels[goal.status]}
-            value={goal.title}
+            icon="time-outline"
+            label="Última revisão"
+            value={formatDateTimeLabel(treatmentPlan.updatedAt)}
           />
-        ))}
+        ) : null}
+        <PrimaryButton
+          label="Salvar plano"
+          icon="map-outline"
+          loading={savingTreatmentPlan}
+          disabled={!appointmentId}
+          onPress={saveTreatmentPlan}
+        />
       </View>
 
       <SectionTitle appearance="dark" title="Briefing da próxima sessão" />
@@ -906,6 +1030,19 @@ function shortId(value: string) {
 function isClinicalSuccessMessage(value: string) {
   return ['salvo', 'salvas', 'carregado', 'criada', 'atualizado', 'iniciada', 'finalizada', 'aprovada']
     .some((item) => value.toLowerCase().includes(item));
+}
+
+function toTreatmentPlanStatus(value: string): ApiTreatmentPlanStatus {
+  return treatmentPlanStatusOptions.some((option) => option.value === value)
+    ? value as ApiTreatmentPlanStatus
+    : 'active';
+}
+
+function linesToList(value: string) {
+  return value
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function canStartSession(session: ApiClinicalSession) {
@@ -1212,6 +1349,36 @@ const styles = StyleSheet.create({
   },
   sessionActions: {
     gap: 8,
+  },
+  planStatusWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  planStatusButton: {
+    minHeight: 34,
+    justifyContent: 'center',
+    paddingHorizontal: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 247, 242, 0.12)',
+    backgroundColor: UI.darkSurfaceRaised,
+  },
+  planStatusButtonSelected: {
+    borderColor: 'rgba(109, 214, 180, 0.58)',
+    backgroundColor: 'rgba(109, 214, 180, 0.16)',
+  },
+  planStatusText: {
+    color: UI.darkTextMuted,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  planStatusTextSelected: {
+    color: UI.darkText,
+  },
+  planTextArea: {
+    minHeight: 92,
+    textAlignVertical: 'top',
   },
   timelineCard: {
     gap: 8,

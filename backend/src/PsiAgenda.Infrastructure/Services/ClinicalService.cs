@@ -42,6 +42,13 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         "revoked",
         "expired"
     };
+    private static readonly HashSet<string> AllowedTreatmentPlanStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "active",
+        "paused",
+        "completed",
+        "archived"
+    };
 
     public async Task<ClinicalWorkspaceDto> GetAppointmentWorkspaceAsync(
         Guid professionalUserId,
@@ -69,6 +76,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             .Take(20)
             .ToListAsync(cancellationToken);
         var consents = await GetPatientConsentsAsync(appointment, cancellationToken);
+        var treatmentPlan = await GetTreatmentPlanAsync(appointment, cancellationToken);
         var timeline = await dbContext.PatientTimelineItems
             .AsNoTracking()
             .Where(item =>
@@ -97,6 +105,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             records.Select(ToDto).ToList(),
             tags.Select(ToDto).ToList(),
             consents,
+            treatmentPlan,
             timeline.Select(ToDto).ToList());
     }
 
@@ -501,6 +510,80 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         return ToDto(consent);
     }
 
+    public async Task<TreatmentPlanDto> UpdateAppointmentTreatmentPlanAsync(
+        Guid professionalUserId,
+        Guid appointmentId,
+        UpdateTreatmentPlanRequest request,
+        CancellationToken cancellationToken)
+    {
+        var appointment = await EnsureProfessionalAppointmentAsync(professionalUserId, appointmentId, cancellationToken);
+        var status = ValidateTreatmentPlanStatus(request.Status);
+        var caseFormulation = NormalizeOptionalText(request.CaseFormulation, 4000, "Formulação do caso");
+        var goals = NormalizePlanItems(request.Goals, "Objetivo");
+        var strategies = NormalizePlanItems(request.Strategies, "Estratégia");
+        var obstacles = NormalizePlanItems(request.Obstacles, "Ponto de atenção");
+        var reviewCadence = NormalizeOptionalText(request.ReviewCadence, 160, "Cadência de revisão");
+        var now = DateTimeOffset.UtcNow;
+
+        var plan = await dbContext.TreatmentPlans
+            .FirstOrDefaultAsync(item =>
+                    item.PatientId == appointment.CustomerId &&
+                    item.ProfessionalId == appointment.ProfessionalId,
+                cancellationToken);
+
+        if (plan is null)
+        {
+            plan = new TreatmentPlan
+            {
+                PatientId = appointment.CustomerId,
+                ProfessionalId = appointment.ProfessionalId,
+                SpaceId = appointment.SpaceId,
+                UpdatedByUserId = professionalUserId,
+                Status = status,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            dbContext.TreatmentPlans.Add(plan);
+        }
+
+        plan.SpaceId = appointment.SpaceId;
+        plan.UpdatedByUserId = professionalUserId;
+        plan.Status = status;
+        plan.CaseFormulation = caseFormulation;
+        plan.GoalsJson = JsonSerializer.Serialize(goals, JsonOptions);
+        plan.StrategiesJson = JsonSerializer.Serialize(strategies, JsonOptions);
+        plan.ObstaclesJson = JsonSerializer.Serialize(obstacles, JsonOptions);
+        plan.ReviewCadence = reviewCadence;
+        plan.UpdatedAt = now;
+
+        dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+        {
+            AppointmentId = appointment.Id,
+            PatientId = appointment.CustomerId,
+            ProfessionalId = appointment.ProfessionalId,
+            SpaceId = appointment.SpaceId,
+            CreatedByUserId = professionalUserId,
+            SourceType = "plan_update",
+            SourceId = plan.Id,
+            Title = "Plano terapêutico atualizado",
+            Summary = BuildTreatmentPlanSummary(goals.Count, strategies.Count, obstacles.Count, status),
+            Layer = "memoria",
+            OccurredAt = now,
+            CreatedAt = now
+        });
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            appointment.SpaceId,
+            "clinical.treatment_plan.updated",
+            nameof(TreatmentPlan),
+            plan.Id,
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(plan);
+    }
+
     public async Task<ClinicalSessionDto> StartAppointmentSessionAsync(
         Guid professionalUserId,
         Guid appointmentId,
@@ -623,6 +706,34 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
                     null,
                     null))
             .ToList();
+    }
+
+    private async Task<TreatmentPlanDto> GetTreatmentPlanAsync(
+        Appointment appointment,
+        CancellationToken cancellationToken)
+    {
+        var plan = await dbContext.TreatmentPlans
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item =>
+                    item.PatientId == appointment.CustomerId &&
+                    item.ProfessionalId == appointment.ProfessionalId,
+                cancellationToken);
+
+        return plan is null
+            ? new TreatmentPlanDto(
+                null,
+                appointment.CustomerId,
+                appointment.ProfessionalId,
+                appointment.SpaceId,
+                "active",
+                null,
+                [],
+                [],
+                [],
+                null,
+                null,
+                null)
+            : ToDto(plan);
     }
 
     private async Task<ClinicalSession> EnsureClinicalSessionAsync(
@@ -828,6 +939,18 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         return normalized;
     }
 
+    private static string ValidateTreatmentPlanStatus(string status)
+    {
+        var normalized = string.IsNullOrWhiteSpace(status) ? "active" : status.Trim().ToLowerInvariant();
+
+        if (!AllowedTreatmentPlanStatuses.Contains(normalized))
+        {
+            throw new InvalidOperationException("Status do plano terapêutico inválido.");
+        }
+
+        return normalized;
+    }
+
     private static string ConsentTypeLabel(string consentType)
     {
         return consentType switch
@@ -888,6 +1011,21 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         return trimmed;
     }
 
+    private static IReadOnlyList<string> NormalizePlanItems(IReadOnlyList<string>? values, string fieldName)
+    {
+        if (values is null || values.Count == 0)
+        {
+            return [];
+        }
+
+        return values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => ValidateText(value, fieldName, 2, 220))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(12)
+            .ToList();
+    }
+
     private static string BuildDraftSummary(string contentText, IReadOnlyList<ClinicalTagInput> tags)
     {
         var firstLine = contentText
@@ -898,6 +1036,22 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         return tags.Count == 0
             ? summary
             : $"{summary} Tags: {string.Join(", ", tags.Select(tag => tag.Label))}.";
+    }
+
+    private static string BuildTreatmentPlanSummary(int goalsCount, int strategiesCount, int obstaclesCount, string status)
+    {
+        return $"Plano terapêutico revisado pela psicóloga. Status: {TreatmentPlanStatusLabel(status)}. Itens registrados: {goalsCount} objetivos, {strategiesCount} estratégias, {obstaclesCount} pontos de atenção.";
+    }
+
+    private static string TreatmentPlanStatusLabel(string status)
+    {
+        return status switch
+        {
+            "paused" => "pausado",
+            "completed" => "concluído",
+            "archived" => "arquivado",
+            _ => "ativo"
+        };
     }
 
     private static string BuildRectificationDraftText(ClinicalRecord record)
@@ -996,6 +1150,30 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             record.PreviousRecordId,
             record.ApprovedAt,
             record.CreatedAt);
+    }
+
+    private static TreatmentPlanDto ToDto(TreatmentPlan plan)
+    {
+        return new TreatmentPlanDto(
+            plan.Id,
+            plan.PatientId,
+            plan.ProfessionalId,
+            plan.SpaceId,
+            plan.Status,
+            plan.CaseFormulation,
+            DeserializeStringList(plan.GoalsJson),
+            DeserializeStringList(plan.StrategiesJson),
+            DeserializeStringList(plan.ObstaclesJson),
+            plan.ReviewCadence,
+            plan.CreatedAt,
+            plan.UpdatedAt);
+    }
+
+    private static IReadOnlyList<string> DeserializeStringList(string? json)
+    {
+        return string.IsNullOrWhiteSpace(json)
+            ? []
+            : JsonSerializer.Deserialize<List<string>>(json, JsonOptions) ?? [];
     }
 
     private static PatientTimelineItemDto ToDto(PatientTimelineItem item)

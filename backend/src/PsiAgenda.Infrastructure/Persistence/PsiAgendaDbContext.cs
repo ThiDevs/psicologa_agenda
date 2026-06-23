@@ -33,6 +33,7 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
     public DbSet<PatientTimelineItem> PatientTimelineItems => Set<PatientTimelineItem>();
     public DbSet<PatientConsent> PatientConsents => Set<PatientConsent>();
     public DbSet<ClinicalSession> ClinicalSessions => Set<ClinicalSession>();
+    public DbSet<TreatmentPlan> TreatmentPlans => Set<TreatmentPlan>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -748,6 +749,44 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
             entity.HasOne(session => session.Space)
                 .WithMany()
                 .HasForeignKey(session => session.SpaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<TreatmentPlan>(entity =>
+        {
+            entity.ToTable("treatment_plans");
+            entity.HasKey(plan => plan.Id);
+            entity.Property(plan => plan.Id).HasColumnName("id");
+            entity.Property(plan => plan.PatientId).HasColumnName("patient_id");
+            entity.Property(plan => plan.ProfessionalId).HasColumnName("professional_id");
+            entity.Property(plan => plan.SpaceId).HasColumnName("space_id");
+            entity.Property(plan => plan.UpdatedByUserId).HasColumnName("updated_by_user_id");
+            entity.Property(plan => plan.Status).HasColumnName("status").HasMaxLength(40).IsRequired();
+            entity.Property(plan => plan.CaseFormulation).HasColumnName("case_formulation").HasMaxLength(4000);
+            entity.Property(plan => plan.GoalsJson).HasColumnName("goals_json").HasColumnType("jsonb");
+            entity.Property(plan => plan.StrategiesJson).HasColumnName("strategies_json").HasColumnType("jsonb");
+            entity.Property(plan => plan.ObstaclesJson).HasColumnName("obstacles_json").HasColumnType("jsonb");
+            entity.Property(plan => plan.ReviewCadence).HasColumnName("review_cadence").HasMaxLength(160);
+            entity.Property(plan => plan.CreatedAt).HasColumnName("created_at");
+            entity.Property(plan => plan.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(plan => new { plan.PatientId, plan.ProfessionalId }).IsUnique();
+            entity.HasIndex(plan => new { plan.ProfessionalId, plan.Status });
+            entity.HasIndex(plan => plan.SpaceId);
+            entity.HasOne(plan => plan.Patient)
+                .WithMany()
+                .HasForeignKey(plan => plan.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(plan => plan.Professional)
+                .WithMany()
+                .HasForeignKey(plan => plan.ProfessionalId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(plan => plan.Space)
+                .WithMany()
+                .HasForeignKey(plan => plan.SpaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(plan => plan.UpdatedBy)
+                .WithMany()
+                .HasForeignKey(plan => plan.UpdatedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }
