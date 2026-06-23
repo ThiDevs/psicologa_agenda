@@ -2471,7 +2471,7 @@ function ConsentRow({
   const isGranted = consent.status === 'granted';
   const isPending = consent.status === 'pending';
   const statusLabel = consentStatusLabel(consent.status);
-  const statusDate = consent.grantedAt ?? consent.revokedAt ?? consent.expiresAt;
+  const statusDate = consentStatusDate(consent.status, consent.grantedAt, consent.revokedAt, consent.expiresAt);
   const primaryDisabled = disabled || isGranted || (sensitive && isPending);
   const primaryLabel = sensitive ? 'Solicitar' : 'Conceder';
   const description = consent.term?.summary ?? consent.description;
@@ -3114,6 +3114,23 @@ function consentStatusLabel(status: ApiPatientConsentStatus) {
     case 'pending':
       return 'Pendente';
   }
+}
+
+function consentStatusDate(
+  status: ApiPatientConsentStatus,
+  grantedAt?: string | null,
+  revokedAt?: string | null,
+  expiresAt?: string | null,
+) {
+  if (status === 'expired') {
+    return expiresAt ?? grantedAt ?? revokedAt;
+  }
+
+  if (status === 'revoked') {
+    return revokedAt ?? grantedAt ?? expiresAt;
+  }
+
+  return grantedAt ?? revokedAt ?? expiresAt;
 }
 
 function consentActionLabel(action: string) {

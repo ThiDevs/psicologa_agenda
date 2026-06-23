@@ -687,7 +687,7 @@ function PatientConsentRow({
   const granted = consent.status === 'granted';
   const revoked = consent.status === 'revoked';
   const statusColor = consentStatusColor(consent.status);
-  const statusDate = consent.grantedAt ?? consent.revokedAt ?? consent.updatedAt;
+  const statusDate = consentStatusDate(consent.status, consent.grantedAt, consent.revokedAt, consent.expiresAt, consent.updatedAt);
   const revokeLabel = sensitive && !granted ? 'Recusar' : 'Revogar';
   const description = term?.summary ?? consentTypeDescription(consent.consentType);
 
@@ -863,6 +863,24 @@ function consentStatusLabel(status: ApiPatientConsentStatus) {
     expired: 'Expirado',
     pending: 'Pendente',
   }[status];
+}
+
+function consentStatusDate(
+  status: ApiPatientConsentStatus,
+  grantedAt?: string | null,
+  revokedAt?: string | null,
+  expiresAt?: string | null,
+  updatedAt?: string | null,
+) {
+  if (status === 'expired') {
+    return expiresAt ?? updatedAt ?? grantedAt ?? revokedAt;
+  }
+
+  if (status === 'revoked') {
+    return revokedAt ?? updatedAt ?? grantedAt ?? expiresAt;
+  }
+
+  return grantedAt ?? updatedAt ?? revokedAt ?? expiresAt;
 }
 
 function consentActionLabel(action: string) {

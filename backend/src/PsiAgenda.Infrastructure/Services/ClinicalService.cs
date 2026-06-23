@@ -115,6 +115,11 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
     {
         var appointment = await EnsureProfessionalAppointmentAsync(professionalUserId, appointmentId, cancellationToken);
         var session = await EnsureClinicalSessionAsync(appointment, professionalUserId, cancellationToken);
+        await ExpirePatientConsentsAsync(
+            appointment.CustomerId,
+            [appointment.ProfessionalId],
+            appointment.Id,
+            cancellationToken);
 
         var drafts = await dbContext.ClinicalDrafts
             .AsNoTracking()
@@ -619,14 +624,16 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         await EnsurePatientUserAsync(patientUserId, cancellationToken);
         var now = DateTimeOffset.UtcNow;
         var consentRelationships = await GetPatientConsentRelationshipsAsync(patientUserId, cancellationToken);
+        var consentProfessionalIds = consentRelationships
+            .Select(relationship => relationship.ProfessionalId)
+            .Distinct()
+            .ToList();
+        await ExpirePatientConsentsAsync(patientUserId, consentProfessionalIds, null, cancellationToken);
         var consents = await GetPatientPortalConsentsAsync(patientUserId, consentRelationships, cancellationToken);
         var sensitiveConsents = await GetPatientPortalSensitiveConsentsAsync(patientUserId, consentRelationships, cancellationToken);
         var consentHistory = await GetPatientConsentHistoryAsync(
             patientUserId,
-            consentRelationships
-                .Select(relationship => relationship.ProfessionalId)
-                .Distinct()
-                .ToList(),
+            consentProfessionalIds,
             cancellationToken);
         var consentTerms = await GetConsentTermsAsync(
             PatientPortalConsentTypes.Concat(SensitiveConsentTypes),
@@ -2459,6 +2466,64 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             .ToListAsync(cancellationToken);
 
         return events.Select(ToDto).ToList();
+    }
+
+    private async Task ExpirePatientConsentsAsync(
+        Guid patientId,
+        IReadOnlyList<Guid> professionalIds,
+        Guid? appointmentId,
+        CancellationToken cancellationToken)
+    {
+        if (professionalIds.Count == 0)
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var expiredConsents = await dbContext.PatientConsents
+            .Where(consent =>
+                consent.PatientId == patientId &&
+                professionalIds.Contains(consent.ProfessionalId) &&
+                consent.Status == "granted" &&
+                consent.ExpiresAt != null &&
+                consent.ExpiresAt <= now)
+            .ToListAsync(cancellationToken);
+
+        if (expiredConsents.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var consent in expiredConsents)
+        {
+            consent.Status = "expired";
+            consent.UpdatedAt = now;
+            AddConsentEvent(consent, "expired", consent.UpdatedByUserId, appointmentId, now);
+            dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+            {
+                AppointmentId = appointmentId,
+                PatientId = consent.PatientId,
+                ProfessionalId = consent.ProfessionalId,
+                SpaceId = consent.SpaceId,
+                CreatedByUserId = consent.UpdatedByUserId,
+                SourceType = "consent",
+                SourceId = consent.Id,
+                Title = "Consentimento expirado",
+                Summary = $"Consentimento para {ConsentTypeLabel(consent.ConsentType)} expirou conforme prazo configurado.",
+                Layer = "memoria",
+                OccurredAt = now,
+                CreatedAt = now
+            });
+            await AddClinicalAuditAsync(
+                consent.UpdatedByUserId,
+                consent.SpaceId,
+                "clinical.consent.expired",
+                nameof(PatientConsent),
+                consent.Id,
+                cancellationToken);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<IReadOnlyList<PatientConsentTermDto>> GetConsentTermsAsync(

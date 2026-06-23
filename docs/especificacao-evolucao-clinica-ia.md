@@ -1609,6 +1609,8 @@ Atualizacao da vigesima terceira entrega: o backend agora possui `PatientConsent
 
 Atualizacao da vigesima quarta entrega: o backend agora possui `PatientConsentTerm`, catalogo versionado de termos ativos por tipo de consentimento. Atualizacoes de consentimento validam que a versao informada existe e esta ativa; quando a versao nao e enviada, a API usa a versao ativa do tipo. Workspace clinico e portal do paciente devolvem `consentTerms` e exibem resumo, politica de retencao e aviso de revisao juridica, sem permitir IA, gravacao ou transcricao sem consentimento ativo. Ainda falta revisao juridica final dos textos, politica operacional completa de retencao/revogacao, criptografia de campos sensiveis, IA real, gravacao e transcricao.
 
+Atualizacao da vigesima quinta entrega: consentimentos concedidos com `expiresAt` vencido agora sao materializados como `expired` quando o workspace clinico ou o portal do paciente carregam o relacionamento. Essa transicao cria `PatientConsentEvent`, memoria na timeline e auditoria segura `clinical.consent.expired`, mantendo permissao, portal, materiais, check-ins, IA, gravacao e transcricao bloqueados apos o prazo. Ainda faltam jobs agendados dedicados, politica operacional completa de retencao/revogacao, revisao juridica final dos textos, criptografia de campos sensiveis, IA real, gravacao e transcricao.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1751,6 +1753,8 @@ Feito agora:
 97. `PatientConsentTerm` versiona termos ativos por tipo de consentimento e identifica quais finalidades sao sensiveis.
 98. Backend rejeita atualizacao de consentimento com versao de termo inexistente ou inativa.
 99. Workspace clinico e portal do paciente exibem resumo, politica de retencao e aviso de revisao juridica do termo ativo.
+100. Consentimentos concedidos com `expiresAt` vencido sao materializados como `expired` antes de calcular permissoes ou conteudo visivel.
+101. Expiracao cria evento tecnico, memoria na timeline e auditoria segura sem metadata clinica sensivel.
 
 Falta para virar produto clinico real:
 
@@ -1778,7 +1782,7 @@ Status por modulo:
 | Portal do paciente com cuidado | Parcial | Tarefas, materiais e check-ins privados no workspace; previa antes de compartilhar; share/unshare com consentimento; `/patient-care` para itens liberados, conclusao/resposta de tarefa, resposta de check-in e consentimento direto nao sensivel | Reabertura/edicao de tarefas, historico de visualizacao e refinamento de materiais |
 | Check-ins entre sessoes | Parcial | `PatientCheckIn` persistido, compartilhamento com consentimento e resposta pelo portal com escala/observacao | Agenda recorrente, templates editaveis, graficos e tendencias |
 | Alertas responsaveis | Parcial | `ClinicalAlert`, criacao manual por atendimento, motor inicial por tags `risk` e check-ins com escala 1 ou 2, painel no workspace, acoes de confirmar/acompanhar/descartar/resolver, timeline, auditoria sem mensagem automatica ao paciente e destaque de alerta alto no briefing | Configuracao de regras, aprendizado de falso positivo e tendencias longitudinais |
-| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, `PatientConsentEvent` com historico tecnico/versionado, `PatientConsentTerm` com catalogo versionado e validacao de versao ativa, shareables com consentimento, consentimento direto nao sensivel no portal, solicitacao/decisao de consentimentos sensiveis, exportacao aprovada auditada, matriz efetiva de permissoes no workspace e auditoria sem conteudo clinico | Revisao juridica dos textos sensiveis, politica formal de retencao/revogacao, politicas avancadas por papel e criptografia de campos sensiveis |
+| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, `PatientConsentEvent` com historico tecnico/versionado, `PatientConsentTerm` com catalogo versionado e validacao de versao ativa, expiracao materializada por `expiresAt`, shareables com consentimento, consentimento direto nao sensivel no portal, solicitacao/decisao de consentimentos sensiveis, exportacao aprovada auditada, matriz efetiva de permissoes no workspace e auditoria sem conteudo clinico | Revisao juridica dos textos sensiveis, jobs dedicados/politica formal de retencao e revogacao, politicas avancadas por papel e criptografia de campos sensiveis |
 
 ### Navegacao profissional sugerida
 
