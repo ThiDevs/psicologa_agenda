@@ -1591,6 +1591,8 @@ Atualizacao da decima quarta entrega: a timeline agora possui detalhe auditado e
 
 Atualizacao da decima quinta entrega: a timeline agora permite arquivar item nao oficial por `POST /api/clinical/timeline/{itemId}/archive`, com motivo opcional e auditoria `clinical.timeline_item.archived` sem metadata sensivel. Itens arquivados saem da timeline ativa e do workspace, mas permanecem preservados para detalhe e rastreabilidade. Itens de prontuario aprovado continuam bloqueados para arquivamento pela timeline e devem seguir por retificacao formal. Ainda nao existe filtro por tag aplicada/severidade, alertas, IA, exportacao ou gravacao/transcricao.
 
+Atualizacao da decima sexta entrega: a consulta longitudinal da timeline passou a aceitar filtros `tag` e `severity` em `GET /api/clinical/patients/{patientId}/timeline`, usando `AppliedClinicalTag` do atendimento para selecionar eventos associados a uma tag ou ao tom clinico `neutral`, `attention` ou `risk`. A tela clinica ganhou chips de tag aplicada e severidade no painel de filtros, preservando loading, vazio real e erro sem registrar esses parametros em metadata de auditoria. Ainda nao existem eventos reais de alertas, IA, exportacao ou gravacao/transcricao.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1696,6 +1698,9 @@ Feito agora:
 62. Arquivamento bloqueia itens de prontuario aprovado e orienta usar retificacao formal.
 63. Itens arquivados saem da timeline ativa, mas ficam preservados para detalhe auditado e rastreabilidade.
 64. A tela clinica exibe acao de arquivamento no detalhe com motivo opcional, loading, erro e sucesso.
+65. Timeline longitudinal aceita filtros `tag` e `severity` sem incluir esses parametros em metadata de auditoria.
+66. Backend filtra eventos por `AppliedClinicalTag` do atendimento, respeitando o vinculo profissional-paciente.
+67. A tela clinica exibe chips compactos para tag aplicada e severidade junto aos filtros existentes.
 
 Falta para virar produto clinico real:
 
@@ -1715,8 +1720,8 @@ Status por modulo:
 | Modulo | Status atual | Feito | Falta |
 | --- | --- | --- | --- |
 | Registro pos-consulta com IA | Parcial | `ClinicalSession`, `ClinicalDraft` manual, `ClinicalRecord` aprovado manualmente e retificacao versionada por atendimento | IA, edicao assistida e exportacao |
-| Botoes rapidos e tags clinicas | Parcial | Tags salvas em `AppliedClinicalTag` por atendimento | Biblioteca de tags, personalizacao, filtros e gestao completa |
-| Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags, consentimentos, plano, tarefas, materiais e check-ins; `GET /api/clinical/patients/{patientId}/timeline` com filtros de camada, origem, periodo, busca e limite; detalhe auditado por `GET /api/clinical/timeline/{itemId}`; arquivamento controlado por `POST /api/clinical/timeline/{itemId}/archive`; UI com vazio/loading/erro | Filtro por tag aplicada/severidade e eventos reais de alertas quando o motor existir |
+| Botoes rapidos e tags clinicas | Parcial | Tags salvas em `AppliedClinicalTag` por atendimento; historico longitudinal filtra por tag aplicada | Biblioteca de tags e personalizacao |
+| Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags, consentimentos, plano, tarefas, materiais e check-ins; `GET /api/clinical/patients/{patientId}/timeline` com filtros de camada, origem, periodo, busca, tag, severidade e limite; detalhe auditado por `GET /api/clinical/timeline/{itemId}`; arquivamento controlado por `POST /api/clinical/timeline/{itemId}/archive`; UI com vazio/loading/erro | Eventos reais de alertas quando o motor existir |
 | Plano terapeutico vivo | Parcial | `TreatmentPlan` persistido e editavel no workspace clinico | Historico versionado, revisao periodica e sugestoes por IA |
 | Preparacao da proxima sessao | Parcial | Card de briefing conceitual | Job automatico, fontes reais e arquivamento |
 | Separar rascunho, prontuario e memoria | Parcial | Rascunho, memoria, prontuario aprovado e retificacao versionada aparecem como camadas separadas | Exportacao seletiva e politicas de retencao |

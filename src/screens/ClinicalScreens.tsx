@@ -61,6 +61,7 @@ import {
 import type { ClinicalConsentItem, ClinicalIntegrationStatus, ClinicalQuickTag } from '@/types/clinical';
 
 type TimelineLayerFilter = ApiPatientTimelineItem['layer'] | 'all';
+type TimelineSeverityFilter = ApiClinicalTagInput['tone'] | 'all';
 
 const integrationStatusLabel: Record<ClinicalIntegrationStatus, string> = {
   connected: 'Conectado',
@@ -111,6 +112,18 @@ const timelineSourceLabels: Record<string, string> = timelineSourceOptions.reduc
   },
   {},
 );
+
+const timelineSeverityOptions: { value: TimelineSeverityFilter; label: string }[] = [
+  { value: 'all', label: 'Todas' },
+  { value: 'neutral', label: 'Neutro' },
+  { value: 'attention', label: 'Atenção' },
+  { value: 'risk', label: 'Risco' },
+];
+
+const timelineTagOptions = [
+  { value: 'all', label: 'Todas' },
+  ...clinicalQuickTags.map((tag) => ({ value: tag.label, label: tag.label })),
+];
 
 const treatmentPlanStatusOptions: { value: ApiTreatmentPlanStatus; label: string }[] = [
   { value: 'active', label: 'Ativo' },
@@ -176,6 +189,7 @@ export function ClinicalIntegrationScreen() {
         <Bullet text="Timeline longitudinal já busca eventos reais por paciente com filtros e busca clínica." />
         <Bullet text="Detalhe auditado da timeline já exibe origem, status e nota de acesso sem revelar conteúdo sensível fora do módulo." />
         <Bullet text="Timeline permite arquivar eventos não oficiais sem apagar rastreabilidade clínica." />
+        <Bullet text="Timeline longitudinal já filtra por tag aplicada e severidade clínica." />
         <Bullet text="Documento de especificação acompanha o status por módulo." />
       </View>
 
@@ -269,6 +283,8 @@ export function ClinicalPatientWorkspaceScreen() {
   const [timelineSearch, setTimelineSearch] = useState('');
   const [timelineFrom, setTimelineFrom] = useState('');
   const [timelineTo, setTimelineTo] = useState('');
+  const [timelineTagFilter, setTimelineTagFilter] = useState('all');
+  const [timelineSeverityFilter, setTimelineSeverityFilter] = useState<TimelineSeverityFilter>('all');
   const [loadingTimeline, setLoadingTimeline] = useState(false);
   const [selectedTimelineDetail, setSelectedTimelineDetail] = useState<ApiPatientTimelineItemDetail | null>(null);
   const [loadingTimelineDetailId, setLoadingTimelineDetailId] = useState<string | null>(null);
@@ -572,6 +588,8 @@ export function ClinicalPatientWorkspaceScreen() {
       const timeline = await getClinicalPatientTimeline(timelinePatientId, {
         sourceType: timelineSourceFilter,
         layer: timelineLayerFilter,
+        tag: timelineTagFilter,
+        severity: timelineSeverityFilter,
         from,
         to,
         q: timelineSearch,
@@ -1044,7 +1062,7 @@ export function ClinicalPatientWorkspaceScreen() {
         <View style={styles.timelineFilterIntro}>
           <Ionicons name="git-branch-outline" size={18} color={UI.darkPrimary} />
           <Text style={styles.timelineFilterText}>
-            Histórico privado da relação clínica. Use filtros para preparar sessão sem misturar rascunho, prontuário, memória e conteúdo compartilhado.
+            Histórico privado da relação clínica. Use filtros por camada, origem, tag e severidade para preparar sessão sem misturar rascunho, prontuário, memória e conteúdo compartilhado.
           </Text>
         </View>
         <Field
@@ -1083,6 +1101,18 @@ export function ClinicalPatientWorkspaceScreen() {
           options={timelineSourceOptions}
           value={timelineSourceFilter}
           onChange={setTimelineSourceFilter}
+        />
+        <TimelineFilterGroup
+          label="Tag aplicada"
+          options={timelineTagOptions}
+          value={timelineTagFilter}
+          onChange={setTimelineTagFilter}
+        />
+        <TimelineFilterGroup
+          label="Severidade"
+          options={timelineSeverityOptions}
+          value={timelineSeverityFilter}
+          onChange={setTimelineSeverityFilter}
         />
         <PrimaryButton
           label="Aplicar filtros"

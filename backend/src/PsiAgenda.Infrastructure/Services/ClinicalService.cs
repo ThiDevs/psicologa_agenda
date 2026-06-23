@@ -180,6 +180,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         var relationship = await EnsureProfessionalPatientRelationshipAsync(professionalUserId, patientId, cancellationToken);
         var sourceType = NormalizeTimelineSourceType(query.SourceType);
         var layer = NormalizeTimelineLayer(query.Layer);
+        var tag = NormalizeTimelineTag(query.Tag);
+        var severity = NormalizeTimelineSeverity(query.Severity);
         var search = NormalizeOptionalText(query.Search, 120, "Busca da timeline");
         var limit = query.Limit ?? 80;
 
@@ -210,6 +212,18 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         if (layer is not null)
         {
             timelineQuery = timelineQuery.Where(item => item.Layer == layer);
+        }
+
+        if (tag is not null || severity is not null)
+        {
+            timelineQuery = timelineQuery.Where(item =>
+                item.AppointmentId != null &&
+                dbContext.AppliedClinicalTags.Any(appliedTag =>
+                    appliedTag.AppointmentId == item.AppointmentId &&
+                    appliedTag.PatientId == item.PatientId &&
+                    appliedTag.ProfessionalId == item.ProfessionalId &&
+                    (tag == null || appliedTag.Label.ToLower() == tag) &&
+                    (severity == null || appliedTag.Tone == severity)));
         }
 
         if (from is DateTimeOffset fromValue)
@@ -2512,6 +2526,27 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         if (!AllowedTimelineLayers.Contains(normalized))
         {
             throw new InvalidOperationException("Camada da timeline inválida.");
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeTimelineTag(string? tag)
+    {
+        return NormalizeOptionalText(tag, 80, "Tag da timeline")?.ToLowerInvariant();
+    }
+
+    private static string? NormalizeTimelineSeverity(string? severity)
+    {
+        var normalized = NormalizeOptionalText(severity, 20, "Severidade da timeline")?.ToLowerInvariant();
+        if (normalized is null)
+        {
+            return null;
+        }
+
+        if (!AllowedTagTones.Contains(normalized))
+        {
+            throw new InvalidOperationException("Severidade da timeline inválida.");
         }
 
         return normalized;

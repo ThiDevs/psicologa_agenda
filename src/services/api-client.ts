@@ -337,6 +337,8 @@ export type ApiPatientTimelineItem = {
 export type ApiClinicalTimelineFilters = {
   sourceType?: string | null;
   layer?: ApiPatientTimelineItem['layer'] | 'all' | null;
+  tag?: string | 'all' | null;
+  severity?: ApiClinicalTagInput['tone'] | 'all' | null;
   from?: string | null;
   to?: string | null;
   q?: string | null;
@@ -1076,6 +1078,14 @@ export async function getClinicalPatientTimeline(patientId: string, filters: Api
 
   if (filters.layer && filters.layer !== 'all') {
     params.set('layer', filters.layer);
+  }
+
+  if (filters.tag && filters.tag !== 'all') {
+    params.set('tag', filters.tag);
+  }
+
+  if (filters.severity && filters.severity !== 'all') {
+    params.set('severity', filters.severity);
   }
 
   if (filters.from) {

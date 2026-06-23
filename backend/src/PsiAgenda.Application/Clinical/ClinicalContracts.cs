@@ -257,6 +257,8 @@ public sealed record RespondPatientCheckInRequest(
 public sealed record PatientTimelineQuery(
     string? SourceType,
     string? Layer,
+    string? Tag,
+    string? Severity,
     DateTimeOffset? From,
     DateTimeOffset? To,
     string? Search,

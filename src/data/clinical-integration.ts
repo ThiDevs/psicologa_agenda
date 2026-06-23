@@ -35,11 +35,11 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Tags rápidas aparecem no espaço clínico do atendimento.',
       'Tags selecionadas são salvas em AppliedClinicalTag.',
       'Atualização de tags cria item de memória na timeline.',
+      'Histórico longitudinal já pode ser filtrado por tag aplicada.',
     ],
     missing: [
       'Tags personalizadas por psicóloga.',
       'CRUD de biblioteca de tags.',
-      'Filtros por tags no histórico longitudinal.',
     ],
   },
   {
@@ -56,9 +56,9 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Endpoint longitudinal por paciente busca itens reais com filtros de camada, origem, período e texto.',
       'Detalhe auditado de item da timeline mostra metadados seguros da origem sem copiar conteúdo sensível.',
       'Arquivamento controlado remove itens não oficiais da timeline ativa sem apagar rastreabilidade.',
+      'Timeline longitudinal filtra por tag aplicada e severidade clínica das tags.',
     ],
     missing: [
-      'Filtro por tags aplicadas e severidade.',
       'Eventos reais de alertas quando o motor responsável existir.',
     ],
   },

@@ -85,6 +85,8 @@ public static class ClinicalEndpoints
         Guid patientId,
         string? sourceType,
         string? layer,
+        string? tag,
+        string? severity,
         DateTimeOffset? from,
         DateTimeOffset? to,
         string? q,
@@ -97,7 +99,7 @@ public static class ClinicalEndpoints
             () => clinicalService.GetPatientTimelineAsync(
                 currentUser.UserIdOrThrow(),
                 patientId,
-                new PatientTimelineQuery(sourceType, layer, from, to, q, limit),
+                new PatientTimelineQuery(sourceType, layer, tag, severity, from, to, q, limit),
                 cancellationToken),
             Results.Ok);
     }
