@@ -277,6 +277,8 @@ export type ApiClinicalDraft = {
   spaceId: string;
   status: string;
   source: string;
+  recordType: string;
+  previousRecordId?: string | null;
   sessionNote?: string | null;
   contentText: string;
   tags: ApiClinicalTagInput[];
@@ -957,6 +959,13 @@ export async function approveClinicalDraft(draftId: string, input: {
     method: 'POST',
     authenticated: true,
     body: input,
+  });
+}
+
+export async function createClinicalRecordRectification(recordId: string) {
+  return request<ApiClinicalDraft>(`/clinical/records/${recordId}/rectifications`, {
+    method: 'POST',
+    authenticated: true,
   });
 }
 

@@ -163,6 +163,8 @@ Campos principais:
 - `professionalId`
 - `source`: `manual`, `tags`, `transcript`, `checkin`, `ai`, `mixed`
 - `status`: `draft`, `in_review`, `discarded`, `converted_to_record`
+- `recordType`: `session_evolution`, `initial_assessment`, `follow_up`, `rectification`, `other`
+- `previousRecordId`: quando o rascunho nasce de uma retificacao
 - `contentJson`
 - `aiGenerated`: boolean
 - `aiModel`
@@ -1565,6 +1567,8 @@ Atualizacao da quarta entrega: o backend agora possui `PatientConsent`, consenti
 
 Atualizacao da quinta entrega: o backend agora possui `ClinicalSession` vinculada ao agendamento, cria a sessao clinica ao abrir o workspace, permite iniciar/finalizar a sessao pelo fluxo da psicologa e registra memoria/auditoria dessas transicoes. Ainda nao existe portal do paciente, plano terapeutico persistido, check-ins, alertas, IA, retificacao, exportacao ou gravacao/transcricao.
 
+Atualizacao da sexta entrega: o backend agora permite criar rascunho de retificacao a partir de `ClinicalRecord` aprovado por `POST /api/clinical/records/{recordId}/rectifications`. A aprovacao desse rascunho cria uma nova versao com `recordType = rectification` e `previousRecordId`, sem sobrescrever a evolucao anterior. Ainda nao existe portal do paciente, plano terapeutico persistido, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
+
 Arquivos criados ou alterados:
 
 - `src/screens/ClinicalScreens.tsx`
@@ -1587,6 +1591,7 @@ Arquivos criados ou alterados:
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623020000_AddClinicalRecords.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623033000_AddPatientConsents.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623040000_AddClinicalSessions.cs`
+- `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623043000_AddClinicalDraftRectifications.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/PsiAgendaDbContext.cs`
 - `backend/src/PsiAgenda.Infrastructure/DependencyInjection.cs`
 - `backend/src/PsiAgenda.Api/Program.cs`
@@ -1618,11 +1623,14 @@ Feito agora:
 23. `ClinicalSession` e criada a partir do atendimento e exibida no workspace.
 24. Psicologa pode iniciar e finalizar a sessao clinica sem gerar prontuario automaticamente.
 25. Inicio e finalizacao da sessao geram memoria na timeline e auditoria sem conteudo clinico sensivel.
+26. Prontuario aprovado pode gerar rascunho de retificacao sem alterar o registro original.
+27. Aprovacao de retificacao cria nova versao do prontuario com referencia ao registro anterior.
+28. Retificacao cria timeline e auditoria sem incluir conteudo clinico sensivel no metadata.
 
 Falta para virar produto clinico real:
 
 1. Criar plano terapeutico, tarefas, materiais, check-ins e alertas.
-2. Implementar retificacao e exportacao de evolucoes aprovadas sem sobrescrever historico.
+2. Implementar exportacao de evolucoes aprovadas sem expor camadas indevidas.
 3. Implementar permissao clinica por vinculo paciente-profissional.
 4. Criar portal do paciente para consentimento direto, tarefas, materiais e check-ins.
 5. Conectar IA somente depois de consentimento e minimizacao de dados.
@@ -1636,12 +1644,12 @@ Status por modulo:
 
 | Modulo | Status atual | Feito | Falta |
 | --- | --- | --- | --- |
-| Registro pos-consulta com IA | Parcial | `ClinicalSession`, `ClinicalDraft` manual e `ClinicalRecord` aprovado manualmente por atendimento | IA, edicao assistida, retificacao e exportacao |
+| Registro pos-consulta com IA | Parcial | `ClinicalSession`, `ClinicalDraft` manual, `ClinicalRecord` aprovado manualmente e retificacao versionada por atendimento | IA, edicao assistida e exportacao |
 | Botoes rapidos e tags clinicas | Parcial | Tags salvas em `AppliedClinicalTag` por atendimento | Biblioteca de tags, personalizacao, filtros e gestao completa |
 | Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags e consentimentos | Timeline longitudinal por paciente, filtros, busca e eventos reais de todos os modulos |
 | Plano terapeutico vivo | Parcial | Bloco de objetivos e status iniciais | Persistencia, revisao periodica e sugestoes por IA |
 | Preparacao da proxima sessao | Parcial | Card de briefing conceitual | Job automatico, fontes reais e arquivamento |
-| Separar rascunho, prontuario e memoria | Parcial | Rascunho, memoria e prontuario aprovados aparecem como camadas separadas | Retificacao, exportacao seletiva e politicas de retencao |
+| Separar rascunho, prontuario e memoria | Parcial | Rascunho, memoria, prontuario aprovado e retificacao versionada aparecem como camadas separadas | Exportacao seletiva e politicas de retencao |
 | Portal do paciente com cuidado | Pendente | Regras especificadas | Rotas do paciente, tarefas, materiais e previa de compartilhamento |
 | Check-ins entre sessoes | Pendente | Templates e fluxo especificados | Agenda, respostas, graficos e tendencias |
 | Alertas responsaveis | Pendente | Linguagem e estados especificados | Motor de alertas, painel e auditoria de revisao |

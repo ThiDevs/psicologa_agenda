@@ -17,12 +17,13 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'ClinicalSession persistida e vinculada ao atendimento.',
       'ClinicalDraft persistido por atendimento.',
       'ClinicalRecord aprovado manualmente a partir do rascunho.',
+      'Retificação de prontuário aprovado nasce como novo ClinicalDraft.',
+      'Aprovação de retificação cria nova versão sem sobrescrever histórico.',
       'Rascunho manual salvo com auditoria sem conteúdo clínico no log.',
     ],
     missing: [
       'Geração de rascunho por IA com consentimento.',
-      'Versionamento e retificação oficial.',
-      'Edição/retificação posterior de prontuário aprovado.',
+      'Edição assistida e exportação de prontuário aprovado.',
     ],
   },
   {
@@ -96,10 +97,10 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
     done: [
       'Camadas aparecem no app com linguagem própria.',
       'Rascunho salvo pode virar prontuário aprovado por ação humana.',
+      'Retificação cria nova versão de prontuário preservando a versão anterior.',
       'Timeline diferencia memória, rascunho e prontuário.',
     ],
     missing: [
-      'Retificação sem sobrescrever histórico.',
       'Exportação seletiva por camada.',
     ],
   },

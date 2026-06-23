@@ -511,6 +511,8 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
             entity.Property(draft => draft.CreatedByUserId).HasColumnName("created_by_user_id");
             entity.Property(draft => draft.Status).HasColumnName("status").HasMaxLength(40).IsRequired();
             entity.Property(draft => draft.Source).HasColumnName("source").HasMaxLength(40).IsRequired();
+            entity.Property(draft => draft.RecordType).HasColumnName("record_type").HasMaxLength(40).IsRequired();
+            entity.Property(draft => draft.PreviousRecordId).HasColumnName("previous_record_id");
             entity.Property(draft => draft.SessionNote).HasColumnName("session_note").HasMaxLength(4000);
             entity.Property(draft => draft.ContentText).HasColumnName("content_text").HasMaxLength(8000).IsRequired();
             entity.Property(draft => draft.TagsJson).HasColumnName("tags_json").HasColumnType("jsonb");
@@ -519,6 +521,7 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
             entity.Property(draft => draft.UpdatedAt).HasColumnName("updated_at");
             entity.HasIndex(draft => new { draft.AppointmentId, draft.CreatedAt });
             entity.HasIndex(draft => new { draft.PatientId, draft.ProfessionalId });
+            entity.HasIndex(draft => draft.PreviousRecordId);
             entity.HasOne(draft => draft.Appointment)
                 .WithMany()
                 .HasForeignKey(draft => draft.AppointmentId)
@@ -538,6 +541,10 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
             entity.HasOne(draft => draft.CreatedBy)
                 .WithMany()
                 .HasForeignKey(draft => draft.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(draft => draft.PreviousRecord)
+                .WithMany()
+                .HasForeignKey(draft => draft.PreviousRecordId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

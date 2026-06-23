@@ -25,6 +25,7 @@ import {
   approveClinicalDraft,
   completeClinicalAppointmentSession,
   createClinicalAppointmentDraft,
+  createClinicalRecordRectification,
   getApiErrorMessage,
   getClinicalAppointmentWorkspace,
   getProfessionalAppointmentDetails,
@@ -182,6 +183,7 @@ export function ClinicalPatientWorkspaceScreen() {
   const [savingConsent, setSavingConsent] = useState<string | null>(null);
   const [savingSessionAction, setSavingSessionAction] = useState<'start' | 'complete' | null>(null);
   const [approvingDraft, setApprovingDraft] = useState(false);
+  const [rectifyingRecordId, setRectifyingRecordId] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -320,11 +322,36 @@ export function ClinicalPatientWorkspaceScreen() {
         hydrateFromWorkspace(updated);
       }
 
-      setClinicalMessage('Evolução aprovada como prontuário. O rascunho foi convertido.');
+      setClinicalMessage(latestDraft.recordType === 'rectification'
+        ? 'Retificação aprovada como nova versão do prontuário. O histórico anterior foi preservado.'
+        : 'Evolução aprovada como prontuário. O rascunho foi convertido.');
     } catch (error) {
       setClinicalMessage(getApiErrorMessage(error));
     } finally {
       setApprovingDraft(false);
+    }
+  }
+
+  async function createRectification(recordId: string) {
+    setRectifyingRecordId(recordId);
+    setClinicalMessage(null);
+
+    try {
+      const draft = await createClinicalRecordRectification(recordId);
+
+      if (appointmentId) {
+        const updated = await getClinicalAppointmentWorkspace(appointmentId);
+        setWorkspace(updated);
+        hydrateFromWorkspace(updated);
+      }
+
+      setSessionNote(draft.sessionNote ?? '');
+      setDraftText(draft.contentText);
+      setClinicalMessage('Retificação criada como rascunho. Revise e aprove manualmente para gerar nova versão do prontuário.');
+    } catch (error) {
+      setClinicalMessage(getApiErrorMessage(error));
+    } finally {
+      setRectifyingRecordId(null);
     }
   }
 
@@ -435,7 +462,7 @@ export function ClinicalPatientWorkspaceScreen() {
           icon="document-lock-outline"
           title="Workspace clínico"
           text={clinicalMessage}
-          tone={clinicalMessage.includes('salvo') || clinicalMessage.includes('carregado') ? 'success' : 'info'}
+          tone={isClinicalSuccessMessage(clinicalMessage) ? 'success' : 'info'}
         />
       ) : null}
 
@@ -581,6 +608,10 @@ export function ClinicalPatientWorkspaceScreen() {
           <SectionTitle appearance="dark" title="Último rascunho salvo" />
           <View style={styles.card}>
             <DetailRow icon="document-text-outline" label="Status" value={latestDraft.status} />
+            <DetailRow icon="layers-outline" label="Tipo" value={clinicalRecordTypeLabel(latestDraft.recordType)} />
+            {latestDraft.previousRecordId ? (
+              <DetailRow icon="git-compare-outline" label="Origem" value={`Retificação de ${shortId(latestDraft.previousRecordId)}`} />
+            ) : null}
             <DetailRow icon="time-outline" label="Criado em" value={formatDateTimeLabel(latestDraft.createdAt)} />
             <View style={styles.draftBox}>
               <Text selectable style={styles.draftText}>{latestDraft.contentText}</Text>
@@ -601,11 +632,26 @@ export function ClinicalPatientWorkspaceScreen() {
           <SectionTitle appearance="dark" title="Prontuário aprovado" />
           <View style={styles.card}>
             <DetailRow icon="checkmark-circle-outline" label="Status" value={latestRecord.status} />
+            <DetailRow icon="layers-outline" label="Tipo" value={clinicalRecordTypeLabel(latestRecord.recordType)} />
             <DetailRow icon="albums-outline" label="Versão" value={String(latestRecord.version)} />
+            {latestRecord.previousRecordId ? (
+              <DetailRow icon="git-compare-outline" label="Retifica" value={shortId(latestRecord.previousRecordId)} />
+            ) : null}
             <DetailRow icon="time-outline" label="Aprovado em" value={formatDateTimeLabel(latestRecord.approvedAt)} />
             <View style={styles.draftBox}>
               <Text selectable style={styles.draftText}>{latestRecord.contentText}</Text>
             </View>
+            <Text style={styles.mutedText}>
+              Retificar cria um novo rascunho. O conteúdo aprovado permanece no histórico até a nova versão ser aprovada manualmente.
+            </Text>
+            <PrimaryButton
+              label="Criar retificação"
+              icon="create-outline"
+              variant="secondary"
+              loading={rectifyingRecordId === latestRecord.id}
+              disabled={latestRecord.status !== 'approved' || Boolean(rectifyingRecordId)}
+              onPress={() => createRectification(latestRecord.id)}
+            />
           </View>
         </>
       ) : null}
@@ -835,6 +881,31 @@ function sessionStatusLabel(status: string) {
 
 function sessionTypeLabel(type: string) {
   return sessionTypeLabels[type] ?? type;
+}
+
+function clinicalRecordTypeLabel(type?: string) {
+  switch (type) {
+    case 'rectification':
+      return 'Retificação';
+    case 'initial_assessment':
+      return 'Avaliação inicial';
+    case 'follow_up':
+      return 'Acompanhamento';
+    case 'other':
+      return 'Outro registro';
+    case 'session_evolution':
+    default:
+      return 'Evolução da sessão';
+  }
+}
+
+function shortId(value: string) {
+  return value.slice(0, 8);
+}
+
+function isClinicalSuccessMessage(value: string) {
+  return ['salvo', 'salvas', 'carregado', 'criada', 'atualizado', 'iniciada', 'finalizada', 'aprovada']
+    .some((item) => value.toLowerCase().includes(item));
 }
 
 function canStartSession(session: ApiClinicalSession) {

@@ -33,6 +33,8 @@ public sealed record ClinicalDraftDto(
     Guid SpaceId,
     string Status,
     string Source,
+    string RecordType,
+    Guid? PreviousRecordId,
     string? SessionNote,
     string ContentText,
     IReadOnlyList<ClinicalTagInput> Tags,
@@ -119,6 +121,7 @@ public interface IClinicalService
 {
     Task<ClinicalWorkspaceDto> GetAppointmentWorkspaceAsync(Guid professionalUserId, Guid appointmentId, CancellationToken cancellationToken);
     Task<ClinicalDraftDto> CreateAppointmentDraftAsync(Guid professionalUserId, Guid appointmentId, CreateClinicalDraftRequest request, CancellationToken cancellationToken);
+    Task<ClinicalDraftDto> CreateRecordRectificationDraftAsync(Guid professionalUserId, Guid recordId, CancellationToken cancellationToken);
     Task<IReadOnlyList<AppliedClinicalTagDto>> ApplyAppointmentTagsAsync(Guid professionalUserId, Guid appointmentId, ApplyClinicalTagsRequest request, CancellationToken cancellationToken);
     Task<ClinicalRecordDto> ApproveDraftAsync(Guid professionalUserId, Guid draftId, ApproveClinicalDraftRequest request, CancellationToken cancellationToken);
     Task<PatientConsentDto> UpdateAppointmentConsentAsync(Guid professionalUserId, Guid appointmentId, string consentType, UpdatePatientConsentRequest request, CancellationToken cancellationToken);

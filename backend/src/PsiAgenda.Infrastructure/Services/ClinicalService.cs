@@ -16,6 +16,14 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         "attention",
         "risk"
     };
+    private static readonly HashSet<string> AllowedRecordTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "session_evolution",
+        "initial_assessment",
+        "follow_up",
+        "rectification",
+        "other"
+    };
     private static readonly IReadOnlyList<string> ConsentTypes =
     [
         "portal",
@@ -113,6 +121,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             CreatedByUserId = professionalUserId,
             Status = "draft",
             Source = "manual",
+            RecordType = "session_evolution",
             SessionNote = sessionNote,
             ContentText = contentText,
             TagsJson = JsonSerializer.Serialize(tags, JsonOptions),
@@ -140,6 +149,88 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             professionalUserId,
             appointment.SpaceId,
             "clinical.draft.created",
+            nameof(ClinicalDraft),
+            draft.Id,
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(draft);
+    }
+
+    public async Task<ClinicalDraftDto> CreateRecordRectificationDraftAsync(
+        Guid professionalUserId,
+        Guid recordId,
+        CancellationToken cancellationToken)
+    {
+        var professional = await GetLinkedProfessionalAsync(professionalUserId, cancellationToken);
+        var record = await dbContext.ClinicalRecords
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == recordId, cancellationToken);
+
+        if (record is null || record.ProfessionalId != professional.Id)
+        {
+            throw new KeyNotFoundException("Prontuário clínico não encontrado.");
+        }
+
+        if (record.Status != "approved")
+        {
+            throw new InvalidOperationException("Apenas prontuários aprovados podem ser retificados.");
+        }
+
+        var existingOpenDraft = await dbContext.ClinicalDrafts
+            .AsNoTracking()
+            .Where(draft =>
+                draft.PreviousRecordId == record.Id &&
+                draft.RecordType == "rectification" &&
+                draft.Status == "draft")
+            .OrderByDescending(draft => draft.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (existingOpenDraft is not null)
+        {
+            throw new InvalidOperationException("Já existe um rascunho de retificação aberto para este prontuário.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var draft = new ClinicalDraft
+        {
+            AppointmentId = record.AppointmentId,
+            PatientId = record.PatientId,
+            ProfessionalId = record.ProfessionalId,
+            SpaceId = record.SpaceId,
+            CreatedByUserId = professionalUserId,
+            Status = "draft",
+            Source = "rectification",
+            RecordType = "rectification",
+            PreviousRecordId = record.Id,
+            SessionNote = $"Retificação da evolução v{record.Version}.",
+            ContentText = BuildRectificationDraftText(record),
+            TagsJson = record.TagsJson,
+            AiGenerated = false,
+            CreatedAt = now
+        };
+
+        dbContext.ClinicalDrafts.Add(draft);
+        dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+        {
+            AppointmentId = record.AppointmentId,
+            PatientId = record.PatientId,
+            ProfessionalId = record.ProfessionalId,
+            SpaceId = record.SpaceId,
+            CreatedByUserId = professionalUserId,
+            SourceType = "draft",
+            SourceId = draft.Id,
+            Title = "Retificação em rascunho",
+            Summary = $"Rascunho de retificação criado a partir da evolução v{record.Version}. O prontuário original permanece preservado.",
+            Layer = "rascunho",
+            OccurredAt = now,
+            CreatedAt = now
+        });
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            record.SpaceId,
+            "clinical.record.rectification_draft.created",
             nameof(ClinicalDraft),
             draft.Id,
             cancellationToken);
@@ -232,14 +323,41 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         var contentText = string.IsNullOrWhiteSpace(request.ContentText)
             ? draft.ContentText
             : ValidateText(request.ContentText, "Prontuário", 3, 8000);
+        var recordType = NormalizeRecordType(draft.RecordType);
         var now = DateTimeOffset.UtcNow;
-        var previousRecord = await dbContext.ClinicalRecords
+        var latestRecord = await dbContext.ClinicalRecords
             .Where(record =>
                 record.PatientId == draft.PatientId &&
                 record.ProfessionalId == draft.ProfessionalId)
             .OrderByDescending(record => record.Version)
             .FirstOrDefaultAsync(cancellationToken);
-        var version = (previousRecord?.Version ?? 0) + 1;
+        var previousRecord = latestRecord;
+
+        if (recordType == "rectification")
+        {
+            if (draft.PreviousRecordId is null)
+            {
+                throw new InvalidOperationException("Rascunho de retificação precisa apontar para um prontuário aprovado.");
+            }
+
+            previousRecord = await dbContext.ClinicalRecords
+                .AsNoTracking()
+                .FirstOrDefaultAsync(record => record.Id == draft.PreviousRecordId.Value, cancellationToken);
+
+            if (previousRecord is null ||
+                previousRecord.PatientId != draft.PatientId ||
+                previousRecord.ProfessionalId != draft.ProfessionalId)
+            {
+                throw new InvalidOperationException("Prontuário anterior da retificação não pertence ao mesmo vínculo clínico.");
+            }
+
+            if (previousRecord.Status != "approved")
+            {
+                throw new InvalidOperationException("Apenas prontuários aprovados podem receber retificação.");
+            }
+        }
+
+        var version = (latestRecord?.Version ?? 0) + 1;
         var record = new ClinicalRecord
         {
             AppointmentId = draft.AppointmentId,
@@ -248,7 +366,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             ProfessionalId = draft.ProfessionalId,
             SpaceId = draft.SpaceId,
             ApprovedByUserId = professionalUserId,
-            RecordType = "session_evolution",
+            RecordType = recordType,
             Status = "approved",
             ContentText = contentText,
             TagsJson = draft.TagsJson,
@@ -272,8 +390,10 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             CreatedByUserId = professionalUserId,
             SourceType = "record",
             SourceId = record.Id,
-            Title = "Evolução aprovada",
-            Summary = $"Prontuário aprovado pela psicóloga. Versão {version}.",
+            Title = recordType == "rectification" ? "Retificação aprovada" : "Evolução aprovada",
+            Summary = recordType == "rectification"
+                ? $"Retificação aprovada pela psicóloga. Versão {version}."
+                : $"Prontuário aprovado pela psicóloga. Versão {version}.",
             Layer = "prontuario",
             OccurredAt = now,
             CreatedAt = now
@@ -281,7 +401,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         await AddClinicalAuditAsync(
             professionalUserId,
             draft.SpaceId,
-            "clinical.record.approved",
+            recordType == "rectification" ? "clinical.record.rectification.approved" : "clinical.record.approved",
             nameof(ClinicalRecord),
             record.Id,
             cancellationToken);
@@ -641,6 +761,20 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         await Task.CompletedTask;
     }
 
+    private static string NormalizeRecordType(string? recordType)
+    {
+        var normalized = string.IsNullOrWhiteSpace(recordType)
+            ? "session_evolution"
+            : recordType.Trim().ToLowerInvariant();
+
+        if (!AllowedRecordTypes.Contains(normalized))
+        {
+            throw new InvalidOperationException("Tipo de prontuário clínico inválido.");
+        }
+
+        return normalized;
+    }
+
     private static IReadOnlyList<ClinicalTagInput> NormalizeTags(IReadOnlyList<ClinicalTagInput>? tags)
     {
         if (tags is null || tags.Count == 0)
@@ -766,6 +900,27 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             : $"{summary} Tags: {string.Join(", ", tags.Select(tag => tag.Label))}.";
     }
 
+    private static string BuildRectificationDraftText(ClinicalRecord record)
+    {
+        const int MaxDraftLength = 8000;
+        const string OriginalLabel = "Texto original para referencia:";
+        var header = $"""
+            Retificação da evolução v{record.Version}
+
+            Descreva abaixo apenas o ajuste necessário, preservando o histórico já aprovado. Esta retificação ainda é rascunho e precisa de aprovação manual antes de entrar no prontuário.
+
+            """;
+        var fullText = $"{header}{OriginalLabel}\n{record.ContentText}";
+
+        if (fullText.Length <= MaxDraftLength)
+        {
+            return fullText;
+        }
+
+        var availableOriginalLength = Math.Max(0, MaxDraftLength - header.Length - OriginalLabel.Length - 4);
+        return $"{header}{OriginalLabel}\n{record.ContentText[..availableOriginalLength]}...";
+    }
+
     private static ClinicalDraftDto ToDto(ClinicalDraft draft)
     {
         var tags = string.IsNullOrWhiteSpace(draft.TagsJson)
@@ -780,6 +935,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             draft.SpaceId,
             draft.Status,
             draft.Source,
+            draft.RecordType,
+            draft.PreviousRecordId,
             draft.SessionNote,
             draft.ContentText,
             tags,

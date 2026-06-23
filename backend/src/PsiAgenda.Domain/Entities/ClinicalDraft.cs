@@ -10,6 +10,8 @@ public sealed class ClinicalDraft
     public Guid CreatedByUserId { get; set; }
     public required string Status { get; set; }
     public required string Source { get; set; }
+    public required string RecordType { get; set; }
+    public Guid? PreviousRecordId { get; set; }
     public string? SessionNote { get; set; }
     public required string ContentText { get; set; }
     public string? TagsJson { get; set; }
@@ -22,4 +24,5 @@ public sealed class ClinicalDraft
     public Professional? Professional { get; set; }
     public Space? Space { get; set; }
     public User? CreatedBy { get; set; }
+    public ClinicalRecord? PreviousRecord { get; set; }
 }

@@ -24,6 +24,8 @@ public static class ClinicalEndpoints
             .RequireRateLimiting("Sensitive");
         group.MapPost("/drafts/{draftId:guid}/approve", ApproveDraftAsync)
             .RequireRateLimiting("Sensitive");
+        group.MapPost("/records/{recordId:guid}/rectifications", CreateRecordRectificationDraftAsync)
+            .RequireRateLimiting("Sensitive");
 
         return app;
     }
@@ -95,6 +97,17 @@ public static class ClinicalEndpoints
         return await ExecuteAsync(
             () => clinicalService.ApproveDraftAsync(currentUser.UserIdOrThrow(), draftId, request, cancellationToken),
             Results.Ok);
+    }
+
+    private static async Task<IResult> CreateRecordRectificationDraftAsync(
+        Guid recordId,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.CreateRecordRectificationDraftAsync(currentUser.UserIdOrThrow(), recordId, cancellationToken),
+            draft => Results.Created($"/api/clinical/records/{recordId}/rectifications/{draft.Id}", draft));
     }
 
     private static async Task<IResult> UpdateAppointmentConsentAsync(
