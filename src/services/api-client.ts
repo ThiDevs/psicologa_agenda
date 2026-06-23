@@ -264,6 +264,114 @@ export type ApiAppointmentDetails = {
   review?: ApiReview | null;
 };
 
+export type ApiClinicalTagInput = {
+  label: string;
+  tone: 'neutral' | 'attention' | 'risk';
+};
+
+export type ApiClinicalDraft = {
+  id: string;
+  appointmentId?: string | null;
+  patientId: string;
+  professionalId: string;
+  spaceId: string;
+  status: string;
+  source: string;
+  sessionNote?: string | null;
+  contentText: string;
+  tags: ApiClinicalTagInput[];
+  aiGenerated: boolean;
+  createdAt: string;
+  updatedAt?: string | null;
+};
+
+export type ApiAppliedClinicalTag = {
+  id: string;
+  appointmentId?: string | null;
+  patientId: string;
+  professionalId: string;
+  spaceId: string;
+  label: string;
+  tone: 'neutral' | 'attention' | 'risk';
+  note?: string | null;
+  appliedAt: string;
+};
+
+export type ApiClinicalRecord = {
+  id: string;
+  appointmentId?: string | null;
+  draftId?: string | null;
+  patientId: string;
+  professionalId: string;
+  spaceId: string;
+  recordType: string;
+  status: string;
+  contentText: string;
+  tags: ApiClinicalTagInput[];
+  version: number;
+  previousRecordId?: string | null;
+  approvedAt: string;
+  createdAt: string;
+};
+
+export type ApiPatientTimelineItem = {
+  id: string;
+  appointmentId?: string | null;
+  patientId: string;
+  professionalId: string;
+  spaceId: string;
+  sourceType: string;
+  sourceId?: string | null;
+  title: string;
+  summary: string;
+  layer: 'rascunho' | 'prontuario' | 'memoria' | 'compartilhado';
+  occurredAt: string;
+  createdAt: string;
+};
+
+export type ApiPatientConsentStatus = 'pending' | 'granted' | 'revoked' | 'expired';
+
+export type ApiPatientConsent = {
+  id?: string | null;
+  patientId: string;
+  professionalId: string;
+  spaceId: string;
+  consentType: string;
+  status: ApiPatientConsentStatus;
+  termsVersion: string;
+  grantedAt?: string | null;
+  revokedAt?: string | null;
+  expiresAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type ApiClinicalSession = {
+  id: string;
+  appointmentId?: string | null;
+  patientId: string;
+  professionalId: string;
+  spaceId: string;
+  sessionType: 'online' | 'in_person' | 'phone' | 'other' | string;
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | string;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApiClinicalWorkspace = {
+  appointmentId: string;
+  patientId: string;
+  professionalId: string;
+  spaceId: string;
+  session: ApiClinicalSession;
+  drafts: ApiClinicalDraft[];
+  records: ApiClinicalRecord[];
+  tags: ApiAppliedClinicalTag[];
+  consents: ApiPatientConsent[];
+  timeline: ApiPatientTimelineItem[];
+};
+
 export type ApiStarterSetupResponse = {
   space: ApiSpace;
   services: ApiService[];
@@ -794,6 +902,10 @@ export async function getProfessionalAppointments() {
   return request<ApiAppointment[]>('/professionals/me/appointments', { authenticated: true });
 }
 
+export async function getProfessionalAppointmentDetails(appointmentId: string) {
+  return request<ApiAppointmentDetails>(`/professionals/me/appointments/${appointmentId}`, { authenticated: true });
+}
+
 export async function completeProfessionalAppointment(appointmentId: string) {
   return request<ApiAppointment>(`/professionals/me/appointments/${appointmentId}/complete`, {
     method: 'POST',
@@ -805,6 +917,69 @@ export async function markProfessionalAppointmentNoShow(appointmentId: string) {
   return request<ApiAppointment>(`/professionals/me/appointments/${appointmentId}/no-show`, {
     method: 'POST',
     authenticated: true,
+  });
+}
+
+export async function getClinicalAppointmentWorkspace(appointmentId: string) {
+  return request<ApiClinicalWorkspace>(`/clinical/appointments/${appointmentId}/workspace`, { authenticated: true });
+}
+
+export async function startClinicalAppointmentSession(appointmentId: string) {
+  return request<ApiClinicalSession>(`/clinical/appointments/${appointmentId}/session/start`, {
+    method: 'POST',
+    authenticated: true,
+  });
+}
+
+export async function completeClinicalAppointmentSession(appointmentId: string) {
+  return request<ApiClinicalSession>(`/clinical/appointments/${appointmentId}/session/complete`, {
+    method: 'POST',
+    authenticated: true,
+  });
+}
+
+export async function createClinicalAppointmentDraft(appointmentId: string, input: {
+  sessionNote?: string | null;
+  contentText: string;
+  tags: ApiClinicalTagInput[];
+}) {
+  return request<ApiClinicalDraft>(`/clinical/appointments/${appointmentId}/drafts`, {
+    method: 'POST',
+    authenticated: true,
+    body: input,
+  });
+}
+
+export async function approveClinicalDraft(draftId: string, input: {
+  contentText?: string | null;
+}) {
+  return request<ApiClinicalRecord>(`/clinical/drafts/${draftId}/approve`, {
+    method: 'POST',
+    authenticated: true,
+    body: input,
+  });
+}
+
+export async function applyClinicalAppointmentTags(appointmentId: string, input: {
+  tags: ApiClinicalTagInput[];
+  note?: string | null;
+}) {
+  return request<ApiAppliedClinicalTag[]>(`/clinical/appointments/${appointmentId}/tags`, {
+    method: 'POST',
+    authenticated: true,
+    body: input,
+  });
+}
+
+export async function updateClinicalAppointmentConsent(appointmentId: string, consentType: string, input: {
+  status: ApiPatientConsentStatus;
+  termsVersion?: string | null;
+  expiresAt?: string | null;
+}) {
+  return request<ApiPatientConsent>(`/clinical/appointments/${appointmentId}/consents/${consentType}`, {
+    method: 'POST',
+    authenticated: true,
+    body: input,
   });
 }
 

@@ -90,6 +90,7 @@ app.MapGet("/api/health", () => Results.Ok(new { status = "ok", service = "psi-a
 app.MapPublicPageEndpoints();
 app.MapAuthEndpoints();
 app.MapSpaceEndpoints();
+app.MapClinicalEndpoints();
 app.MapVideoCallEndpoints();
 
 app.Run();

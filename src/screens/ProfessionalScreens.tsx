@@ -134,6 +134,17 @@ export function ProfessionalAgendaScreen() {
     void openOnlineRoom(url);
   }
 
+  function handleOpenClinicalWorkspace(appointment: Appointment) {
+    router.push({
+      pathname: './clinical-patient',
+      params: {
+        appointmentId: appointment.id,
+        patientId: appointment.customerId,
+        startDateTime: appointment.startDateTime,
+      },
+    });
+  }
+
   return (
     <ScreenScaffold appearance="dark">
       <HeaderBar
@@ -164,6 +175,12 @@ export function ProfessionalAgendaScreen() {
           </Text>
         </View>
       </View>
+      <PrimaryButton
+        label="Integração clínica"
+        icon="shield-checkmark-outline"
+        variant="secondary"
+        onPress={() => router.push('./clinical-integration')}
+      />
       {message && <InfoStrip icon="information-circle-outline" title="Agenda" text={message} />}
       <View style={styles.formCard}>
         <Field appearance="dark" label="Data" value={date} onChangeText={setDate} />
@@ -201,6 +218,12 @@ export function ProfessionalAgendaScreen() {
                     </View>
                   </View>
                 )}
+                <PrimaryButton
+                  label="Acompanhamento clínico"
+                  icon="document-text-outline"
+                  variant="secondary"
+                  onPress={() => handleOpenClinicalWorkspace(appointment)}
+                />
               </View>
             );
           })

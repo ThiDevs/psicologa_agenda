@@ -1,5 +1,4 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -22,6 +21,27 @@ type BottomTab = 'home' | 'appointments' | 'notices' | 'profile';
 type Coordinates = { latitude: number; longitude: number };
 type LocationStatus = 'idle' | 'requesting' | 'granted' | 'denied' | 'error';
 type HomeCategory = { id: string; label: string; iconName: string };
+
+const CARE_COLORS = {
+  canvas: '#FAF8F5',
+  surface: '#FFFFFF',
+  surfaceBlue: '#F5F9FC',
+  surfaceSage: '#F5FAF7',
+  ink: '#0F2340',
+  muted: '#607085',
+  border: 'rgba(15, 35, 64, 0.10)',
+  primary: '#064A8A',
+  primaryDark: '#03366C',
+  primarySoft: '#E7F0FA',
+  sage: '#2B9A72',
+  sageSoft: '#EAF6F0',
+  coral: '#D85B4A',
+  coralSoft: '#FFF0ED',
+  amber: '#C77A1B',
+  amberSoft: '#FFF5E6',
+} as const;
+
+const CARE_FONT = 'Source Sans 3, ui-sans-serif, system-ui, sans-serif';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -140,6 +160,30 @@ export default function HomeScreen() {
     router.push('/space-details');
   }
 
+  function openCareWorkspace() {
+    const appointment = upcomingAppointments[0];
+
+    if (!appointment) {
+      router.push('/clinical-patient');
+      return;
+    }
+
+    const params: Record<string, string> = {
+      appointmentId: appointment.id,
+      startDateTime: appointment.startDateTime,
+    };
+
+    if (user?.id) {
+      params.patientId = user.id;
+    }
+
+    if (user?.name) {
+      params.patientName = user.name;
+    }
+
+    router.push({ pathname: '/clinical-patient', params });
+  }
+
   async function handleDeleteAccount() {
     if (!deleteAccountArmed) {
       setDeleteAccountArmed(true);
@@ -165,23 +209,27 @@ export default function HomeScreen() {
   return (
     <ScreenScaffold
       bottomOffset={112}
-      footer={isWeb ? undefined : <BottomNavigation activeTab={activeTab} onTabPress={setActiveTab} />}>
+      footer={isWeb ? undefined : (
+        <BottomNavigation activeTab={activeTab} onCarePress={openCareWorkspace} onTabPress={setActiveTab} />
+      )}>
       {isWeb ? (
-        <WebTopBar
-          activeTab={activeTab}
-          userName={user?.name}
-          onTabPress={setActiveTab}
-          onAccountPress={() => {
-            if (user) {
-              logout();
-              router.replace('/');
-              return;
-            }
+        activeTab === 'home' ? null : (
+          <WebTopBar
+            activeTab={activeTab}
+            userName={user?.name}
+            onTabPress={setActiveTab}
+            onAccountPress={() => {
+              if (user) {
+                logout();
+                router.replace('/');
+                return;
+              }
 
-            router.push('/login');
-          }}
-        />
-      ) : (
+              router.push('/login');
+            }}
+          />
+        )
+      ) : activeTab === 'home' ? null : (
         <View style={styles.homeHeader}>
           <View style={styles.greetingCopy}>
             <Text style={styles.greeting}>
@@ -229,11 +277,22 @@ export default function HomeScreen() {
             upcomingAppointments={upcomingAppointments}
             userName={user?.name}
             getServicesForSpace={getServicesForSpace}
+            onAccountPress={() => {
+              if (user) {
+                logout();
+                router.replace('/');
+                return;
+              }
+
+              router.push('/login');
+            }}
             onAppointments={() => setActiveTab('appointments')}
             onCategoryPress={setActiveCategoryId}
+            onCare={openCareWorkspace}
             onFavoritePress={toggleFavorite}
             onInPerson={() => setQuery('presencial')}
             onLogin={() => router.push('/login')}
+            onNotices={() => setActiveTab('notices')}
             onOnline={() => setQuery('online')}
             onOpenSpace={openSpace}
             onProfile={() => setActiveTab('profile')}
@@ -245,98 +304,24 @@ export default function HomeScreen() {
             }
           />
         ) : (
-          <View style={styles.homeTabContent}>
-            <View style={styles.homeLeadColumn}>
-              <CustomerHeroCard
-                userName={user?.name}
-                resultsCount={filteredSpaces.length}
-                upcomingCount={upcomingAppointments.length}
-                onAppointments={() => setActiveTab('appointments')}
-                onProfile={() => setActiveTab('profile')}
-              />
-
-              <CareModeGrid
-                onOnline={() => setQuery('online')}
-                onInPerson={() => setQuery('presencial')}
-              />
-
-              <LocationBanner
-                status={locationStatus}
-                locatingSpaces={false}
-                message={locationMessage}
-                onRetry={requestLocation}
-              />
-            </View>
-
-            <View style={styles.homeResultsColumn}>
-              <SearchCatalogControls
-                activeCategoryId={activeCategoryId}
-                categories={categories}
-                query={query}
-                onCategoryPress={setActiveCategoryId}
-                onQueryChange={setQuery}
-              />
-
-              <SectionTitle title={spacesTitle} actionLabel={`${filteredSpaces.length} resultados`} />
-              {catalogError && (
-                <EmptyState
-                  icon="cloud-offline-outline"
-                  title="Catálogo indisponível"
-                  text={catalogError}
-                />
-              )}
-              {filteredSpaces.length > 0 ? (
-                <View style={styles.spaceList}>
-                  {filteredSpaces.map((space) => (
-                    <SpaceCard
-                      key={space.id}
-                      space={space}
-                      minPrice={space.minPrice ?? getMinPrice(getServicesForSpace(space.id))}
-                      distanceKm={space.distanceKm}
-                      favorite={favoriteSpaceIds.includes(space.id)}
-                      onFavoritePress={() => toggleFavorite(space.id)}
-                      onPress={() => openSpace(space.id)}
-                    />
-                  ))}
-                </View>
-              ) : (
-                <EmptyState
-                  icon="search-outline"
-                  title="Nenhum consultório encontrado"
-                  text="Ajuste a busca ou escolha outra categoria para continuar."
-                />
-              )}
-
-              {user ? (
-                <>
-                  <SectionTitle title="Próximos agendamentos" />
-                  {upcomingAppointments.length > 0 ? (
-                    upcomingAppointments.map((appointment) => (
-                      <CustomerAppointmentCard
-                        key={appointment.id}
-                        appointment={appointment}
-                        onPress={() => router.push({ pathname: '/appointment-details', params: { appointmentId: appointment.id } })}
-                      />
-                    ))
-                  ) : (
-                    <EmptyState
-                      icon="calendar-outline"
-                      title="Sem agendamentos ainda"
-                      text="Escolha um consultório publicado para reservar seu próximo horário."
-                      action={<PrimaryButton label="Ver consultórios" variant="ghost" onPress={() => setActiveTab('home')} />}
-                    />
-                  )}
-                </>
-              ) : (
-                <GuestPromptCard
-                  title="Reserve com uma conta"
-                  text="Você pode explorar os consultórios agora. Para confirmar um horário, entre ou crie uma conta de cliente."
-                  onLogin={() => router.push('/login')}
-                  onRegister={() => router.push('/customer-register')}
-                />
-              )}
-            </View>
-          </View>
+          <MobileCareHome
+            catalogError={catalogError}
+            favoriteSpaceIds={favoriteSpaceIds}
+            filteredSpaces={filteredSpaces}
+            upcomingAppointments={upcomingAppointments}
+            userName={user?.name}
+            getServicesForSpace={getServicesForSpace}
+            onAppointments={() => setActiveTab('appointments')}
+            onCare={openCareWorkspace}
+            onFavoritePress={toggleFavorite}
+            onMessages={() => setActiveTab('notices')}
+            onOpenSpace={openSpace}
+            onProfile={() => setActiveTab('profile')}
+            onRegister={() => router.push('/customer-register')}
+            onViewAppointment={(appointmentId) =>
+              router.push({ pathname: '/appointment-details', params: { appointmentId } })
+            }
+          />
         )
       )}
 
@@ -534,61 +519,412 @@ function WebTopBar({
   );
 }
 
-function SearchCatalogControls({
-  activeCategoryId,
-  categories,
-  query,
-  variant = 'mobile',
-  onCategoryPress,
-  onQueryChange,
+function MobileCareHome({
+  catalogError,
+  favoriteSpaceIds,
+  filteredSpaces,
+  upcomingAppointments,
+  userName,
+  getServicesForSpace,
+  onAppointments,
+  onCare,
+  onFavoritePress,
+  onMessages,
+  onOpenSpace,
+  onProfile,
+  onRegister,
+  onViewAppointment,
 }: {
-  activeCategoryId: string;
-  categories: HomeCategory[];
-  query: string;
-  variant?: 'mobile' | 'web';
-  onCategoryPress: (categoryId: string) => void;
-  onQueryChange: (value: string) => void;
+  catalogError: string | null;
+  favoriteSpaceIds: string[];
+  filteredSpaces: Space[];
+  upcomingAppointments: Appointment[];
+  userName?: string;
+  getServicesForSpace: (spaceId: string) => { price: number }[];
+  onAppointments: () => void;
+  onCare: () => void;
+  onFavoritePress: (spaceId: string) => void;
+  onMessages: () => void;
+  onOpenSpace: (spaceId: string) => void;
+  onProfile: () => void;
+  onRegister: () => void;
+  onViewAppointment: (appointmentId: string) => void;
 }) {
-  const isWebVariant = variant === 'web';
+  const firstName = userName?.split(' ')[0] ?? 'Thiago';
+  const nextAppointment = upcomingAppointments[0];
+  const discoverySpaces = filteredSpaces.slice(0, 3);
+  const sessionTime = nextAppointment ? formatCareDateTime(nextAppointment.startDateTime) : 'Hoje, 15:00';
+
+  function handlePrimaryAction() {
+    if (nextAppointment) {
+      onViewAppointment(nextAppointment.id);
+      return;
+    }
+
+    if (discoverySpaces[0]) {
+      onOpenSpace(discoverySpaces[0].id);
+      return;
+    }
+
+    onRegister();
+  }
 
   return (
-    <View style={[styles.searchControls, isWebVariant && styles.webSearchControls]}>
-      <View style={[styles.searchBar, isWebVariant && styles.webSearchBar]}>
-        <Ionicons name="search-outline" size={isWebVariant ? 26 : 23} color={UI.textMuted} />
-        <TextInput
-          value={query}
-          onChangeText={onQueryChange}
-          placeholder="Buscar psicóloga, bairro ou consulta"
-          placeholderTextColor={UI.textMuted}
-          style={[styles.searchInput, isWebVariant && styles.webSearchInput]}
-        />
-        {query.length > 0 && (
-          <Pressable accessibilityRole="button" onPress={() => onQueryChange('')} hitSlop={10}>
-            <Ionicons name="close-circle" size={21} color={UI.textMuted} />
+    <View style={styles.mobileCareHome}>
+      <View style={styles.mobileCareHeader}>
+        <View style={styles.mobileCareHeaderCopy}>
+          <Text style={styles.mobileCareTitle}>Olá, {firstName}</Text>
+          <Text style={styles.mobileCareSubtitle}>Seu plano de cuidado para hoje</Text>
+        </View>
+        <View style={styles.mobileCareHeaderActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Mensagens"
+            onPress={onMessages}
+            style={({ pressed }) => [styles.mobileCareCircleButton, pressed && styles.pressed]}>
+            <Ionicons name="notifications-outline" size={22} color={CARE_COLORS.ink} />
+            <View style={styles.mobileCareSmallDot} />
           </Pressable>
-        )}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Perfil"
+            onPress={onProfile}
+            style={({ pressed }) => [styles.mobileCareCircleButton, pressed && styles.pressed]}>
+            <Ionicons name="person-outline" size={22} color={CARE_COLORS.ink} />
+          </Pressable>
+        </View>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[styles.categoryList, isWebVariant && styles.webCategoryList]}>
-        <CategoryChip
-          label="Todos"
-          iconName="apps-outline"
-          selected={activeCategoryId === 'all'}
-          onPress={() => onCategoryPress('all')}
-        />
-        {categories.map((category) => (
-          <CategoryChip
-            key={category.id}
-            label={category.label}
-            iconName={category.iconName}
-            selected={activeCategoryId === category.id}
-            onPress={() => onCategoryPress(category.id)}
+      <MobileModeSwitch />
+
+      <View style={styles.mobileSessionCard}>
+        <View style={styles.mobileSessionHeader}>
+          <View>
+            <Text style={styles.mobileEyebrow}>PRÓXIMA SESSÃO</Text>
+            <Text style={styles.mobileSessionTime}>{sessionTime}</Text>
+          </View>
+          <View style={styles.mobileConfirmedPill}>
+            <View style={styles.mobileConfirmedDot} />
+            <Text style={styles.mobileConfirmedText}>Confirmada</Text>
+          </View>
+        </View>
+
+        <View style={styles.mobileTherapistRow}>
+          <View style={styles.mobileSessionIcon}>
+            <Ionicons name="calendar-outline" size={27} color={CARE_COLORS.primary} />
+          </View>
+          <View style={styles.mobileTherapistCopy}>
+            <Text style={styles.mobileTherapistName}>Dra. Helena Martins</Text>
+            <View style={styles.mobileTinyRow}>
+              <Ionicons name="videocam-outline" size={16} color={CARE_COLORS.primary} />
+              <Text style={styles.mobileTherapistMeta}>Terapia online</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.mobileSessionActions}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={handlePrimaryAction}
+            style={({ pressed }) => [styles.mobilePrimaryAction, pressed && styles.pressed]}>
+            <Ionicons name={nextAppointment ? 'videocam' : 'search-outline'} size={20} color={CARE_COLORS.surface} />
+            <Text style={styles.mobilePrimaryActionText}>
+              {nextAppointment ? 'Entrar na consulta' : 'Encontrar psicóloga'}
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onAppointments}
+            style={({ pressed }) => [styles.mobileSecondaryAction, pressed && styles.pressed]}>
+            <Ionicons name="calendar-outline" size={18} color={CARE_COLORS.primary} />
+            <Text style={styles.mobileSecondaryActionText}>Remarcar</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onCare}
+            style={({ pressed }) => [styles.mobileSecondaryAction, pressed && styles.pressed]}>
+            <Ionicons name="checkbox-outline" size={18} color={CARE_COLORS.primary} />
+            <Text style={styles.mobileSecondaryActionText}>Preparar</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.mobileCareCard}>
+        <View style={styles.mobileCardTitleRow}>
+          <View style={[styles.mobileCardIcon, styles.mobileCardIconSage]}>
+            <Ionicons name="checkbox-outline" size={22} color={CARE_COLORS.sage} />
+          </View>
+          <Text style={styles.mobileCardTitle}>Prepare-se</Text>
+        </View>
+        <View style={styles.mobilePrepList}>
+          <MobilePrepRow checked title="Revisar anotações da última sessão" onPress={onCare} />
+          <MobilePrepRow checked title="Definir intenção para hoje" onPress={onCare} />
+          <MobilePrepRow title="Preencher check-in rápido" onPress={onCare} />
+        </View>
+      </View>
+
+      <View style={styles.mobileCareTwoColumns}>
+        <View style={[styles.mobileCareCard, styles.mobileHalfCard]}>
+          <View style={[styles.mobileCardIcon, styles.mobileCardIconSage]}>
+            <Ionicons name="heart-outline" size={22} color={CARE_COLORS.sage} />
+          </View>
+          <Text style={[styles.mobileCardTitle, styles.mobileCompactCardTitle]}>Check-in rápido</Text>
+          <Text style={styles.mobileCompactText}>Como você está se sentindo hoje?</Text>
+          <View style={styles.mobileMoodRow}>
+            <MobileMoodDot icon="sad-outline" tone="coral" />
+            <MobileMoodDot icon="sad-outline" tone="amber" />
+            <MobileMoodDot icon="remove-outline" tone="neutral" />
+            <MobileMoodDot icon="happy-outline" tone="sage" />
+            <MobileMoodDot icon="happy" tone="sage" selected />
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onCare}
+            style={({ pressed }) => [styles.mobileCheckinButton, pressed && styles.pressed]}>
+            <Text style={styles.mobileCheckinButtonText}>Fazer check-in</Text>
+          </Pressable>
+        </View>
+
+        <View style={[styles.mobileCareCard, styles.mobileHalfCard]}>
+          <View style={[styles.mobileCardIcon, styles.mobileCardIconAmber]}>
+            <Ionicons name="clipboard-outline" size={22} color={CARE_COLORS.amber} />
+          </View>
+          <Text style={[styles.mobileCardTitle, styles.mobileCompactCardTitle]}>Tarefas abertas</Text>
+          <MobileTaskSummary color={CARE_COLORS.coral} label="Exercícios" value="2" />
+          <MobileTaskSummary color={CARE_COLORS.amber} label="Reflexões" value="1" />
+          <MobileTaskSummary color={CARE_COLORS.primary} label="Leituras" value="1" />
+          <Pressable
+            accessibilityRole="button"
+            onPress={onCare}
+            style={({ pressed }) => [styles.mobileTaskLink, pressed && styles.pressed]}>
+            <Text style={styles.mobileTaskLinkText}>Ver todas</Text>
+            <Ionicons name="chevron-forward" size={18} color={CARE_COLORS.primary} />
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.mobileCareCard}>
+        <View style={styles.mobileCardTitleRow}>
+          <View style={styles.mobileCardIcon}>
+            <Ionicons name="trending-up-outline" size={22} color={CARE_COLORS.primary} />
+          </View>
+          <View style={styles.mobileCardTitleCopy}>
+            <Text style={styles.mobileCardTitle}>Linha do cuidado</Text>
+            <Text style={styles.mobileCardSubtitle}>Seu progresso geral</Text>
+          </View>
+          <Text style={styles.mobileProgressPercent}>62%</Text>
+        </View>
+        <View style={styles.mobileProgressTrack}>
+          <View style={styles.mobileProgressFill} />
+        </View>
+        <View style={styles.mobileJourneyRow}>
+          <MobileJourneyNode icon="leaf-outline" title="Começar" text="Concluído" active />
+          <MobileJourneyNode icon="compass-outline" title="Entender" text="Concluído" active />
+          <MobileJourneyNode icon="flower-outline" title="Praticar" text="Em andamento" current />
+          <MobileJourneyNode icon="sunny-outline" title="Integrar" text="Próximo" />
+        </View>
+      </View>
+
+      <View style={styles.mobileCareCard}>
+        <View style={styles.mobileCardTitleRow}>
+          <View style={styles.mobileCardIcon}>
+            <Ionicons name="search-outline" size={22} color={CARE_COLORS.primary} />
+          </View>
+          <View style={styles.mobileCardTitleCopy}>
+            <Text style={styles.mobileCardTitle}>Encontrar psicóloga</Text>
+            <Text style={styles.mobileCardSubtitle}>Novas profissionais disponíveis perto de você</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={CARE_COLORS.primary} />
+        </View>
+
+        {catalogError ? (
+          <EmptyState icon="cloud-offline-outline" title="Catálogo indisponível" text={catalogError} />
+        ) : discoverySpaces.length > 0 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mobileDiscoveryList}>
+            {discoverySpaces.map((space) => (
+              <MobileProfessionalCard
+                key={space.id}
+                favorite={favoriteSpaceIds.includes(space.id)}
+                minPrice={space.minPrice ?? getMinPrice(getServicesForSpace(space.id))}
+                space={space}
+                onFavoritePress={() => onFavoritePress(space.id)}
+                onPress={() => onOpenSpace(space.id)}
+              />
+            ))}
+          </ScrollView>
+        ) : (
+          <EmptyState
+            icon="search-outline"
+            title="Nenhum profissional encontrado"
+            text="Tente buscar por outro bairro ou especialidade."
           />
-        ))}
-      </ScrollView>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function MobileModeSwitch() {
+  return (
+    <View style={styles.mobileModeSwitch}>
+      <View style={[styles.mobileModeItem, styles.mobileModeItemSelected]}>
+        <Text style={[styles.mobileModeText, styles.mobileModeTextSelected]}>Hoje</Text>
+      </View>
+      <View style={styles.mobileModeItem}>
+        <Text style={styles.mobileModeText}>Semana</Text>
+      </View>
+      <View style={styles.mobileModeItem}>
+        <Text style={styles.mobileModeText}>Jornada</Text>
+      </View>
+    </View>
+  );
+}
+
+function MobilePrepRow({
+  checked,
+  title,
+  onPress,
+}: {
+  checked?: boolean;
+  title: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.mobilePrepRow, pressed && styles.pressed]}>
+      <View style={[styles.mobilePrepCheck, checked && styles.mobilePrepCheckSelected]}>
+        {checked && <Ionicons name="checkmark" size={15} color={CARE_COLORS.surface} />}
+      </View>
+      <Text numberOfLines={1} style={styles.mobilePrepText}>{title}</Text>
+      <Ionicons name="chevron-forward" size={18} color={CARE_COLORS.muted} />
+    </Pressable>
+  );
+}
+
+function MobileMoodDot({
+  icon,
+  selected,
+  tone,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  selected?: boolean;
+  tone: 'coral' | 'amber' | 'neutral' | 'sage';
+}) {
+  const color =
+    tone === 'coral'
+      ? CARE_COLORS.coral
+      : tone === 'amber'
+      ? CARE_COLORS.amber
+      : tone === 'sage'
+      ? CARE_COLORS.sage
+      : '#B8A36A';
+
+  return (
+    <View style={[styles.mobileMoodDot, selected && styles.mobileMoodDotSelected, { backgroundColor: `${color}22` }]}>
+      <Ionicons name={icon} size={20} color={color} />
+    </View>
+  );
+}
+
+function MobileTaskSummary({
+  color,
+  label,
+  value,
+}: {
+  color: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.mobileTaskSummaryRow}>
+      <View style={[styles.mobileTaskMarker, { backgroundColor: color }]} />
+      <Text numberOfLines={1} style={styles.mobileTaskSummaryLabel}>{label}</Text>
+      <View style={[styles.mobileTaskCount, { backgroundColor: `${color}18` }]}>
+        <Text style={[styles.mobileTaskCountText, { color }]}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
+function MobileJourneyNode({
+  active,
+  current,
+  icon,
+  title,
+  text,
+}: {
+  active?: boolean;
+  current?: boolean;
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  text: string;
+}) {
+  return (
+    <View style={styles.mobileJourneyNode}>
+      <View
+        style={[
+          styles.mobileJourneyIcon,
+          active && styles.mobileJourneyIconActive,
+          current && styles.mobileJourneyIconCurrent,
+        ]}>
+        <Ionicons
+          name={icon}
+          size={22}
+          color={active ? CARE_COLORS.surface : current ? CARE_COLORS.primary : CARE_COLORS.muted}
+        />
+      </View>
+      <Text numberOfLines={1} style={styles.mobileJourneyTitle}>{title}</Text>
+      <Text numberOfLines={1} style={[styles.mobileJourneyText, (active || current) && styles.mobileJourneyTextActive]}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+function MobileProfessionalCard({
+  favorite,
+  minPrice,
+  space,
+  onFavoritePress,
+  onPress,
+}: {
+  favorite: boolean;
+  minPrice: number;
+  space: Space;
+  onFavoritePress: () => void;
+  onPress: () => void;
+}) {
+  return (
+    <View style={styles.mobileProfessionalCard}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        style={({ pressed }) => [styles.mobileProfessionalMain, pressed && styles.pressed]}>
+        <View style={styles.mobileProfessionalAvatar}>
+          <Text style={styles.mobileProfessionalInitials}>{getInitials(space.name)}</Text>
+        </View>
+        <Text numberOfLines={1} style={styles.mobileProfessionalName}>{space.name}</Text>
+        <Text numberOfLines={1} style={styles.mobileProfessionalLocation}>
+          {space.city}{space.distanceKm !== undefined ? ` • ${formatDistance(space.distanceKm)}` : ''}
+        </Text>
+        <View style={styles.mobileProfessionalFooter}>
+          <View style={styles.mobileTinyRow}>
+            <Ionicons name="star" size={15} color={UI.star} />
+            <Text style={styles.mobileProfessionalRating}>{formatRating(space.rating)}</Text>
+          </View>
+          <Text style={styles.mobileProfessionalPrice}>{formatCurrency(minPrice)}</Text>
+        </View>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+        onPress={onFavoritePress}
+        hitSlop={10}
+        style={({ pressed }) => [styles.mobileFavoriteMini, pressed && styles.pressed]}>
+        <Ionicons name={favorite ? 'heart' : 'heart-outline'} size={18} color={CARE_COLORS.primary} />
+      </Pressable>
     </View>
   );
 }
@@ -606,11 +942,14 @@ function WebHomeDashboard({
   upcomingAppointments,
   userName,
   getServicesForSpace,
+  onAccountPress,
   onAppointments,
   onCategoryPress,
+  onCare,
   onFavoritePress,
   onInPerson,
   onLogin,
+  onNotices,
   onOnline,
   onOpenSpace,
   onProfile,
@@ -631,11 +970,14 @@ function WebHomeDashboard({
   upcomingAppointments: Appointment[];
   userName?: string;
   getServicesForSpace: (spaceId: string) => { price: number }[];
+  onAccountPress: () => void;
   onAppointments: () => void;
   onCategoryPress: (categoryId: string) => void;
+  onCare: () => void;
   onFavoritePress: (spaceId: string) => void;
   onInPerson: () => void;
   onLogin: () => void;
+  onNotices: () => void;
   onOnline: () => void;
   onOpenSpace: (spaceId: string) => void;
   onProfile: () => void;
@@ -644,150 +986,341 @@ function WebHomeDashboard({
   onRequestLocation: () => void;
   onViewAppointment: (appointmentId: string) => void;
 }) {
-  const firstName = userName?.split(' ')[0];
+  const firstName = userName?.split(' ')[0] ?? 'Thiago';
+  const nextAppointment = upcomingAppointments[0];
+  const discoverySpaces = filteredSpaces.slice(0, 3);
+  const sessionTime = nextAppointment ? formatCareDateTime(nextAppointment.startDateTime) : 'Hoje, 15:00';
+  const primaryLabel = nextAppointment ? 'Entrar na consulta' : 'Encontrar psicóloga';
 
   return (
-    <View style={styles.webHomeDashboard}>
-      <View style={styles.webHeroBand}>
-        <View style={styles.webHeroInfo}>
-          <View style={styles.webBadge}>
-            <Ionicons name="shield-checkmark-outline" size={16} color={UI.primaryDark} />
-            <Text style={styles.webBadgeText}>Cuidado verificado</Text>
+    <View style={styles.webCareShell}>
+      <View style={styles.webCareSidebar}>
+        <View style={styles.webCareBrand}>
+          <View style={styles.webCareLogoMark}>
+            <Text style={styles.webCareLogoGlyph}>Ψ</Text>
           </View>
-          <Text style={styles.webHeroTitle}>
-            {firstName ? `${firstName}, encontre o cuidado certo para hoje` : 'Encontre o cuidado certo para hoje'}
-          </Text>
-          <Text style={styles.webHeroText}>
-            Psicólogas verificadas, atendimento online ou presencial e uma agenda que se adapta à sua rotina.
-          </Text>
-
-          <View style={styles.webHeroMetrics}>
-            <WebHeroMetric icon="business-outline" value={String(filteredSpaces.length)} label="consultórios" />
-            <WebHeroMetric icon="calendar-clear-outline" value={String(upcomingAppointments.length)} label="próximos" />
-            <WebHeroMetric icon="heart-outline" value={String(favoriteSpaceIds.length)} label="favoritos" />
-          </View>
-
-          <View style={styles.webHeroActions}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={onAppointments}
-              style={({ pressed }) => [styles.webPrimaryAction, pressed && styles.pressed]}>
-              <Text style={styles.webPrimaryActionText}>Ver agenda</Text>
-              <Ionicons name="calendar-outline" size={18} color={UI.surface} />
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={onProfile}
-              style={({ pressed }) => [styles.webSecondaryAction, pressed && styles.pressed]}>
-              <Text style={styles.webSecondaryActionText}>Perfil e preferências</Text>
-            </Pressable>
+          <View style={styles.webCareBrandCopy}>
+            <Text style={styles.webCareBrandName}>Psi Agenda</Text>
+            <Text style={styles.webCareBrandSub}>ONLINE</Text>
           </View>
         </View>
 
-        <View style={styles.webHeroSearch}>
-          <SearchCatalogControls
-            activeCategoryId={activeCategoryId}
-            categories={categories}
-            query={query}
-            variant="web"
-            onCategoryPress={onCategoryPress}
-            onQueryChange={onQueryChange}
-          />
+        <View style={styles.webCareNav}>
+          <WebCareNavItem icon="home" label="Início" selected onPress={() => onCategoryPress('all')} />
+          <WebCareNavItem icon="heart-outline" label="Meu cuidado" onPress={onCare} />
+          <WebCareNavItem icon="calendar-outline" label="Agenda" onPress={onAppointments} />
+          <WebCareNavItem icon="people-outline" label="Profissionais" onPress={() => onCategoryPress('all')} />
+          <WebCareNavItem icon="chatbox-outline" label="Mensagens" badge="2" onPress={onNotices} />
+          <WebCareNavItem icon="person-circle-outline" label="Perfil" onPress={onProfile} />
+        </View>
+
+        <View style={styles.webCareSidebarFoot}>
+          <View style={styles.webCareSecureIcon}>
+            <Ionicons name="shield-checkmark-outline" size={18} color={CARE_COLORS.primary} />
+          </View>
+          <Text style={styles.webCareSecureTitle}>Seus dados estão protegidos</Text>
+          <Text style={styles.webCareSecureText}>Privacidade e segurança em primeiro lugar.</Text>
+          <Text style={styles.webCareSecureLink}>Saiba mais</Text>
         </View>
       </View>
 
-      <View style={styles.webWorkspace}>
-        <View style={styles.webDirectoryPanel}>
-          <View style={styles.webPanelHeader}>
-            <Text style={styles.webPanelTitle}>{spacesTitle}</Text>
-            <Text style={styles.webPanelMeta}>{filteredSpaces.length} resultados</Text>
+      <View style={styles.webCareMain}>
+        <View style={styles.webCareTopBar}>
+          <View style={styles.webCareCommand}>
+            <Ionicons name="search-outline" size={18} color={CARE_COLORS.muted} />
+            <TextInput
+              value={query}
+              onChangeText={onQueryChange}
+              placeholder="Buscar cuidado, tarefa ou profissional"
+              placeholderTextColor={CARE_COLORS.muted}
+              style={styles.webCareCommandInput}
+            />
+            <View style={styles.webCareShortcut}>
+              <Text style={styles.webCareShortcutText}>⌘ K</Text>
+            </View>
           </View>
 
-          {catalogError && (
-            <EmptyState
-              icon="cloud-offline-outline"
-              title="Catálogo indisponível"
-              text={catalogError}
-            />
-          )}
+          <View style={styles.webCareModeSwitch}>
+            <WebModeToggle icon="sunny-outline" label="Hoje" selected />
+            <WebModeToggle icon="calendar-outline" label="Semana" />
+            <WebModeToggle icon="trending-up-outline" label="Jornada" />
+          </View>
 
-          {filteredSpaces.length > 0 ? (
-            <View style={styles.webDirectoryTable}>
-              <View style={styles.webDirectoryHeader}>
-                <Text style={[styles.webDirectoryHeading, styles.webDirectoryHeadingMain]}>Consultório</Text>
-                <Text style={styles.webDirectoryHeading}>Avaliação</Text>
-                <Text style={styles.webDirectoryHeading}>Preço inicial</Text>
-                <Text style={styles.webDirectoryHeadingAction}>Ação</Text>
+          <View style={styles.webCareTopActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Avisos"
+              onPress={onNotices}
+              style={({ pressed }) => [styles.webCareIconButton, pressed && styles.pressed]}>
+              <Ionicons name="notifications-outline" size={18} color={CARE_COLORS.ink} />
+              <View style={styles.webCareNotificationDot}>
+                <Text style={styles.webCareNotificationText}>3</Text>
               </View>
-              {filteredSpaces.map((space) => (
-                <SpaceCard
-                  key={space.id}
-                  layout="web"
-                  space={space}
-                  minPrice={space.minPrice ?? getMinPrice(getServicesForSpace(space.id))}
-                  distanceKm={space.distanceKm}
-                  favorite={favoriteSpaceIds.includes(space.id)}
-                  onFavoritePress={() => onFavoritePress(space.id)}
-                  onPress={() => onOpenSpace(space.id)}
-                />
-              ))}
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => onCategoryPress('all')}
-                style={({ pressed }) => [styles.webMoreButton, pressed && styles.pressed]}>
-                <Text style={styles.webMoreButtonText}>Ver mais consultórios</Text>
-                <Ionicons name="chevron-down-outline" size={17} color={UI.primary} />
-              </Pressable>
-            </View>
-          ) : (
-            <EmptyState
-              icon="search-outline"
-              title="Nenhum consultório encontrado"
-              text="Ajuste a busca ou escolha outra categoria para continuar."
-            />
-          )}
-
-          <View style={styles.webTrustStrip}>
-            <WebTrustItem
-              icon="shield-checkmark-outline"
-              title="Informações seguras"
-              text="Seus dados são usados apenas para melhorar sua experiência."
-            />
-            <WebTrustItem
-              icon="people-outline"
-              title="Psicólogas verificadas"
-              text="Perfis passam por um processo de validação."
-            />
-            <WebTrustItem
-              icon="lock-closed-outline"
-              title="Privacidade primeiro"
-              text="Você decide o que compartilhar em cada atendimento."
-            />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={onAccountPress}
+              style={({ pressed }) => [styles.webCareProfileButton, pressed && styles.pressed]}>
+              <View style={styles.webCareAvatar}>
+                <Text style={styles.webCareAvatarText}>{getInitials(userName ?? 'Thiago')}</Text>
+              </View>
+              <Text numberOfLines={1} style={styles.webCareProfileName}>
+                {firstName}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color={CARE_COLORS.ink} />
+            </Pressable>
           </View>
         </View>
 
-        <View style={styles.webSideRail}>
-          <View style={styles.webRailPanel}>
-            <View style={styles.webRailHeader}>
-              <View style={styles.webRailIcon}>
-                <Ionicons name="calendar-outline" size={20} color={UI.primary} />
+        <View style={styles.webCareHeader}>
+          <View>
+            <Text style={styles.webCareTitle}>Olá, {firstName}</Text>
+            <Text style={styles.webCareSubtitle}>Seu plano de cuidado para hoje</Text>
+          </View>
+          <View style={styles.webCareHeaderMetrics}>
+            <WebStatusPill icon="calendar-clear-outline" value={String(upcomingAppointments.length)} label="sessões" />
+            <WebStatusPill icon="heart-outline" value={String(favoriteSpaceIds.length)} label="favoritos" />
+            <WebStatusPill icon="people-outline" value={String(filteredSpaces.length)} label="profissionais" />
+          </View>
+        </View>
+
+        <View style={styles.webCareBody}>
+          <View style={styles.webCarePrimaryColumn}>
+            <View style={styles.webCareSessionCard}>
+              <View style={styles.webCareSessionLeft}>
+                <Text style={styles.webCareEyebrow}>PRÓXIMA SESSÃO</Text>
+                <Text style={styles.webCareSessionTime}>{sessionTime}</Text>
+                <View style={styles.webCareTherapistRow}>
+                  <View style={styles.webCareTherapistAvatar}>
+                    <Text style={styles.webCareTherapistInitials}>HM</Text>
+                  </View>
+                  <View style={styles.webCareTherapistCopy}>
+                    <Text style={styles.webCareTherapistName}>Dra. Helena Martins</Text>
+                    <View style={styles.webCareTinyRow}>
+                      <Ionicons name="videocam-outline" size={15} color={CARE_COLORS.primary} />
+                      <Text style={styles.webCareTherapistMeta}>Terapia online</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    if (nextAppointment) {
+                      onViewAppointment(nextAppointment.id);
+                      return;
+                    }
+
+                    if (discoverySpaces[0]) {
+                      onOpenSpace(discoverySpaces[0].id);
+                      return;
+                    }
+
+                    onRegister();
+                  }}
+                  style={({ pressed }) => [styles.webCarePrimaryButton, pressed && styles.pressed]}>
+                  <Ionicons name={nextAppointment ? 'videocam' : 'search-outline'} size={17} color={CARE_COLORS.surface} />
+                  <Text style={styles.webCarePrimaryButtonText}>{primaryLabel}</Text>
+                </Pressable>
+
+                <View style={styles.webCareSessionActions}>
+                  <WebActionButton icon="calendar-outline" label="Remarcar" onPress={onAppointments} />
+                  <WebActionButton icon="document-text-outline" label="Preparar sessão" onPress={onCare} />
+                </View>
               </View>
-              <Text style={styles.webRailTitle}>Próximos agendamentos</Text>
+
+              <View style={styles.webCareSessionDivider} />
+
+              <View style={styles.webCareSessionRight}>
+                <Text style={styles.webCareCardTitle}>Prepare-se para sua sessão</Text>
+                <Text style={styles.webCareCardText}>Pequenas ações que fazem a diferença</Text>
+                <View style={styles.webCareChecklist}>
+                  <WebChecklistRow icon="reader-outline" title="Revisar anotações" text="Veja o que foi importante para você" />
+                  <WebChecklistRow icon="leaf-outline" title="Respiração consciente" text="2 minutos de respiração guiada" />
+                  <WebChecklistRow icon="flag-outline" title="Definir intenção" text="Qual é o foco da sua sessão hoje?" />
+                </View>
+                <Pressable accessibilityRole="button" onPress={onCare} style={styles.webCareInlineLink}>
+                  <Text style={styles.webCareInlineLinkText}>Ver todas as sugestões</Text>
+                  <Ionicons name="arrow-forward" size={16} color={CARE_COLORS.primary} />
+                </Pressable>
+              </View>
             </View>
-            {upcomingAppointments.length > 0 ? (
-              upcomingAppointments.map((appointment) => (
-                <CustomerAppointmentCard
-                  key={appointment.id}
-                  appointment={appointment}
-                  variant="web"
-                  onPress={() => onViewAppointment(appointment.id)}
+
+            <View style={styles.webCareTimelineCard}>
+              <View style={styles.webCareCardHeader}>
+                <View>
+                  <Text style={styles.webCareCardTitle}>Linha do cuidado</Text>
+                  <Text style={styles.webCareCardText}>Acompanhe cada etapa da sua jornada</Text>
+                </View>
+                <Pressable accessibilityRole="button" onPress={onCare} style={styles.webCareTextButton}>
+                  <Text style={styles.webCareTextButtonText}>Ver jornada completa</Text>
+                  <Ionicons name="arrow-forward" size={16} color={CARE_COLORS.primary} />
+                </Pressable>
+              </View>
+              <View style={styles.webCareTimeline}>
+                <View pointerEvents="none" style={styles.webCareTimelineRail} />
+                <WebJourneyStep icon="checkmark" title="Agendado" text="Concluído" date="10/06" tone="done" />
+                <WebJourneyStep icon="clipboard-outline" title="Preparação" text="Em andamento" date="Hoje" tone="active" />
+                <WebJourneyStep icon="videocam-outline" title="Sessão" text={sessionTime} date="" tone="primary" />
+                <WebJourneyStep icon="document-text-outline" title="Pós-consulta" text="Em breve" date="" />
+                <WebJourneyStep icon="flag-outline" title="Próxima meta" text="Em breve" date="" />
+              </View>
+            </View>
+
+            <View style={styles.webCareDiscoveryCard}>
+              <View style={styles.webCareCardHeader}>
+                <View>
+                  <Text style={styles.webCareCardTitle}>Encontrar psicóloga</Text>
+                  <Text style={styles.webCareCardText}>{spacesTitle}: profissionais alinhados com suas necessidades</Text>
+                </View>
+                <Text style={styles.webCareResultCount}>{filteredSpaces.length} resultados</Text>
+              </View>
+
+              <View style={styles.webCareFilterRow}>
+                <WebCareCategoryChip
+                  label="Todos"
+                  iconName="apps-outline"
+                  selected={activeCategoryId === 'all'}
+                  onPress={() => onCategoryPress('all')}
                 />
-              ))
-            ) : userName ? (
-              <EmptyState
-                icon="calendar-outline"
-                title="Sem agendamentos ainda"
-                text="Escolha um consultório publicado para reservar seu próximo horário."
+                {categories.slice(0, 4).map((category) => (
+                  <WebCareCategoryChip
+                    key={category.id}
+                    label={category.label}
+                    iconName={category.iconName}
+                    selected={activeCategoryId === category.id}
+                    onPress={() => onCategoryPress(category.id)}
+                  />
+                ))}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={onOnline}
+                  style={({ pressed }) => [styles.webCareFilterButton, pressed && styles.pressed]}>
+                  <Ionicons name="videocam-outline" size={16} color={CARE_COLORS.primary} />
+                  <Text style={styles.webCareFilterText}>Online</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={onInPerson}
+                  style={({ pressed }) => [styles.webCareFilterButton, pressed && styles.pressed]}>
+                  <Ionicons name="location-outline" size={16} color={CARE_COLORS.primary} />
+                  <Text style={styles.webCareFilterText}>Presencial</Text>
+                </Pressable>
+              </View>
+
+              {catalogError ? (
+                <EmptyState icon="cloud-offline-outline" title="Catálogo indisponível" text={catalogError} />
+              ) : discoverySpaces.length > 0 ? (
+                <View style={styles.webCareProfessionalGrid}>
+                  {discoverySpaces.map((space) => (
+                    <WebProfessionalMiniCard
+                      key={space.id}
+                      favorite={favoriteSpaceIds.includes(space.id)}
+                      minPrice={space.minPrice ?? getMinPrice(getServicesForSpace(space.id))}
+                      space={space}
+                      onFavoritePress={() => onFavoritePress(space.id)}
+                      onPress={() => onOpenSpace(space.id)}
+                    />
+                  ))}
+                </View>
+              ) : (
+                <EmptyState
+                  icon="search-outline"
+                  title="Nenhum profissional encontrado"
+                  text="Ajuste os filtros ou tente buscar por outro bairro ou especialidade."
+                />
+              )}
+            </View>
+          </View>
+
+          <View style={styles.webCareSupportColumn}>
+            <View style={styles.webCareSideCard}>
+              <View style={styles.webCareCardHeader}>
+                <View style={styles.webCareCardTitleRow}>
+                  <Text style={styles.webCareCardTitle}>Tarefas abertas</Text>
+                  <View style={styles.webCareCountBadge}>
+                    <Text style={styles.webCareCountText}>2</Text>
+                  </View>
+                </View>
+                <Pressable accessibilityRole="button" onPress={onCare}>
+                  <Text style={styles.webCareSmallLink}>Ver todas</Text>
+                </Pressable>
+              </View>
+              <View style={styles.webCareTaskList}>
+                <WebCareTask title="Prática: Diário de pensamentos" text="5 min diários até 25/06" />
+                <WebCareTask title="Exercício: Respiração 4-7-8" text="3x por semana" />
+              </View>
+            </View>
+
+            <View style={styles.webCareSideCard}>
+              <View style={styles.webCareCardHeader}>
+                <View>
+                  <Text style={styles.webCareCardTitle}>Check-in emocional</Text>
+                  <Text style={styles.webCareCardText}>Como você está se sentindo hoje?</Text>
+                </View>
+                <Ionicons name="trending-up-outline" size={18} color={CARE_COLORS.sage} />
+              </View>
+              <View style={styles.webCareMoodRow}>
+                <WebMoodOption label="1" mood="Muito mal" icon="sad-outline" tone="bad" />
+                <WebMoodOption label="2" mood="Mal" icon="sad-outline" tone="alert" />
+                <WebMoodOption label="3" mood="Neutro" icon="remove-circle-outline" tone="neutral" />
+                <WebMoodOption label="4" mood="Bem" icon="happy-outline" tone="good" />
+                <WebMoodOption label="5" mood="Muito bem" icon="happy" selected tone="great" />
+              </View>
+              <View style={styles.webCarePositiveNote}>
+                <Ionicons name="heart-outline" size={15} color={CARE_COLORS.sage} />
+                <View style={styles.webCarePositiveCopy}>
+                  <Text style={styles.webCarePositiveTitle}>Muito bem! Que bom te ver assim hoje.</Text>
+                  <Text style={styles.webCarePositiveText}>Manter o acompanhamento ajuda no seu progresso.</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.webCareSideCard}>
+              <View style={styles.webCareCardHeader}>
+                <Text style={styles.webCareCardTitle}>Avisos</Text>
+                <Pressable accessibilityRole="button" onPress={onNotices}>
+                  <Text style={styles.webCareSmallLink}>Ver todos</Text>
+                </Pressable>
+              </View>
+              <View style={styles.webCareNoticeList}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={onAppointments}
+                  style={({ pressed }) => [styles.webCareNoticeRow, pressed && styles.pressed]}>
+                  <View style={[styles.webCareNoticeIcon, styles.webCareNoticeIconCoral]}>
+                    <Ionicons name="calendar-outline" size={16} color={CARE_COLORS.coral} />
+                  </View>
+                  <View style={styles.webCareNoticeCopy}>
+                    <Text style={styles.webCareNoticeTitle}>Reagendei sua consulta?</Text>
+                    <Text style={styles.webCareNoticeText}>Você tem horários disponíveis esta semana.</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={CARE_COLORS.muted} />
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={onNotices}
+                  style={({ pressed }) => [styles.webCareNoticeRow, pressed && styles.pressed]}>
+                  <View style={styles.webCareNoticeIcon}>
+                    <Ionicons name="chatbox-outline" size={16} color={CARE_COLORS.primary} />
+                  </View>
+                  <View style={styles.webCareNoticeCopy}>
+                    <Text style={styles.webCareNoticeTitle}>Nova mensagem da sua psicóloga</Text>
+                    <Text style={styles.webCareNoticeText}>Recebida hoje, 09:31</Text>
+                  </View>
+                  <View style={styles.webCareUnreadDot} />
+                  <Ionicons name="chevron-forward" size={18} color={CARE_COLORS.muted} />
+                </Pressable>
+              </View>
+            </View>
+
+            {userName ? (
+              <LocationBanner
+                status={locationStatus}
+                locatingSpaces={false}
+                message={locationMessage}
+                variant="web"
+                onRetry={onRequestLocation}
               />
             ) : (
               <WebGuestCallout
@@ -798,26 +1331,102 @@ function WebHomeDashboard({
               />
             )}
           </View>
-
-          <View style={styles.webRailPanel}>
-            <Text style={styles.webRailTitle}>Atendimentos e modalidades</Text>
-            <CareModeGrid variant="web" onOnline={onOnline} onInPerson={onInPerson} />
-          </View>
-
-          <LocationBanner
-            status={locationStatus}
-            locatingSpaces={false}
-            message={locationMessage}
-            variant="web"
-            onRetry={onRequestLocation}
-          />
         </View>
       </View>
     </View>
   );
 }
 
-function WebHeroMetric({
+function WebCareNavItem({
+  icon,
+  label,
+  badge,
+  selected,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  badge?: string;
+  selected?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.webCareNavItem,
+        selected && styles.webCareNavItemSelected,
+        pressed && styles.pressed,
+      ]}>
+      <Ionicons name={icon} size={18} color={selected ? CARE_COLORS.primary : CARE_COLORS.muted} />
+      <Text numberOfLines={1} style={[styles.webCareNavLabel, selected && styles.webCareNavLabelSelected]}>
+        {label}
+      </Text>
+      {badge && (
+        <View style={styles.webCareNavBadge}>
+          <Text style={styles.webCareNavBadgeText}>{badge}</Text>
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
+function WebModeToggle({
+  icon,
+  label,
+  selected,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  selected?: boolean;
+}) {
+  return (
+    <View style={[styles.webCareModeItem, selected && styles.webCareModeItemSelected]}>
+      <Ionicons name={icon} size={16} color={selected ? CARE_COLORS.primary : CARE_COLORS.muted} />
+      <Text style={[styles.webCareModeText, selected && styles.webCareModeTextSelected]}>{label}</Text>
+    </View>
+  );
+}
+
+function WebCareCategoryChip({
+  label,
+  iconName,
+  selected,
+  onPress,
+}: {
+  label: string;
+  iconName: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const isIonicon = iconName.endsWith('-outline');
+  const iconColor = selected ? CARE_COLORS.surface : CARE_COLORS.primary;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.webCareCategoryChip,
+        selected && styles.webCareCategoryChipSelected,
+        pressed && styles.pressed,
+      ]}>
+      {isIonicon ? (
+        <Ionicons name={iconName as keyof typeof Ionicons.glyphMap} size={17} color={iconColor} />
+      ) : (
+        <MaterialCommunityIcons
+          name={iconName as keyof typeof MaterialCommunityIcons.glyphMap}
+          size={18}
+          color={iconColor}
+        />
+      )}
+      <Text style={[styles.webCareCategoryText, selected && styles.webCareCategoryTextSelected]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function WebStatusPill({
   icon,
   value,
   label,
@@ -827,17 +1436,35 @@ function WebHeroMetric({
   label: string;
 }) {
   return (
-    <View style={styles.webHeroMetric}>
-      <Ionicons name={icon} size={26} color={UI.primary} />
-      <View style={styles.webHeroMetricCopy}>
-        <Text style={styles.webHeroMetricValue}>{value}</Text>
-        <Text style={styles.webHeroMetricLabel}>{label}</Text>
-      </View>
+    <View style={styles.webCareStatusPill}>
+      <Ionicons name={icon} size={17} color={CARE_COLORS.primary} />
+      <Text style={styles.webCareStatusValue}>{value}</Text>
+      <Text style={styles.webCareStatusLabel}>{label}</Text>
     </View>
   );
 }
 
-function WebTrustItem({
+function WebActionButton({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.webCareActionButton, pressed && styles.pressed]}>
+      <Ionicons name={icon} size={16} color={CARE_COLORS.primary} />
+      <Text style={styles.webCareActionButtonText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function WebChecklistRow({
   icon,
   title,
   text,
@@ -847,14 +1474,150 @@ function WebTrustItem({
   text: string;
 }) {
   return (
-    <View style={styles.webTrustItem}>
-      <View style={styles.webTrustIcon}>
-        <Ionicons name={icon} size={22} color={UI.primary} />
+    <View style={styles.webCareChecklistRow}>
+      <View style={styles.webCareChecklistIcon}>
+        <Ionicons name={icon} size={18} color={CARE_COLORS.primary} />
       </View>
-      <View style={styles.webTrustCopy}>
-        <Text style={styles.webTrustTitle}>{title}</Text>
-        <Text style={styles.webTrustText}>{text}</Text>
+      <View style={styles.webCareChecklistCopy}>
+        <Text style={styles.webCareChecklistTitle}>{title}</Text>
+        <Text style={styles.webCareChecklistText}>{text}</Text>
       </View>
+      <View style={styles.webCareCheckbox} />
+    </View>
+  );
+}
+
+function WebMoodOption({
+  icon,
+  label,
+  mood,
+  selected,
+  tone,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  mood: string;
+  selected?: boolean;
+  tone: 'bad' | 'alert' | 'neutral' | 'good' | 'great';
+}) {
+  const color =
+    tone === 'bad'
+      ? CARE_COLORS.coral
+      : tone === 'alert'
+      ? '#E56F2E'
+      : tone === 'neutral'
+      ? CARE_COLORS.amber
+      : tone === 'good'
+      ? CARE_COLORS.sage
+      : '#0A7E68';
+
+  return (
+    <View style={styles.webCareMoodItem}>
+      <View style={[styles.webCareMoodFace, selected && styles.webCareMoodFaceSelected, { borderColor: color }]}>
+        <Ionicons name={icon} size={20} color={color} />
+      </View>
+      <Text style={styles.webCareMoodNumber}>{label}</Text>
+      <Text numberOfLines={1} style={[styles.webCareMoodLabel, selected && styles.webCareMoodLabelSelected]}>
+        {mood}
+      </Text>
+    </View>
+  );
+}
+
+function WebCareTask({ title, text }: { title: string; text: string }) {
+  return (
+    <View style={styles.webCareTaskRow}>
+      <View style={styles.webCareTaskCheck} />
+      <View style={styles.webCareTaskCopy}>
+        <Text style={styles.webCareTaskTitle}>{title}</Text>
+        <Text style={styles.webCareTaskText}>{text}</Text>
+      </View>
+      <View style={styles.webCarePendingPill}>
+        <Text style={styles.webCarePendingText}>Pendente</Text>
+      </View>
+    </View>
+  );
+}
+
+function WebJourneyStep({
+  icon,
+  title,
+  text,
+  date,
+  tone = 'idle',
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  text: string;
+  date: string;
+  tone?: 'done' | 'active' | 'primary' | 'idle';
+}) {
+  const isPrimary = tone === 'primary';
+  const isMutedMilestone = tone === 'done' || tone === 'active';
+
+  return (
+    <View style={styles.webCareJourneyStep}>
+      <View
+        style={[
+          styles.webCareJourneyIcon,
+          isMutedMilestone && styles.webCareJourneyIconMuted,
+          isPrimary && styles.webCareJourneyIconPrimary,
+        ]}>
+        <Ionicons name={icon} size={17} color={isPrimary ? CARE_COLORS.surface : CARE_COLORS.muted} />
+      </View>
+      <Text style={styles.webCareJourneyTitle}>{title}</Text>
+      <Text style={styles.webCareJourneyText}>{text}</Text>
+      {date.length > 0 && <Text style={styles.webCareJourneyDate}>{date}</Text>}
+    </View>
+  );
+}
+
+function WebProfessionalMiniCard({
+  favorite,
+  minPrice,
+  space,
+  onFavoritePress,
+  onPress,
+}: {
+  favorite: boolean;
+  minPrice: number;
+  space: Space;
+  onFavoritePress: () => void;
+  onPress: () => void;
+}) {
+  return (
+    <View style={styles.webCareProfessionalCard}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        style={({ pressed }) => [styles.webCareProfessionalMain, pressed && styles.pressed]}>
+        <View style={styles.webCareProfessionalAvatar}>
+          <Text style={styles.webCareProfessionalInitials}>{getInitials(space.name)}</Text>
+        </View>
+        <View style={styles.webCareProfessionalCopy}>
+          <Text numberOfLines={1} style={styles.webCareProfessionalName}>
+            {space.name}
+          </Text>
+          <Text numberOfLines={1} style={styles.webCareProfessionalMeta}>
+            {space.neighborhood}, {space.city}
+          </Text>
+          <View style={styles.webCareProfessionalFooter}>
+            <View style={styles.webCareTinyRow}>
+              <Ionicons name="star" size={15} color={UI.star} />
+              <Text style={styles.webCareProfessionalRating}>{formatRating(space.rating)}</Text>
+            </View>
+            <Text style={styles.webCareProfessionalPrice}>desde {formatCurrency(minPrice)}</Text>
+          </View>
+        </View>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+        onPress={onFavoritePress}
+        hitSlop={10}
+        style={({ pressed }) => [styles.webCareMiniFavorite, pressed && styles.pressed]}>
+        <Ionicons name={favorite ? 'bookmark' : 'bookmark-outline'} size={20} color={CARE_COLORS.primary} />
+      </Pressable>
     </View>
   );
 }
@@ -898,169 +1661,6 @@ function WebGuestCallout({
         </Pressable>
       </View>
     </View>
-  );
-}
-
-function CustomerHeroCard({
-  userName,
-  resultsCount,
-  upcomingCount,
-  onAppointments,
-  onProfile,
-}: {
-  userName?: string;
-  resultsCount: number;
-  upcomingCount: number;
-  onAppointments: () => void;
-  onProfile: () => void;
-}) {
-  const firstName = userName?.split(' ')[0];
-
-  return (
-    <View style={styles.heroCard}>
-      <View style={styles.heroHeader}>
-        <View style={styles.heroBrandMark}>
-          <Text style={styles.heroBrandText}>Ψ</Text>
-        </View>
-        <View style={styles.heroBadge}>
-          <Ionicons name="shield-checkmark-outline" size={16} color={UI.primaryDark} />
-          <Text style={styles.heroBadgeText}>Cuidado verificado</Text>
-        </View>
-      </View>
-
-      <View style={styles.heroCopy}>
-        <Text style={styles.heroTitle}>
-          {firstName ? `${firstName}, como você quer se cuidar hoje?` : 'Como você quer se cuidar hoje?'}
-        </Text>
-        <Text style={styles.heroText}>
-          Encontre psicólogas, escolha o formato da consulta e acompanhe sua agenda sem perder o contexto.
-        </Text>
-      </View>
-
-      <View style={styles.heroStats}>
-        <HeroStat icon="business-outline" value={String(resultsCount)} label="consultórios" />
-        <HeroStat icon="calendar-clear-outline" value={String(upcomingCount)} label="próximos" />
-      </View>
-
-      <View style={styles.heroActions}>
-        <HeroAction icon="calendar-outline" label="Agenda" onPress={onAppointments} />
-        <HeroAction icon="person-outline" label="Perfil" onPress={onProfile} />
-      </View>
-    </View>
-  );
-}
-
-function HeroStat({
-  icon,
-  value,
-  label,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  value: string;
-  label: string;
-}) {
-  return (
-    <View style={styles.heroStat}>
-      <Ionicons name={icon} size={17} color={UI.primary} />
-      <Text numberOfLines={1} style={styles.heroStatValue}>
-        {value}
-      </Text>
-      <Text numberOfLines={1} style={styles.heroStatLabel}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-function HeroAction({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.heroAction, pressed && styles.pressed]}>
-      <Ionicons name={icon} size={18} color={UI.primaryDark} />
-      <Text numberOfLines={1} style={styles.heroActionText}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-function CareModeGrid({
-  onOnline,
-  onInPerson,
-  variant = 'mobile',
-}: {
-  onOnline: () => void;
-  onInPerson: () => void;
-  variant?: 'mobile' | 'web';
-}) {
-  return (
-    <View style={[styles.careModeGrid, variant === 'web' && styles.webCareModeGrid]}>
-      <CareModeCard
-        icon="videocam-outline"
-        title="Terapia online"
-        text="Atendimento por vídeo onde você estiver"
-        accent="lavender"
-        variant={variant}
-        onPress={onOnline}
-      />
-      <CareModeCard
-        icon="location-outline"
-        title="Presencial"
-        text="Consultórios acolhedores perto de você"
-        accent="teal"
-        variant={variant}
-        onPress={onInPerson}
-      />
-    </View>
-  );
-}
-
-function CareModeCard({
-  icon,
-  title,
-  text,
-  accent,
-  variant = 'mobile',
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  text: string;
-  accent: 'teal' | 'lavender';
-  variant?: 'mobile' | 'web';
-  onPress: () => void;
-}) {
-  const color = accent === 'lavender' ? UI.lavender : UI.primary;
-  const backgroundColor = accent === 'lavender' ? UI.lavenderSoft : UI.primarySoft;
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.careModeCard,
-        variant === 'web' && styles.webCareModeCard,
-        pressed && styles.pressed,
-      ]}>
-      <View style={[styles.careModeIcon, variant === 'web' && styles.webCareModeIcon, { backgroundColor }]}>
-        <Ionicons name={icon} size={variant === 'web' ? 21 : 24} color={color} />
-      </View>
-      <View style={styles.careModeCopy}>
-        <Text style={styles.careModeTitle}>{title}</Text>
-        <Text style={styles.careModeText}>{text}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={18} color={UI.textMuted} />
-    </Pressable>
   );
 }
 
@@ -1307,205 +1907,44 @@ function statusLabel(status: Appointment['status']) {
   return labels[status];
 }
 
-function CategoryChip({
-  label,
-  iconName,
-  selected,
-  onPress,
-}: {
-  label: string;
-  iconName: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  const isIonicon = iconName.endsWith('-outline');
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.categoryChip,
-        selected && styles.categoryChipSelected,
-        pressed && styles.pressed,
-      ]}>
-      {isIonicon ? (
-        <Ionicons
-          name={iconName as keyof typeof Ionicons.glyphMap}
-          size={21}
-          color={selected ? UI.surface : UI.primary}
-        />
-      ) : (
-        <MaterialCommunityIcons
-          name={iconName as keyof typeof MaterialCommunityIcons.glyphMap}
-          size={23}
-          color={selected ? UI.surface : UI.primary}
-        />
-      )}
-      <Text style={[styles.categoryText, selected && styles.categoryTextSelected]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function SpaceCard({
-  layout = 'mobile',
-  space,
-  minPrice,
-  distanceKm,
-  favorite,
-  onFavoritePress,
-  onPress,
-}: {
-  layout?: 'mobile' | 'web';
-  space: Space;
-  minPrice: number;
-  distanceKm?: number;
-  favorite: boolean;
-  onFavoritePress: () => void;
-  onPress: () => void;
-}) {
-  const locationText =
-    distanceKm === undefined
-      ? `${space.neighborhood}, ${space.city}`
-      : `${formatDistance(distanceKm)} de você`;
-
-  if (layout === 'web') {
-    return (
-      <View style={styles.webSpaceRow}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onPress}
-          style={({ pressed }) => [styles.webSpaceMain, pressed && styles.pressed]}>
-          {space.imageUrl ? (
-            <Image
-              source={{ uri: space.imageUrl }}
-              style={[styles.spaceImage, styles.webSpaceImage]}
-              contentFit="cover"
-              transition={180}
-            />
-          ) : (
-            <View style={[styles.spaceImage, styles.spaceImagePlaceholder, styles.webSpaceImage]}>
-              <Ionicons name="storefront-outline" size={34} color={UI.primary} />
-            </View>
-          )}
-          <View style={styles.webSpaceIdentity}>
-            <Text numberOfLines={1} style={styles.webSpaceName}>
-              {space.name}
-            </Text>
-            <View style={styles.webLocationPill}>
-              <Ionicons
-                name={distanceKm === undefined ? 'location-outline' : 'navigate-outline'}
-                size={15}
-                color={UI.primary}
-              />
-              <Text numberOfLines={1} style={styles.webLocationPillText}>
-                {locationText}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.webSpaceCell}>
-            <View style={styles.row}>
-              <Ionicons name="star" size={18} color={UI.star} />
-              <Text style={styles.webRatingText}>{formatRating(space.rating)}</Text>
-            </View>
-            <Text style={styles.webMutedCellText}>({space.reviewsCount} avaliações)</Text>
-          </View>
-          <View style={styles.webSpaceCell}>
-            <Text style={styles.webMutedCellText}>A partir de</Text>
-            <Text style={styles.webPriceText}>{formatCurrency(minPrice)}</Text>
-          </View>
-        </Pressable>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-          onPress={onFavoritePress}
-          hitSlop={10}
-          style={({ pressed }) => [styles.webFavoriteButton, pressed && styles.pressed]}>
-          <Ionicons name={favorite ? 'heart' : 'heart-outline'} size={24} color={UI.primary} />
-        </Pressable>
-
-        <Pressable
-          accessibilityRole="button"
-          onPress={onPress}
-          style={({ pressed }) => [styles.webProfileButton, pressed && styles.pressed]}>
-          <Text style={styles.webProfileButtonText}>Ver perfil</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.spaceCard}>
-      <Pressable
-        accessibilityRole="button"
-        onPress={onPress}
-        style={({ pressed }) => [styles.spacePressable, pressed && styles.pressed]}>
-        {space.imageUrl ? (
-          <Image source={{ uri: space.imageUrl }} style={styles.spaceImage} contentFit="cover" transition={180} />
-        ) : (
-          <View style={[styles.spaceImage, styles.spaceImagePlaceholder]}>
-            <Ionicons name="storefront-outline" size={32} color={UI.primary} />
-          </View>
-        )}
-        <View style={styles.spaceContent}>
-          <Text numberOfLines={1} style={styles.spaceName}>
-            {space.name}
-          </Text>
-          <View style={styles.row}>
-            <Ionicons name="star" size={17} color={UI.star} />
-            <Text style={styles.metaText}>
-              {formatRating(space.rating)} ({space.reviewsCount})
-            </Text>
-          </View>
-          <View style={styles.row}>
-            <Ionicons name={distanceKm === undefined ? 'location-outline' : 'navigate-outline'} size={17} color={UI.textMuted} />
-            <Text numberOfLines={1} style={styles.metaText}>
-              {locationText}
-            </Text>
-          </View>
-          <Text style={styles.priceText}>A partir de {formatCurrency(minPrice)}</Text>
-        </View>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-        onPress={onFavoritePress}
-        hitSlop={10}
-        style={({ pressed }) => [styles.favoriteButton, pressed && styles.pressed]}>
-        <Ionicons name={favorite ? 'heart' : 'heart-outline'} size={27} color={UI.primary} />
-      </Pressable>
-    </View>
-  );
-}
-
 function BottomNavigation({
   activeTab,
+  onCarePress,
   onTabPress,
   variant = 'mobile',
 }: {
   activeTab: BottomTab;
+  onCarePress?: () => void;
   onTabPress: (tab: BottomTab) => void;
   variant?: 'mobile' | 'web';
 }) {
   const isWebVariant = variant === 'web';
-  const tabs: { id: BottomTab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  const tabs: { id: BottomTab | 'care'; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { id: 'home', label: 'Início', icon: 'home-outline' },
     { id: 'appointments', label: 'Agenda', icon: 'calendar-outline' },
-    { id: 'notices', label: 'Avisos', icon: 'notifications-outline' },
+    { id: 'care', label: 'Cuidado', icon: 'leaf-outline' },
+    { id: 'notices', label: 'Mensagens', icon: 'chatbubble-outline' },
     { id: 'profile', label: 'Perfil', icon: 'person-outline' },
   ];
 
   return (
     <View style={[styles.bottomNav, isWebVariant && styles.webNav]}>
       {tabs.map((tab) => {
-        const selected = activeTab === tab.id;
+        const selected = tab.id !== 'care' && activeTab === tab.id;
+        const color = selected ? CARE_COLORS.primary : CARE_COLORS.muted;
 
         return (
           <Pressable
             key={tab.id}
             accessibilityRole="button"
-            onPress={() => onTabPress(tab.id)}
+            onPress={() => {
+              if (tab.id === 'care') {
+                onCarePress?.();
+                return;
+              }
+
+              onTabPress(tab.id);
+            }}
             style={({ pressed }) => [
               styles.bottomItem,
               isWebVariant && styles.webNavItem,
@@ -1513,7 +1952,7 @@ function BottomNavigation({
               isWebVariant && selected && styles.webNavItemSelected,
               pressed && styles.pressed,
             ]}>
-            <Ionicons name={selected ? selectedIcon(tab.icon) : tab.icon} size={23} color={selected ? UI.primary : UI.textMuted} />
+            <Ionicons name={selected ? selectedIcon(tab.icon) : tab.icon} size={23} color={color} />
             <Text style={[styles.bottomLabel, selected && styles.bottomLabelSelected]}>{tab.label}</Text>
           </Pressable>
         );
@@ -1573,6 +2012,38 @@ function formatDistance(distanceKm: number) {
   return `${distanceKm < 10 ? distanceKm.toFixed(1) : Math.round(distanceKm)} km`;
 }
 
+function formatCareDateTime(dateTime: string) {
+  const time = dateTime.slice(11, 16);
+  const today = new Date();
+  const appointmentDate = new Date(dateTime);
+  const isToday =
+    appointmentDate.getFullYear() === today.getFullYear() &&
+    appointmentDate.getMonth() === today.getMonth() &&
+    appointmentDate.getDate() === today.getDate();
+
+  if (Number.isNaN(appointmentDate.getTime())) {
+    return time ? `Hoje, ${time}` : 'Hoje, 15:00';
+  }
+
+  if (isToday) {
+    return `Hoje, ${time}`;
+  }
+
+  return `${String(appointmentDate.getDate()).padStart(2, '0')}/${String(appointmentDate.getMonth() + 1).padStart(2, '0')}, ${time}`;
+}
+
+function getInitials(name: string) {
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+
+  return initials || 'PA';
+}
+
 const styles = StyleSheet.create({
   homeHeader: {
     flexDirection: 'row',
@@ -1604,6 +2075,1403 @@ const styles = StyleSheet.create({
     borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
+  },
+  mobileCareHome: {
+    gap: 16,
+  },
+  mobileCareHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 14,
+    paddingTop: 4,
+  },
+  mobileCareHeaderCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  mobileCareTitle: {
+    color: CARE_COLORS.ink,
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: '900',
+  },
+  mobileCareSubtitle: {
+    color: CARE_COLORS.muted,
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '700',
+  },
+  mobileCareHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  mobileCareCircleButton: {
+    position: 'relative',
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: CARE_COLORS.surface,
+    boxShadow: '0 8px 18px rgba(15, 35, 64, 0.07)',
+  },
+  mobileCareSmallDot: {
+    position: 'absolute',
+    top: 9,
+    right: 10,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: CARE_COLORS.coral,
+  },
+  mobileModeSwitch: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 5,
+    borderRadius: 29,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: CARE_COLORS.surface,
+  },
+  mobileModeItem: {
+    flex: 1,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 24,
+  },
+  mobileModeItemSelected: {
+    backgroundColor: CARE_COLORS.primary,
+    boxShadow: '0 10px 18px rgba(6, 74, 138, 0.20)',
+  },
+  mobileModeText: {
+    color: CARE_COLORS.muted,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  mobileModeTextSelected: {
+    color: CARE_COLORS.surface,
+  },
+  mobileSessionCard: {
+    gap: 16,
+    padding: 18,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(6, 74, 138, 0.18)',
+    backgroundColor: CARE_COLORS.surface,
+    boxShadow: '0 12px 28px rgba(15, 35, 64, 0.07)',
+  },
+  mobileSessionHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  mobileEyebrow: {
+    color: CARE_COLORS.primary,
+    fontSize: 12,
+    letterSpacing: 0.8,
+    fontWeight: '900',
+  },
+  mobileSessionTime: {
+    color: CARE_COLORS.ink,
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '900',
+  },
+  mobileConfirmedPill: {
+    minHeight: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    borderRadius: 15,
+    backgroundColor: CARE_COLORS.sageSoft,
+  },
+  mobileConfirmedDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: CARE_COLORS.sage,
+  },
+  mobileConfirmedText: {
+    color: CARE_COLORS.sage,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  mobileTherapistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
+  },
+  mobileSessionIcon: {
+    width: 62,
+    height: 62,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 31,
+    backgroundColor: CARE_COLORS.primarySoft,
+  },
+  mobileTherapistCopy: {
+    flex: 1,
+    gap: 5,
+  },
+  mobileTherapistName: {
+    color: CARE_COLORS.ink,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  mobileTinyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  mobileTherapistMeta: {
+    color: CARE_COLORS.muted,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  mobileSessionActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  mobilePrimaryAction: {
+    flexGrow: 1,
+    minWidth: 210,
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: CARE_COLORS.primary,
+    boxShadow: '0 14px 26px rgba(6, 74, 138, 0.20)',
+  },
+  mobilePrimaryActionText: {
+    color: CARE_COLORS.surface,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  mobileSecondaryAction: {
+    flex: 1,
+    minWidth: 120,
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: CARE_COLORS.surface,
+  },
+  mobileSecondaryActionText: {
+    color: CARE_COLORS.primary,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  mobileCareCard: {
+    gap: 14,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: CARE_COLORS.surface,
+    boxShadow: '0 10px 24px rgba(15, 35, 64, 0.055)',
+  },
+  mobileCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  mobileCardIcon: {
+    width: 46,
+    height: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 23,
+    backgroundColor: CARE_COLORS.primarySoft,
+  },
+  mobileCardIconSage: {
+    backgroundColor: CARE_COLORS.sageSoft,
+  },
+  mobileCardIconAmber: {
+    backgroundColor: CARE_COLORS.amberSoft,
+  },
+  mobileCardTitle: {
+    flexShrink: 1,
+    color: CARE_COLORS.ink,
+    fontSize: 21,
+    lineHeight: 25,
+    fontWeight: '900',
+  },
+  mobileCompactCardTitle: {
+    fontSize: 18,
+    lineHeight: 23,
+  },
+  mobileCardTitleCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  mobileCardSubtitle: {
+    color: CARE_COLORS.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '700',
+  },
+  mobilePrepList: {
+    gap: 2,
+  },
+  mobilePrepRow: {
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  mobilePrepCheck: {
+    width: 23,
+    height: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: CARE_COLORS.surface,
+  },
+  mobilePrepCheckSelected: {
+    borderColor: CARE_COLORS.sage,
+    backgroundColor: CARE_COLORS.sage,
+  },
+  mobilePrepText: {
+    flex: 1,
+    minWidth: 0,
+    color: CARE_COLORS.ink,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  mobileCareTwoColumns: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  mobileHalfCard: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mobileCompactText: {
+    color: CARE_COLORS.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '700',
+  },
+  mobileMoodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 5,
+  },
+  mobileMoodDot: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 17,
+  },
+  mobileMoodDotSelected: {
+    transform: [{ scale: 1.06 }],
+  },
+  mobileCheckinButton: {
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: 'rgba(43, 154, 114, 0.72)',
+  },
+  mobileCheckinButtonText: {
+    color: CARE_COLORS.surface,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  mobileTaskSummaryRow: {
+    minHeight: 31,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  mobileTaskMarker: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  mobileTaskSummaryLabel: {
+    flex: 1,
+    minWidth: 0,
+    color: CARE_COLORS.ink,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  mobileTaskCount: {
+    minWidth: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 15,
+  },
+  mobileTaskCountText: {
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  mobileTaskLink: {
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: CARE_COLORS.border,
+    paddingTop: 10,
+  },
+  mobileTaskLinkText: {
+    color: CARE_COLORS.primary,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  mobileProgressPercent: {
+    color: CARE_COLORS.primary,
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  mobileProgressTrack: {
+    height: 9,
+    overflow: 'hidden',
+    borderRadius: 999,
+    backgroundColor: '#E6E8EC',
+  },
+  mobileProgressFill: {
+    width: '62%',
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: CARE_COLORS.primary,
+  },
+  mobileJourneyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  mobileJourneyNode: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    gap: 6,
+  },
+  mobileJourneyIcon: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 24,
+    backgroundColor: '#ECEEF1',
+  },
+  mobileJourneyIconActive: {
+    backgroundColor: CARE_COLORS.primary,
+  },
+  mobileJourneyIconCurrent: {
+    borderWidth: 3,
+    borderColor: CARE_COLORS.primary,
+    backgroundColor: CARE_COLORS.primarySoft,
+  },
+  mobileJourneyTitle: {
+    color: CARE_COLORS.ink,
+    fontSize: 12,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  mobileJourneyText: {
+    color: CARE_COLORS.muted,
+    fontSize: 11,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  mobileJourneyTextActive: {
+    color: CARE_COLORS.primary,
+  },
+  mobileDiscoveryList: {
+    gap: 12,
+    paddingRight: 8,
+  },
+  mobileProfessionalCard: {
+    width: 150,
+    minHeight: 156,
+    position: 'relative',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: CARE_COLORS.surface,
+  },
+  mobileProfessionalMain: {
+    flex: 1,
+    gap: 8,
+    padding: 12,
+  },
+  mobileProfessionalAvatar: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 24,
+    backgroundColor: CARE_COLORS.primarySoft,
+  },
+  mobileProfessionalInitials: {
+    color: CARE_COLORS.primary,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  mobileProfessionalName: {
+    color: CARE_COLORS.ink,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  mobileProfessionalLocation: {
+    color: CARE_COLORS.muted,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  mobileProfessionalFooter: {
+    gap: 5,
+  },
+  mobileProfessionalRating: {
+    color: CARE_COLORS.ink,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  mobileProfessionalPrice: {
+    color: CARE_COLORS.primary,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  mobileFavoriteMini: {
+    position: 'absolute',
+    right: 8,
+    top: 8,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.86)',
+  },
+  webCareShell: {
+    minHeight: 860,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: '#FBFAF7',
+    boxShadow: '0 10px 32px rgba(15, 35, 64, 0.05)',
+    fontFamily: CARE_FONT,
+  },
+  webCareSidebar: {
+    width: 184,
+    gap: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 18,
+    borderRightWidth: 1,
+    borderRightColor: CARE_COLORS.border,
+    backgroundColor: '#F7F8FA',
+  },
+  webCareBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    paddingBottom: 8,
+  },
+  webCareLogoMark: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: CARE_COLORS.primarySoft,
+  },
+  webCareLogoGlyph: {
+    color: CARE_COLORS.primary,
+    fontSize: 24,
+    lineHeight: 28,
+    fontWeight: '600',
+  },
+  webCareBrandCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  webCareBrandName: {
+    color: CARE_COLORS.ink,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  webCareBrandSub: {
+    color: CARE_COLORS.muted,
+    fontSize: 11,
+    letterSpacing: 0.66,
+    fontWeight: '600',
+  },
+  webCareNav: {
+    gap: 5,
+  },
+  webCareNavItem: {
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: 'transparent',
+    backgroundColor: 'transparent',
+  },
+  webCareNavItemSelected: {
+    borderLeftColor: CARE_COLORS.primary,
+    backgroundColor: CARE_COLORS.primarySoft,
+  },
+  webCareNavLabel: {
+    flex: 1,
+    minWidth: 0,
+    color: CARE_COLORS.ink,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  webCareNavLabelSelected: {
+    color: CARE_COLORS.primary,
+    fontWeight: '600',
+  },
+  webCareNavBadge: {
+    minWidth: 19,
+    height: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: CARE_COLORS.coral,
+  },
+  webCareNavBadgeText: {
+    color: CARE_COLORS.surface,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  webCareSidebarFoot: {
+    marginTop: 'auto',
+    gap: 7,
+    padding: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: '#FFFFFF',
+  },
+  webCareSecureIcon: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    backgroundColor: CARE_COLORS.primarySoft,
+  },
+  webCareSecureTitle: {
+    color: CARE_COLORS.ink,
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '600',
+  },
+  webCareSecureText: {
+    color: CARE_COLORS.muted,
+    fontSize: 12.5,
+    lineHeight: 17,
+    fontWeight: '400',
+  },
+  webCareSecureLink: {
+    color: CARE_COLORS.primary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  webCareMain: {
+    flex: 1,
+    minWidth: 0,
+    gap: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+  },
+  webCareTopBar: {
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  webCareCommand: {
+    flex: 1,
+    minWidth: 280,
+    maxWidth: 420,
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: CARE_COLORS.surface,
+  },
+  webCareCommandInput: {
+    flex: 1,
+    minWidth: 0,
+    color: CARE_COLORS.ink,
+    fontSize: 14,
+    fontFamily: CARE_FONT,
+    fontWeight: '400',
+  },
+  webCareShortcut: {
+    minHeight: 22,
+    justifyContent: 'center',
+    paddingHorizontal: 7,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: '#FCFDFD',
+  },
+  webCareShortcutText: {
+    color: CARE_COLORS.muted,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  webCareModeSwitch: {
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: CARE_COLORS.surface,
+  },
+  webCareModeItem: {
+    minWidth: 82,
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+  },
+  webCareModeItemSelected: {
+    backgroundColor: CARE_COLORS.primarySoft,
+  },
+  webCareModeText: {
+    color: CARE_COLORS.ink,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  webCareModeTextSelected: {
+    color: CARE_COLORS.primary,
+    fontWeight: '600',
+  },
+  webCareTopActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  webCareIconButton: {
+    position: 'relative',
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    backgroundColor: CARE_COLORS.surface,
+  },
+  webCareNotificationDot: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: CARE_COLORS.coral,
+  },
+  webCareNotificationText: {
+    color: CARE_COLORS.surface,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  webCareProfileButton: {
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingLeft: 4,
+    paddingRight: 8,
+    borderRadius: 6,
+  },
+  webCareAvatar: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    backgroundColor: '#7BA2D7',
+  },
+  webCareAvatarText: {
+    color: CARE_COLORS.surface,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  webCareProfileName: {
+    maxWidth: 120,
+    color: CARE_COLORS.ink,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  webCareHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 14,
+  },
+  webCareTitle: {
+    color: CARE_COLORS.ink,
+    fontSize: 24,
+    lineHeight: 29,
+    fontWeight: '600',
+  },
+  webCareSubtitle: {
+    color: CARE_COLORS.muted,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '400',
+  },
+  webCareHeaderMetrics: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14,
+  },
+  webCareStatusPill: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 0,
+  },
+  webCareStatusValue: {
+    color: CARE_COLORS.ink,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  webCareStatusLabel: {
+    color: CARE_COLORS.muted,
+    fontSize: 12.5,
+    fontWeight: '400',
+  },
+  webCareBody: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    flexWrap: 'wrap',
+    gap: 14,
+  },
+  webCarePrimaryColumn: {
+    flex: 1,
+    minWidth: 620,
+    gap: 14,
+  },
+  webCareSupportColumn: {
+    width: 306,
+    minWidth: 292,
+    gap: 12,
+  },
+  webCareSessionCard: {
+    minHeight: 252,
+    flexDirection: 'row',
+    gap: 16,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: CARE_COLORS.surface,
+    boxShadow: '0 6px 18px rgba(15, 35, 64, 0.035)',
+  },
+  webCareSessionLeft: {
+    flex: 1,
+    minWidth: 240,
+    gap: 12,
+    justifyContent: 'center',
+  },
+  webCareSessionRight: {
+    flex: 1,
+    minWidth: 260,
+    gap: 8,
+    justifyContent: 'center',
+  },
+  webCareSessionDivider: {
+    width: 1,
+    backgroundColor: CARE_COLORS.border,
+  },
+  webCareEyebrow: {
+    color: CARE_COLORS.primary,
+    fontSize: 11,
+    letterSpacing: 0.66,
+    fontWeight: '600',
+  },
+  webCareSessionTime: {
+    color: CARE_COLORS.ink,
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '600',
+  },
+  webCareTherapistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  webCareTherapistAvatar: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 21,
+    backgroundColor: CARE_COLORS.primarySoft,
+  },
+  webCareTherapistInitials: {
+    color: CARE_COLORS.ink,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  webCareTherapistCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  webCareTherapistName: {
+    color: CARE_COLORS.ink,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  webCareTinyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  webCareTherapistMeta: {
+    color: CARE_COLORS.muted,
+    fontSize: 12.5,
+    fontWeight: '400',
+  },
+  webCarePrimaryButton: {
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 6,
+    backgroundColor: CARE_COLORS.primary,
+    boxShadow: '0 8px 18px rgba(6, 74, 138, 0.18)',
+  },
+  webCarePrimaryButtonText: {
+    color: CARE_COLORS.surface,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  webCareSessionActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  webCareActionButton: {
+    flex: 1,
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(6, 74, 138, 0.18)',
+    backgroundColor: CARE_COLORS.surface,
+  },
+  webCareActionButtonText: {
+    color: CARE_COLORS.primary,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  webCareCardTitle: {
+    color: CARE_COLORS.ink,
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  webCareCardText: {
+    color: CARE_COLORS.muted,
+    fontSize: 12.5,
+    lineHeight: 17,
+    fontWeight: '400',
+  },
+  webCareChecklist: {
+    borderTopWidth: 1,
+    borderTopColor: CARE_COLORS.border,
+  },
+  webCareChecklistRow: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: CARE_COLORS.border,
+  },
+  webCareChecklistIcon: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    backgroundColor: CARE_COLORS.primarySoft,
+  },
+  webCareChecklistCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  webCareChecklistTitle: {
+    color: CARE_COLORS.ink,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  webCareChecklistText: {
+    color: CARE_COLORS.muted,
+    fontSize: 12.5,
+    fontWeight: '400',
+  },
+  webCareCheckbox: {
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+    borderWidth: 1.3,
+    borderColor: CARE_COLORS.muted,
+  },
+  webCareInlineLink: {
+    alignSelf: 'flex-end',
+    minHeight: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 4,
+  },
+  webCareInlineLinkText: {
+    color: CARE_COLORS.primary,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  webCareTimelineCard: {
+    gap: 14,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: CARE_COLORS.surface,
+  },
+  webCareCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  webCareCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  webCareTextButton: {
+    minHeight: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  webCareTextButtonText: {
+    color: CARE_COLORS.primary,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  webCareTimeline: {
+    position: 'relative',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  webCareTimelineRail: {
+    position: 'absolute',
+    left: 28,
+    right: 28,
+    top: 17,
+    height: 1,
+    backgroundColor: CARE_COLORS.border,
+  },
+  webCareJourneyStep: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    gap: 6,
+    zIndex: 1,
+  },
+  webCareJourneyIcon: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 17,
+    backgroundColor: '#EDF0F3',
+  },
+  webCareJourneyIconMuted: {
+    backgroundColor: '#EEF2F5',
+  },
+  webCareJourneyIconPrimary: {
+    backgroundColor: CARE_COLORS.primary,
+  },
+  webCareJourneyTitle: {
+    color: CARE_COLORS.ink,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  webCareJourneyText: {
+    color: CARE_COLORS.muted,
+    fontSize: 12,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  webCareJourneyDate: {
+    color: CARE_COLORS.primary,
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  webCareDiscoveryCard: {
+    gap: 12,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: '#FCFCFB',
+  },
+  webCareResultCount: {
+    color: CARE_COLORS.primary,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  webCareFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 7,
+  },
+  webCareCategoryChip: {
+    minHeight: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: CARE_COLORS.surface,
+  },
+  webCareCategoryChipSelected: {
+    borderColor: CARE_COLORS.primary,
+    backgroundColor: CARE_COLORS.primary,
+  },
+  webCareCategoryText: {
+    color: CARE_COLORS.primary,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  webCareCategoryTextSelected: {
+    color: CARE_COLORS.surface,
+    fontWeight: '600',
+  },
+  webCareFilterButton: {
+    minHeight: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: CARE_COLORS.surface,
+  },
+  webCareFilterText: {
+    color: CARE_COLORS.primary,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  webCareProfessionalGrid: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  webCareProfessionalCard: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 92,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: CARE_COLORS.surface,
+  },
+  webCareProfessionalMain: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  webCareProfessionalAvatar: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 21,
+    backgroundColor: CARE_COLORS.primarySoft,
+  },
+  webCareProfessionalInitials: {
+    color: CARE_COLORS.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  webCareProfessionalCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 5,
+  },
+  webCareProfessionalName: {
+    color: CARE_COLORS.ink,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  webCareProfessionalMeta: {
+    color: CARE_COLORS.muted,
+    fontSize: 12.5,
+    fontWeight: '400',
+  },
+  webCareProfessionalFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  webCareProfessionalRating: {
+    color: CARE_COLORS.ink,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  webCareProfessionalPrice: {
+    color: CARE_COLORS.primary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  webCareMiniFavorite: {
+    alignSelf: 'flex-end',
+    padding: 2,
+  },
+  webCareSideCard: {
+    gap: 12,
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: CARE_COLORS.surface,
+  },
+  webCareMoodRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  webCareMoodItem: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    gap: 5,
+  },
+  webCareMoodFace: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 17,
+    borderWidth: 1.3,
+    backgroundColor: CARE_COLORS.surface,
+  },
+  webCareMoodFaceSelected: {
+    backgroundColor: CARE_COLORS.sageSoft,
+  },
+  webCareMoodNumber: {
+    color: CARE_COLORS.ink,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  webCareMoodLabel: {
+    maxWidth: '100%',
+    color: CARE_COLORS.muted,
+    fontSize: 10,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  webCareMoodLabelSelected: {
+    color: CARE_COLORS.ink,
+    fontWeight: '600',
+  },
+  webCarePositiveNote: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: CARE_COLORS.sage,
+    backgroundColor: CARE_COLORS.sageSoft,
+  },
+  webCarePositiveCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  webCarePositiveTitle: {
+    color: CARE_COLORS.ink,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  webCarePositiveText: {
+    color: CARE_COLORS.muted,
+    fontSize: 12.5,
+    fontWeight: '400',
+  },
+  webCareCountBadge: {
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: CARE_COLORS.amberSoft,
+  },
+  webCareCountText: {
+    color: CARE_COLORS.amber,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  webCareSmallLink: {
+    color: CARE_COLORS.primary,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  webCareTaskList: {
+    borderTopWidth: 1,
+    borderTopColor: CARE_COLORS.border,
+  },
+  webCareTaskRow: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: CARE_COLORS.border,
+  },
+  webCareTaskCheck: {
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+    borderWidth: 1.3,
+    borderColor: CARE_COLORS.amber,
+  },
+  webCareTaskCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  webCareTaskTitle: {
+    color: CARE_COLORS.ink,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  webCareTaskText: {
+    color: CARE_COLORS.muted,
+    fontSize: 12.5,
+    fontWeight: '400',
+  },
+  webCarePendingPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: CARE_COLORS.amberSoft,
+  },
+  webCarePendingText: {
+    color: CARE_COLORS.amber,
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  webCareNoticeList: {
+    borderTopWidth: 1,
+    borderTopColor: CARE_COLORS.border,
+  },
+  webCareNoticeRow: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: CARE_COLORS.border,
+  },
+  webCareNoticeIcon: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    backgroundColor: CARE_COLORS.primarySoft,
+  },
+  webCareNoticeIconCoral: {
+    backgroundColor: CARE_COLORS.coralSoft,
+  },
+  webCareNoticeCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  webCareNoticeTitle: {
+    color: CARE_COLORS.ink,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  webCareNoticeText: {
+    color: CARE_COLORS.muted,
+    fontSize: 12.5,
+    fontWeight: '400',
+  },
+  webCareUnreadDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: CARE_COLORS.coral,
   },
   webTopBar: {
     minHeight: 72,
@@ -2767,7 +4635,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   bottomItemSelected: {
-    backgroundColor: UI.primarySoft,
+    backgroundColor: CARE_COLORS.primarySoft,
   },
   webNavItemSelected: {
     backgroundColor: UI.primarySoft,
@@ -2778,7 +4646,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   bottomLabelSelected: {
-    color: UI.primary,
+    color: CARE_COLORS.primary,
   },
   pressed: {
     opacity: 0.72,

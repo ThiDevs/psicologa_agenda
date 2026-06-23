@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PsiAgenda.Application.Auth;
+using PsiAgenda.Application.Clinical;
 using PsiAgenda.Application.Common;
 using PsiAgenda.Application.Spaces;
 using PsiAgenda.Infrastructure.Auth;
@@ -28,6 +29,7 @@ public static class DependencyInjection
             configuration.GetSection(MeetingRoomOptions.SectionName));
 
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IClinicalService, ClinicalService>();
         services.AddScoped<ISpaceService, SpaceService>();
         services.AddScoped<ITokenService, JwtTokenService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
