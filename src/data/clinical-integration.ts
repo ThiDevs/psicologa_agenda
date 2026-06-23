@@ -52,6 +52,7 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'PatientTimelineItem foi criado no backend.',
       'Início e finalização da sessão clínica entram como memória na timeline.',
       'Itens exibem camada: rascunho, memória, prontuário ou compartilhado.',
+      'Tarefas e materiais compartilhados entram na camada compartilhado.',
     ],
     missing: [
       'Endpoint longitudinal por paciente fora do atendimento.',
@@ -110,14 +111,18 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
     id: 'patient_portal',
     title: 'Portal do paciente com cuidado',
     icon: 'person-circle-outline',
-    status: 'pending',
+    status: 'partial',
     done: [
       'Regras e conexão com tarefas/materiais foram especificadas.',
+      'PatientTask e SharedMaterial nascem como conteúdo privado no workspace clínico.',
+      'Compartilhar ou recolher exige ação explícita da psicóloga.',
+      'Tela clínica mostra prévia do que o paciente verá antes de compartilhar.',
+      'Compartilhamento consulta consentimento ativo antes de liberar conteúdo.',
     ],
     missing: [
       'Área Meu acompanhamento no app do paciente.',
-      'Tarefas e materiais compartilháveis.',
-      'Prévia antes de compartilhar conteúdo.',
+      'Listagem de tarefas e materiais já compartilhados para o paciente.',
+      'Resposta/conclusão de tarefas pelo portal.',
     ],
   },
   {
@@ -159,6 +164,7 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Endpoints clínicos validam vínculo profissional-atendimento.',
       'PatientConsent persistido por paciente/profissional e exibido no workspace clínico.',
       'Ações clínicas geram AuditLog sem gravar conteúdo clínico no metadata.',
+      'Compartilhar tarefas e materiais exige consentimento granular ativo.',
       'API base mantém /api em produção.',
     ],
     missing: [

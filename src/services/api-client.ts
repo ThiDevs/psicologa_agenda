@@ -378,6 +378,43 @@ export type ApiTreatmentPlan = {
   updatedAt?: string | null;
 };
 
+export type ApiShareableStatus = 'private' | 'shared' | 'completed' | 'archived';
+
+export type ApiPatientTask = {
+  id: string;
+  appointmentId?: string | null;
+  patientId: string;
+  professionalId: string;
+  spaceId: string;
+  title: string;
+  description?: string | null;
+  dueAt?: string | null;
+  status: ApiShareableStatus | string;
+  acceptsResponse: boolean;
+  sharedAt?: string | null;
+  completedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApiSharedMaterialType = 'text' | 'link';
+
+export type ApiSharedMaterial = {
+  id: string;
+  appointmentId?: string | null;
+  patientId: string;
+  professionalId: string;
+  spaceId: string;
+  materialType: ApiSharedMaterialType | string;
+  title: string;
+  description?: string | null;
+  url?: string | null;
+  status: ApiShareableStatus | string;
+  sharedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ApiClinicalWorkspace = {
   appointmentId: string;
   patientId: string;
@@ -389,6 +426,8 @@ export type ApiClinicalWorkspace = {
   tags: ApiAppliedClinicalTag[];
   consents: ApiPatientConsent[];
   treatmentPlan: ApiTreatmentPlan;
+  tasks: ApiPatientTask[];
+  materials: ApiSharedMaterial[];
   timeline: ApiPatientTimelineItem[];
 };
 
@@ -1022,6 +1061,60 @@ export async function updateClinicalAppointmentTreatmentPlan(appointmentId: stri
     method: 'POST',
     authenticated: true,
     body: input,
+  });
+}
+
+export async function createClinicalAppointmentTask(appointmentId: string, input: {
+  title: string;
+  description?: string | null;
+  dueAt?: string | null;
+  acceptsResponse: boolean;
+}) {
+  return request<ApiPatientTask>(`/clinical/appointments/${appointmentId}/tasks`, {
+    method: 'POST',
+    authenticated: true,
+    body: input,
+  });
+}
+
+export async function shareClinicalTask(taskId: string) {
+  return request<ApiPatientTask>(`/clinical/tasks/${taskId}/share`, {
+    method: 'POST',
+    authenticated: true,
+  });
+}
+
+export async function unshareClinicalTask(taskId: string) {
+  return request<ApiPatientTask>(`/clinical/tasks/${taskId}/unshare`, {
+    method: 'POST',
+    authenticated: true,
+  });
+}
+
+export async function createClinicalAppointmentMaterial(appointmentId: string, input: {
+  materialType: ApiSharedMaterialType;
+  title: string;
+  description?: string | null;
+  url?: string | null;
+}) {
+  return request<ApiSharedMaterial>(`/clinical/appointments/${appointmentId}/materials`, {
+    method: 'POST',
+    authenticated: true,
+    body: input,
+  });
+}
+
+export async function shareClinicalMaterial(materialId: string) {
+  return request<ApiSharedMaterial>(`/clinical/materials/${materialId}/share`, {
+    method: 'POST',
+    authenticated: true,
+  });
+}
+
+export async function unshareClinicalMaterial(materialId: string) {
+  return request<ApiSharedMaterial>(`/clinical/materials/${materialId}/unshare`, {
+    method: 'POST',
+    authenticated: true,
   });
 }
 

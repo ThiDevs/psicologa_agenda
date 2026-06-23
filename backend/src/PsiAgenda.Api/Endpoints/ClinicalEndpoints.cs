@@ -24,6 +24,18 @@ public static class ClinicalEndpoints
             .RequireRateLimiting("Sensitive");
         group.MapPost("/appointments/{appointmentId:guid}/treatment-plan", UpdateAppointmentTreatmentPlanAsync)
             .RequireRateLimiting("Sensitive");
+        group.MapPost("/appointments/{appointmentId:guid}/tasks", CreateAppointmentTaskAsync)
+            .RequireRateLimiting("Sensitive");
+        group.MapPost("/tasks/{taskId:guid}/share", ShareTaskAsync)
+            .RequireRateLimiting("Sensitive");
+        group.MapPost("/tasks/{taskId:guid}/unshare", UnshareTaskAsync)
+            .RequireRateLimiting("Sensitive");
+        group.MapPost("/appointments/{appointmentId:guid}/materials", CreateAppointmentMaterialAsync)
+            .RequireRateLimiting("Sensitive");
+        group.MapPost("/materials/{materialId:guid}/share", ShareMaterialAsync)
+            .RequireRateLimiting("Sensitive");
+        group.MapPost("/materials/{materialId:guid}/unshare", UnshareMaterialAsync)
+            .RequireRateLimiting("Sensitive");
         group.MapPost("/drafts/{draftId:guid}/approve", ApproveDraftAsync)
             .RequireRateLimiting("Sensitive");
         group.MapPost("/records/{recordId:guid}/rectifications", CreateRecordRectificationDraftAsync)
@@ -143,6 +155,82 @@ public static class ClinicalEndpoints
                 appointmentId,
                 request,
                 cancellationToken),
+            Results.Ok);
+    }
+
+    private static async Task<IResult> CreateAppointmentTaskAsync(
+        Guid appointmentId,
+        CreatePatientTaskRequest request,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.CreateAppointmentTaskAsync(
+                currentUser.UserIdOrThrow(),
+                appointmentId,
+                request,
+                cancellationToken),
+            task => Results.Created($"/api/clinical/appointments/{appointmentId}/tasks/{task.Id}", task));
+    }
+
+    private static async Task<IResult> ShareTaskAsync(
+        Guid taskId,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.ShareTaskAsync(currentUser.UserIdOrThrow(), taskId, cancellationToken),
+            Results.Ok);
+    }
+
+    private static async Task<IResult> UnshareTaskAsync(
+        Guid taskId,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.UnshareTaskAsync(currentUser.UserIdOrThrow(), taskId, cancellationToken),
+            Results.Ok);
+    }
+
+    private static async Task<IResult> CreateAppointmentMaterialAsync(
+        Guid appointmentId,
+        CreateSharedMaterialRequest request,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.CreateAppointmentMaterialAsync(
+                currentUser.UserIdOrThrow(),
+                appointmentId,
+                request,
+                cancellationToken),
+            material => Results.Created($"/api/clinical/appointments/{appointmentId}/materials/{material.Id}", material));
+    }
+
+    private static async Task<IResult> ShareMaterialAsync(
+        Guid materialId,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.ShareMaterialAsync(currentUser.UserIdOrThrow(), materialId, cancellationToken),
+            Results.Ok);
+    }
+
+    private static async Task<IResult> UnshareMaterialAsync(
+        Guid materialId,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.UnshareMaterialAsync(currentUser.UserIdOrThrow(), materialId, cancellationToken),
             Results.Ok);
     }
 

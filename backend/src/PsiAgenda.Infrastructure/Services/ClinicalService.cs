@@ -49,6 +49,18 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         "completed",
         "archived"
     };
+    private static readonly HashSet<string> AllowedShareableStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "private",
+        "shared",
+        "completed",
+        "archived"
+    };
+    private static readonly HashSet<string> AllowedMaterialTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "text",
+        "link"
+    };
 
     public async Task<ClinicalWorkspaceDto> GetAppointmentWorkspaceAsync(
         Guid professionalUserId,
@@ -77,6 +89,22 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             .ToListAsync(cancellationToken);
         var consents = await GetPatientConsentsAsync(appointment, cancellationToken);
         var treatmentPlan = await GetTreatmentPlanAsync(appointment, cancellationToken);
+        var tasks = await dbContext.PatientTasks
+            .AsNoTracking()
+            .Where(task =>
+                task.PatientId == appointment.CustomerId &&
+                task.ProfessionalId == appointment.ProfessionalId)
+            .OrderByDescending(task => task.CreatedAt)
+            .Take(20)
+            .ToListAsync(cancellationToken);
+        var materials = await dbContext.SharedMaterials
+            .AsNoTracking()
+            .Where(material =>
+                material.PatientId == appointment.CustomerId &&
+                material.ProfessionalId == appointment.ProfessionalId)
+            .OrderByDescending(material => material.CreatedAt)
+            .Take(20)
+            .ToListAsync(cancellationToken);
         var timeline = await dbContext.PatientTimelineItems
             .AsNoTracking()
             .Where(item =>
@@ -106,6 +134,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             tags.Select(ToDto).ToList(),
             consents,
             treatmentPlan,
+            tasks.Select(ToDto).ToList(),
+            materials.Select(ToDto).ToList(),
             timeline.Select(ToDto).ToList());
     }
 
@@ -584,6 +614,317 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         return ToDto(plan);
     }
 
+    public async Task<PatientTaskDto> CreateAppointmentTaskAsync(
+        Guid professionalUserId,
+        Guid appointmentId,
+        CreatePatientTaskRequest request,
+        CancellationToken cancellationToken)
+    {
+        var appointment = await EnsureProfessionalAppointmentAsync(professionalUserId, appointmentId, cancellationToken);
+        var now = DateTimeOffset.UtcNow;
+        var task = new PatientTask
+        {
+            AppointmentId = appointment.Id,
+            PatientId = appointment.CustomerId,
+            ProfessionalId = appointment.ProfessionalId,
+            SpaceId = appointment.SpaceId,
+            CreatedByUserId = professionalUserId,
+            Title = ValidateText(request.Title, "Título da tarefa", 3, 160),
+            Description = NormalizeOptionalText(request.Description, 1000, "Descrição da tarefa"),
+            DueAt = NormalizeFutureDate(request.DueAt, "Prazo da tarefa"),
+            Status = "private",
+            AcceptsResponse = request.AcceptsResponse,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        dbContext.PatientTasks.Add(task);
+        dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+        {
+            AppointmentId = appointment.Id,
+            PatientId = appointment.CustomerId,
+            ProfessionalId = appointment.ProfessionalId,
+            SpaceId = appointment.SpaceId,
+            CreatedByUserId = professionalUserId,
+            SourceType = "task",
+            SourceId = task.Id,
+            Title = "Tarefa privada criada",
+            Summary = "Tarefa preparada pela psicóloga. Ainda não foi compartilhada com o paciente.",
+            Layer = "memoria",
+            OccurredAt = now,
+            CreatedAt = now
+        });
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            appointment.SpaceId,
+            "clinical.task.created",
+            nameof(PatientTask),
+            task.Id,
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(task);
+    }
+
+    public async Task<PatientTaskDto> ShareTaskAsync(
+        Guid professionalUserId,
+        Guid taskId,
+        CancellationToken cancellationToken)
+    {
+        var professional = await GetLinkedProfessionalAsync(professionalUserId, cancellationToken);
+        var task = await dbContext.PatientTasks
+            .FirstOrDefaultAsync(item => item.Id == taskId, cancellationToken);
+
+        if (task is null || task.ProfessionalId != professional.Id)
+        {
+            throw new KeyNotFoundException("Tarefa clínica não encontrada.");
+        }
+
+        EnsureShareableCanChange(task.Status, "Tarefa");
+        await EnsureConsentGrantedAsync(task.PatientId, task.ProfessionalId, "portal", "Compartilhar tarefa exige consentimento ativo para o portal do paciente.", cancellationToken);
+
+        var now = DateTimeOffset.UtcNow;
+        task.Status = "shared";
+        task.SharedAt ??= now;
+        task.UpdatedAt = now;
+
+        dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+        {
+            AppointmentId = task.AppointmentId,
+            PatientId = task.PatientId,
+            ProfessionalId = task.ProfessionalId,
+            SpaceId = task.SpaceId,
+            CreatedByUserId = professionalUserId,
+            SourceType = "task",
+            SourceId = task.Id,
+            Title = "Tarefa compartilhada",
+            Summary = "Tarefa liberada pela psicóloga para o paciente no portal.",
+            Layer = "compartilhado",
+            OccurredAt = now,
+            CreatedAt = now
+        });
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            task.SpaceId,
+            "clinical.task.shared",
+            nameof(PatientTask),
+            task.Id,
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(task);
+    }
+
+    public async Task<PatientTaskDto> UnshareTaskAsync(
+        Guid professionalUserId,
+        Guid taskId,
+        CancellationToken cancellationToken)
+    {
+        var professional = await GetLinkedProfessionalAsync(professionalUserId, cancellationToken);
+        var task = await dbContext.PatientTasks
+            .FirstOrDefaultAsync(item => item.Id == taskId, cancellationToken);
+
+        if (task is null || task.ProfessionalId != professional.Id)
+        {
+            throw new KeyNotFoundException("Tarefa clínica não encontrada.");
+        }
+
+        EnsureShareableCanChange(task.Status, "Tarefa");
+        var now = DateTimeOffset.UtcNow;
+        task.Status = "private";
+        task.SharedAt = null;
+        task.UpdatedAt = now;
+
+        dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+        {
+            AppointmentId = task.AppointmentId,
+            PatientId = task.PatientId,
+            ProfessionalId = task.ProfessionalId,
+            SpaceId = task.SpaceId,
+            CreatedByUserId = professionalUserId,
+            SourceType = "task",
+            SourceId = task.Id,
+            Title = "Tarefa recolhida",
+            Summary = "Tarefa deixou de ficar disponível no portal do paciente.",
+            Layer = "memoria",
+            OccurredAt = now,
+            CreatedAt = now
+        });
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            task.SpaceId,
+            "clinical.task.unshared",
+            nameof(PatientTask),
+            task.Id,
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(task);
+    }
+
+    public async Task<SharedMaterialDto> CreateAppointmentMaterialAsync(
+        Guid professionalUserId,
+        Guid appointmentId,
+        CreateSharedMaterialRequest request,
+        CancellationToken cancellationToken)
+    {
+        var appointment = await EnsureProfessionalAppointmentAsync(professionalUserId, appointmentId, cancellationToken);
+        var materialType = ValidateMaterialType(request.MaterialType);
+        var description = NormalizeOptionalText(request.Description, 1200, "Descrição do material");
+        var url = NormalizeMaterialUrl(request.Url, materialType);
+        if (materialType == "text" && description is null)
+        {
+            throw new InvalidOperationException("Material de texto precisa de uma descrição.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var material = new SharedMaterial
+        {
+            AppointmentId = appointment.Id,
+            PatientId = appointment.CustomerId,
+            ProfessionalId = appointment.ProfessionalId,
+            SpaceId = appointment.SpaceId,
+            CreatedByUserId = professionalUserId,
+            MaterialType = materialType,
+            Title = ValidateText(request.Title, "Título do material", 3, 160),
+            Description = description,
+            Url = url,
+            Status = "private",
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        dbContext.SharedMaterials.Add(material);
+        dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+        {
+            AppointmentId = appointment.Id,
+            PatientId = appointment.CustomerId,
+            ProfessionalId = appointment.ProfessionalId,
+            SpaceId = appointment.SpaceId,
+            CreatedByUserId = professionalUserId,
+            SourceType = "material",
+            SourceId = material.Id,
+            Title = "Material privado criado",
+            Summary = "Material preparado pela psicóloga. Ainda não foi compartilhado com o paciente.",
+            Layer = "memoria",
+            OccurredAt = now,
+            CreatedAt = now
+        });
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            appointment.SpaceId,
+            "clinical.material.created",
+            nameof(SharedMaterial),
+            material.Id,
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(material);
+    }
+
+    public async Task<SharedMaterialDto> ShareMaterialAsync(
+        Guid professionalUserId,
+        Guid materialId,
+        CancellationToken cancellationToken)
+    {
+        var professional = await GetLinkedProfessionalAsync(professionalUserId, cancellationToken);
+        var material = await dbContext.SharedMaterials
+            .FirstOrDefaultAsync(item => item.Id == materialId, cancellationToken);
+
+        if (material is null || material.ProfessionalId != professional.Id)
+        {
+            throw new KeyNotFoundException("Material clínico não encontrado.");
+        }
+
+        EnsureShareableCanChange(material.Status, "Material");
+        await EnsureConsentGrantedAsync(material.PatientId, material.ProfessionalId, "portal", "Compartilhar material exige consentimento ativo para o portal do paciente.", cancellationToken);
+        await EnsureConsentGrantedAsync(material.PatientId, material.ProfessionalId, "materials", "Compartilhar material exige consentimento ativo para materiais compartilhados.", cancellationToken);
+
+        var now = DateTimeOffset.UtcNow;
+        material.Status = "shared";
+        material.SharedAt ??= now;
+        material.UpdatedAt = now;
+
+        dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+        {
+            AppointmentId = material.AppointmentId,
+            PatientId = material.PatientId,
+            ProfessionalId = material.ProfessionalId,
+            SpaceId = material.SpaceId,
+            CreatedByUserId = professionalUserId,
+            SourceType = "material",
+            SourceId = material.Id,
+            Title = "Material compartilhado",
+            Summary = "Material liberado pela psicóloga para o paciente no portal.",
+            Layer = "compartilhado",
+            OccurredAt = now,
+            CreatedAt = now
+        });
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            material.SpaceId,
+            "clinical.material.shared",
+            nameof(SharedMaterial),
+            material.Id,
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(material);
+    }
+
+    public async Task<SharedMaterialDto> UnshareMaterialAsync(
+        Guid professionalUserId,
+        Guid materialId,
+        CancellationToken cancellationToken)
+    {
+        var professional = await GetLinkedProfessionalAsync(professionalUserId, cancellationToken);
+        var material = await dbContext.SharedMaterials
+            .FirstOrDefaultAsync(item => item.Id == materialId, cancellationToken);
+
+        if (material is null || material.ProfessionalId != professional.Id)
+        {
+            throw new KeyNotFoundException("Material clínico não encontrado.");
+        }
+
+        EnsureShareableCanChange(material.Status, "Material");
+        var now = DateTimeOffset.UtcNow;
+        material.Status = "private";
+        material.SharedAt = null;
+        material.UpdatedAt = now;
+
+        dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+        {
+            AppointmentId = material.AppointmentId,
+            PatientId = material.PatientId,
+            ProfessionalId = material.ProfessionalId,
+            SpaceId = material.SpaceId,
+            CreatedByUserId = professionalUserId,
+            SourceType = "material",
+            SourceId = material.Id,
+            Title = "Material recolhido",
+            Summary = "Material deixou de ficar disponível no portal do paciente.",
+            Layer = "memoria",
+            OccurredAt = now,
+            CreatedAt = now
+        });
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            material.SpaceId,
+            "clinical.material.unshared",
+            nameof(SharedMaterial),
+            material.Id,
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(material);
+    }
+
     public async Task<ClinicalSessionDto> StartAppointmentSessionAsync(
         Guid professionalUserId,
         Guid appointmentId,
@@ -951,6 +1292,90 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         return normalized;
     }
 
+    private static void EnsureShareableCanChange(string status, string entityName)
+    {
+        if (!AllowedShareableStatuses.Contains(status))
+        {
+            throw new InvalidOperationException($"{entityName} tem status inválido.");
+        }
+
+        if (status is "archived" or "completed")
+        {
+            throw new InvalidOperationException($"{entityName} concluída ou arquivada não pode mudar o compartilhamento.");
+        }
+    }
+
+    private async Task EnsureConsentGrantedAsync(
+        Guid patientId,
+        Guid professionalId,
+        string consentType,
+        string message,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var granted = await dbContext.PatientConsents
+            .AsNoTracking()
+            .AnyAsync(consent =>
+                    consent.PatientId == patientId &&
+                    consent.ProfessionalId == professionalId &&
+                    consent.ConsentType == consentType &&
+                    consent.Status == "granted" &&
+                    (consent.ExpiresAt == null || consent.ExpiresAt > now),
+                cancellationToken);
+
+        if (!granted)
+        {
+            throw new InvalidOperationException(message);
+        }
+    }
+
+    private static DateTimeOffset? NormalizeFutureDate(DateTimeOffset? value, string fieldName)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        var normalized = value.Value.ToUniversalTime();
+        if (normalized < DateTimeOffset.UtcNow.AddMinutes(-1))
+        {
+            throw new InvalidOperationException($"{fieldName} não pode estar no passado.");
+        }
+
+        return normalized;
+    }
+
+    private static string ValidateMaterialType(string materialType)
+    {
+        var normalized = string.IsNullOrWhiteSpace(materialType)
+            ? "text"
+            : materialType.Trim().ToLowerInvariant();
+
+        if (!AllowedMaterialTypes.Contains(normalized))
+        {
+            throw new InvalidOperationException("Tipo de material compartilhável inválido.");
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeMaterialUrl(string? url, string materialType)
+    {
+        if (materialType != "link")
+        {
+            return null;
+        }
+
+        var normalized = ValidateText(url ?? string.Empty, "Link do material", 8, 500);
+        if (!Uri.TryCreate(normalized, UriKind.Absolute, out var uri) ||
+            uri.Scheme is not ("http" or "https"))
+        {
+            throw new InvalidOperationException("Link do material deve ser uma URL http ou https válida.");
+        }
+
+        return normalized;
+    }
+
     private static string ConsentTypeLabel(string consentType)
     {
         return consentType switch
@@ -1167,6 +1592,43 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             plan.ReviewCadence,
             plan.CreatedAt,
             plan.UpdatedAt);
+    }
+
+    private static PatientTaskDto ToDto(PatientTask task)
+    {
+        return new PatientTaskDto(
+            task.Id,
+            task.AppointmentId,
+            task.PatientId,
+            task.ProfessionalId,
+            task.SpaceId,
+            task.Title,
+            task.Description,
+            task.DueAt,
+            task.Status,
+            task.AcceptsResponse,
+            task.SharedAt,
+            task.CompletedAt,
+            task.CreatedAt,
+            task.UpdatedAt);
+    }
+
+    private static SharedMaterialDto ToDto(SharedMaterial material)
+    {
+        return new SharedMaterialDto(
+            material.Id,
+            material.AppointmentId,
+            material.PatientId,
+            material.ProfessionalId,
+            material.SpaceId,
+            material.MaterialType,
+            material.Title,
+            material.Description,
+            material.Url,
+            material.Status,
+            material.SharedAt,
+            material.CreatedAt,
+            material.UpdatedAt);
     }
 
     private static IReadOnlyList<string> DeserializeStringList(string? json)

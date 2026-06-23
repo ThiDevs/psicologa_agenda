@@ -34,6 +34,8 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
     public DbSet<PatientConsent> PatientConsents => Set<PatientConsent>();
     public DbSet<ClinicalSession> ClinicalSessions => Set<ClinicalSession>();
     public DbSet<TreatmentPlan> TreatmentPlans => Set<TreatmentPlan>();
+    public DbSet<PatientTask> PatientTasks => Set<PatientTask>();
+    public DbSet<SharedMaterial> SharedMaterials => Set<SharedMaterial>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -787,6 +789,93 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
             entity.HasOne(plan => plan.UpdatedBy)
                 .WithMany()
                 .HasForeignKey(plan => plan.UpdatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PatientTask>(entity =>
+        {
+            entity.ToTable("patient_tasks");
+            entity.HasKey(task => task.Id);
+            entity.Property(task => task.Id).HasColumnName("id");
+            entity.Property(task => task.AppointmentId).HasColumnName("appointment_id");
+            entity.Property(task => task.PatientId).HasColumnName("patient_id");
+            entity.Property(task => task.ProfessionalId).HasColumnName("professional_id");
+            entity.Property(task => task.SpaceId).HasColumnName("space_id");
+            entity.Property(task => task.CreatedByUserId).HasColumnName("created_by_user_id");
+            entity.Property(task => task.Title).HasColumnName("title").HasMaxLength(160).IsRequired();
+            entity.Property(task => task.Description).HasColumnName("description").HasMaxLength(1000);
+            entity.Property(task => task.DueAt).HasColumnName("due_at");
+            entity.Property(task => task.Status).HasColumnName("status").HasMaxLength(40).IsRequired();
+            entity.Property(task => task.AcceptsResponse).HasColumnName("accepts_response");
+            entity.Property(task => task.SharedAt).HasColumnName("shared_at");
+            entity.Property(task => task.CompletedAt).HasColumnName("completed_at");
+            entity.Property(task => task.CreatedAt).HasColumnName("created_at");
+            entity.Property(task => task.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(task => new { task.PatientId, task.ProfessionalId, task.Status });
+            entity.HasIndex(task => new { task.AppointmentId, task.CreatedAt });
+            entity.HasIndex(task => task.SpaceId);
+            entity.HasOne(task => task.Appointment)
+                .WithMany()
+                .HasForeignKey(task => task.AppointmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(task => task.Patient)
+                .WithMany()
+                .HasForeignKey(task => task.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(task => task.Professional)
+                .WithMany()
+                .HasForeignKey(task => task.ProfessionalId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(task => task.Space)
+                .WithMany()
+                .HasForeignKey(task => task.SpaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(task => task.CreatedBy)
+                .WithMany()
+                .HasForeignKey(task => task.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SharedMaterial>(entity =>
+        {
+            entity.ToTable("shared_materials");
+            entity.HasKey(material => material.Id);
+            entity.Property(material => material.Id).HasColumnName("id");
+            entity.Property(material => material.AppointmentId).HasColumnName("appointment_id");
+            entity.Property(material => material.PatientId).HasColumnName("patient_id");
+            entity.Property(material => material.ProfessionalId).HasColumnName("professional_id");
+            entity.Property(material => material.SpaceId).HasColumnName("space_id");
+            entity.Property(material => material.CreatedByUserId).HasColumnName("created_by_user_id");
+            entity.Property(material => material.MaterialType).HasColumnName("material_type").HasMaxLength(40).IsRequired();
+            entity.Property(material => material.Title).HasColumnName("title").HasMaxLength(160).IsRequired();
+            entity.Property(material => material.Description).HasColumnName("description").HasMaxLength(1200);
+            entity.Property(material => material.Url).HasColumnName("url").HasMaxLength(500);
+            entity.Property(material => material.Status).HasColumnName("status").HasMaxLength(40).IsRequired();
+            entity.Property(material => material.SharedAt).HasColumnName("shared_at");
+            entity.Property(material => material.CreatedAt).HasColumnName("created_at");
+            entity.Property(material => material.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(material => new { material.PatientId, material.ProfessionalId, material.Status });
+            entity.HasIndex(material => new { material.AppointmentId, material.CreatedAt });
+            entity.HasIndex(material => material.SpaceId);
+            entity.HasOne(material => material.Appointment)
+                .WithMany()
+                .HasForeignKey(material => material.AppointmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(material => material.Patient)
+                .WithMany()
+                .HasForeignKey(material => material.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(material => material.Professional)
+                .WithMany()
+                .HasForeignKey(material => material.ProfessionalId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(material => material.Space)
+                .WithMany()
+                .HasForeignKey(material => material.SpaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(material => material.CreatedBy)
+                .WithMany()
+                .HasForeignKey(material => material.CreatedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

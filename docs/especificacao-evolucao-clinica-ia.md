@@ -1571,6 +1571,8 @@ Atualizacao da sexta entrega: o backend agora permite criar rascunho de retifica
 
 Atualizacao da setima entrega: o backend agora possui `TreatmentPlan` persistido por paciente/profissional, exibido no workspace clinico e atualizado por `POST /api/clinical/appointments/{appointmentId}/treatment-plan`. A atualizacao cria memoria na timeline e auditoria sem copiar formulacao, objetivos ou estrategias para metadata. Ainda nao existe historico versionado do plano, portal do paciente, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
 
+Atualizacao da oitava entrega: o backend agora possui `PatientTask` e `SharedMaterial`, exibidos no workspace clinico e criados como conteudo privado por `POST /api/clinical/appointments/{appointmentId}/tasks` e `POST /api/clinical/appointments/{appointmentId}/materials`. O compartilhamento e o recolhimento sao acoes explicitas da psicologa, exigem consentimento ativo quando aplicavel e registram timeline/auditoria sem copiar conteudo clinico sensivel para metadata. Ainda nao existe area do paciente para consumir tarefas/materiais, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
+
 Arquivos criados ou alterados:
 
 - `src/screens/ClinicalScreens.tsx`
@@ -1588,6 +1590,8 @@ Arquivos criados ou alterados:
 - `backend/src/PsiAgenda.Domain/Entities/PatientTimelineItem.cs`
 - `backend/src/PsiAgenda.Domain/Entities/PatientConsent.cs`
 - `backend/src/PsiAgenda.Domain/Entities/TreatmentPlan.cs`
+- `backend/src/PsiAgenda.Domain/Entities/PatientTask.cs`
+- `backend/src/PsiAgenda.Domain/Entities/SharedMaterial.cs`
 - `backend/src/PsiAgenda.Infrastructure/Services/ClinicalService.cs`
 - `backend/src/PsiAgenda.Api/Endpoints/ClinicalEndpoints.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623013000_AddClinicalWorkspaceTables.cs`
@@ -1596,6 +1600,7 @@ Arquivos criados ou alterados:
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623040000_AddClinicalSessions.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623043000_AddClinicalDraftRectifications.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623050000_AddTreatmentPlans.cs`
+- `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623053000_AddPatientShareables.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/PsiAgendaDbContext.cs`
 - `backend/src/PsiAgenda.Infrastructure/DependencyInjection.cs`
 - `backend/src/PsiAgenda.Api/Program.cs`
@@ -1633,13 +1638,18 @@ Feito agora:
 29. `TreatmentPlan` e persistido por paciente/profissional e carregado no workspace clinico.
 30. Plano terapeutico pode ser atualizado pela psicologa com status, formulacao, objetivos, estrategias, pontos de atencao e cadencia de revisao.
 31. Atualizacao do plano cria item de memoria e auditoria sem armazenar conteudo clinico sensivel no metadata.
+32. `PatientTask` e `SharedMaterial` sao persistidos por paciente/profissional e carregados no workspace clinico.
+33. Psicologa pode criar tarefa e material como conteudo privado, com previa do que o paciente vera antes de compartilhar.
+34. Psicologa pode compartilhar ou recolher tarefas e materiais por endpoints explicitos.
+35. Compartilhamento de tarefa exige consentimento ativo para portal; compartilhamento de material exige consentimento ativo para portal e materiais.
+36. Criacao, compartilhamento e recolhimento entram na timeline com camadas `memoria` ou `compartilhado` e auditoria sem conteudo clinico no metadata.
 
 Falta para virar produto clinico real:
 
-1. Criar tarefas, materiais, check-ins e alertas.
+1. Criar area do paciente para consumir tarefas e materiais liberados.
 2. Implementar exportacao de evolucoes aprovadas sem expor camadas indevidas.
 3. Implementar permissao clinica por vinculo paciente-profissional.
-4. Criar portal do paciente para consentimento direto, tarefas, materiais e check-ins.
+4. Criar portal do paciente para consentimento direto, respostas de tarefas, materiais e check-ins.
 5. Conectar IA somente depois de consentimento e minimizacao de dados.
 6. Criar telas e politicas de retencao/revogacao de consentimentos.
 7. Criar motor de alertas responsaveis com revisao humana.
@@ -1653,14 +1663,14 @@ Status por modulo:
 | --- | --- | --- | --- |
 | Registro pos-consulta com IA | Parcial | `ClinicalSession`, `ClinicalDraft` manual, `ClinicalRecord` aprovado manualmente e retificacao versionada por atendimento | IA, edicao assistida e exportacao |
 | Botoes rapidos e tags clinicas | Parcial | Tags salvas em `AppliedClinicalTag` por atendimento | Biblioteca de tags, personalizacao, filtros e gestao completa |
-| Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags e consentimentos | Timeline longitudinal por paciente, filtros, busca e eventos reais de todos os modulos |
+| Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags, consentimentos, plano, tarefas e materiais | Timeline longitudinal por paciente, filtros, busca e eventos reais de todos os modulos |
 | Plano terapeutico vivo | Parcial | `TreatmentPlan` persistido e editavel no workspace clinico | Historico versionado, revisao periodica e sugestoes por IA |
 | Preparacao da proxima sessao | Parcial | Card de briefing conceitual | Job automatico, fontes reais e arquivamento |
 | Separar rascunho, prontuario e memoria | Parcial | Rascunho, memoria, prontuario aprovado e retificacao versionada aparecem como camadas separadas | Exportacao seletiva e politicas de retencao |
-| Portal do paciente com cuidado | Pendente | Regras especificadas | Rotas do paciente, tarefas, materiais e previa de compartilhamento |
+| Portal do paciente com cuidado | Parcial | Tarefas e materiais privados no workspace, previa antes de compartilhar e share/unshare com consentimento | Rotas/telas do paciente, respostas de tarefas, listagem de materiais liberados e consentimento direto |
 | Check-ins entre sessoes | Pendente | Templates e fluxo especificados | Agenda, respostas, graficos e tendencias |
 | Alertas responsaveis | Pendente | Linguagem e estados especificados | Motor de alertas, painel e auditoria de revisao |
-| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido e auditoria sem conteudo clinico | Portal para consentimento direto, politicas de retencao, criptografia de campos sensiveis e exportacao controlada |
+| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, shareables com consentimento e auditoria sem conteudo clinico | Portal para consentimento direto, politicas de retencao, criptografia de campos sensiveis e exportacao controlada |
 
 ### Navegacao profissional sugerida
 

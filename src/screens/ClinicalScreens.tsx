@@ -23,12 +23,18 @@ import {
   applyClinicalAppointmentTags,
   approveClinicalDraft,
   completeClinicalAppointmentSession,
+  createClinicalAppointmentMaterial,
   createClinicalAppointmentDraft,
+  createClinicalAppointmentTask,
   createClinicalRecordRectification,
   getApiErrorMessage,
   getClinicalAppointmentWorkspace,
   getProfessionalAppointmentDetails,
+  shareClinicalMaterial,
+  shareClinicalTask,
   startClinicalAppointmentSession,
+  unshareClinicalMaterial,
+  unshareClinicalTask,
   updateClinicalAppointmentConsent,
   updateClinicalAppointmentTreatmentPlan,
   type ApiAppointmentDetails,
@@ -37,7 +43,10 @@ import {
   type ApiClinicalWorkspace,
   type ApiPatientConsent,
   type ApiPatientConsentStatus,
+  type ApiPatientTask,
   type ApiPatientTimelineItem,
+  type ApiSharedMaterial,
+  type ApiSharedMaterialType,
   type ApiTreatmentPlan,
   type ApiTreatmentPlanStatus,
 } from '@/services/api-client';
@@ -118,6 +127,7 @@ export function ClinicalIntegrationScreen() {
         <Bullet text="Tela clínica usa o detalhe real do agendamento e o workspace clínico do backend." />
         <Bullet text="Tags, rascunho e timeline inicial já persistem por atendimento." />
         <Bullet text="Plano terapêutico e consentimentos já persistem; briefing segue como interface de preparação." />
+        <Bullet text="Tarefas e materiais já nascem privados e podem ser compartilhados ou recolhidos com consentimento." />
         <Bullet text="Documento de especificação acompanha o status por módulo." />
       </View>
 
@@ -194,6 +204,15 @@ export function ClinicalPatientWorkspaceScreen() {
   const [planStrategiesText, setPlanStrategiesText] = useState('');
   const [planObstaclesText, setPlanObstaclesText] = useState('');
   const [planReviewCadence, setPlanReviewCadence] = useState('');
+  const [savingShareableAction, setSavingShareableAction] = useState<string | null>(null);
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskDescription, setTaskDescription] = useState('');
+  const [taskDueAt, setTaskDueAt] = useState('');
+  const [taskAcceptsResponse, setTaskAcceptsResponse] = useState(true);
+  const [materialType, setMaterialType] = useState<ApiSharedMaterialType>('text');
+  const [materialTitle, setMaterialTitle] = useState('');
+  const [materialDescription, setMaterialDescription] = useState('');
+  const [materialUrl, setMaterialUrl] = useState('');
 
   const hydrateTreatmentPlan = useCallback((plan: ApiTreatmentPlan) => {
     setPlanStatus(toTreatmentPlanStatus(plan.status));
@@ -275,6 +294,9 @@ export function ClinicalPatientWorkspaceScreen() {
   const latestDraft = workspace?.drafts[0] ?? null;
   const latestRecord = workspace?.records[0] ?? null;
   const treatmentPlan = workspace?.treatmentPlan ?? null;
+  const patientTasks = workspace?.tasks ?? [];
+  const sharedMaterials = workspace?.materials ?? [];
+  const sharedPortalItemsCount = patientTasks.filter(isSharedStatus).length + sharedMaterials.filter(isSharedStatus).length;
   const consentRows = useMemo(() => buildConsentRows(workspace?.consents), [workspace?.consents]);
   const grantedConsentCount = consentRows.filter((consent) => consent.status === 'granted').length;
 
@@ -446,6 +468,118 @@ export function ClinicalPatientWorkspaceScreen() {
       setClinicalMessage(getApiErrorMessage(error));
     } finally {
       setSavingTreatmentPlan(false);
+    }
+  }
+
+  async function refreshWorkspaceWithMessage(successMessage: string) {
+    if (!appointmentId) {
+      return;
+    }
+
+    const updated = await getClinicalAppointmentWorkspace(appointmentId);
+    setWorkspace(updated);
+    hydrateFromWorkspace(updated);
+    setClinicalMessage(successMessage);
+  }
+
+  async function createPatientTask() {
+    if (!appointmentId) {
+      setClinicalMessage('Abra a tela a partir de um atendimento para criar tarefas.');
+      return;
+    }
+
+    let dueAt: string | null;
+    try {
+      dueAt = normalizeOptionalDateInput(taskDueAt);
+    } catch (error) {
+      setClinicalMessage(error instanceof Error ? error.message : 'Informe um prazo válido.');
+      return;
+    }
+
+    setSavingShareableAction('create-task');
+    setClinicalMessage(null);
+
+    try {
+      await createClinicalAppointmentTask(appointmentId, {
+        title: taskTitle,
+        description: nullableText(taskDescription),
+        dueAt,
+        acceptsResponse: taskAcceptsResponse,
+      });
+      setTaskTitle('');
+      setTaskDescription('');
+      setTaskDueAt('');
+      setTaskAcceptsResponse(true);
+      await refreshWorkspaceWithMessage('Tarefa criada como privada. Compartilhe somente após revisar a prévia do paciente.');
+    } catch (error) {
+      setClinicalMessage(getApiErrorMessage(error));
+    } finally {
+      setSavingShareableAction(null);
+    }
+  }
+
+  async function updateTaskSharing(task: ApiPatientTask, action: 'share' | 'unshare') {
+    setSavingShareableAction(`${action}-task-${task.id}`);
+    setClinicalMessage(null);
+
+    try {
+      if (action === 'share') {
+        await shareClinicalTask(task.id);
+        await refreshWorkspaceWithMessage('Tarefa compartilhada no portal do paciente.');
+      } else {
+        await unshareClinicalTask(task.id);
+        await refreshWorkspaceWithMessage('Tarefa recolhida do portal do paciente.');
+      }
+    } catch (error) {
+      setClinicalMessage(getApiErrorMessage(error));
+    } finally {
+      setSavingShareableAction(null);
+    }
+  }
+
+  async function createSharedMaterial() {
+    if (!appointmentId) {
+      setClinicalMessage('Abra a tela a partir de um atendimento para criar materiais.');
+      return;
+    }
+
+    setSavingShareableAction('create-material');
+    setClinicalMessage(null);
+
+    try {
+      await createClinicalAppointmentMaterial(appointmentId, {
+        materialType,
+        title: materialTitle,
+        description: nullableText(materialDescription),
+        url: nullableText(materialUrl),
+      });
+      setMaterialTitle('');
+      setMaterialDescription('');
+      setMaterialUrl('');
+      await refreshWorkspaceWithMessage('Material criado como privado. Compartilhe somente após revisar a prévia do paciente.');
+    } catch (error) {
+      setClinicalMessage(getApiErrorMessage(error));
+    } finally {
+      setSavingShareableAction(null);
+    }
+  }
+
+  async function updateMaterialSharing(material: ApiSharedMaterial, action: 'share' | 'unshare') {
+    setSavingShareableAction(`${action}-material-${material.id}`);
+    setClinicalMessage(null);
+
+    try {
+      if (action === 'share') {
+        await shareClinicalMaterial(material.id);
+        await refreshWorkspaceWithMessage('Material compartilhado no portal do paciente.');
+      } else {
+        await unshareClinicalMaterial(material.id);
+        await refreshWorkspaceWithMessage('Material recolhido do portal do paciente.');
+      }
+    } catch (error) {
+      setClinicalMessage(getApiErrorMessage(error));
+    } finally {
+      setSavingShareableAction(null);
     }
   }
 
@@ -797,6 +931,244 @@ export function ClinicalPatientWorkspaceScreen() {
         />
       </View>
 
+      <SectionTitle
+        appearance="dark"
+        title="Tarefas e materiais do portal"
+        actionLabel={`${sharedPortalItemsCount} compartilhados`}
+      />
+      <View style={styles.card}>
+        <Text style={styles.cardText}>
+          Itens nascem privados para revisão da psicóloga. O paciente só vê uma tarefa ou material após a ação explícita de compartilhar e com consentimento ativo.
+        </Text>
+
+        <View style={styles.shareableBlock}>
+          <Text style={styles.kicker}>Nova tarefa privada</Text>
+          <Field
+            appearance="dark"
+            label="Título"
+            value={taskTitle}
+            onChangeText={setTaskTitle}
+            placeholder="Ex.: registrar situações de ansiedade na semana"
+          />
+          <Field
+            appearance="dark"
+            label="Descrição"
+            value={taskDescription}
+            multiline
+            style={styles.shareableTextArea}
+            onChangeText={setTaskDescription}
+            placeholder="Orientação breve que será revisada antes de liberar ao paciente."
+          />
+          <Field
+            appearance="dark"
+            label="Prazo opcional"
+            value={taskDueAt}
+            onChangeText={setTaskDueAt}
+            placeholder="Ex.: 2026-07-01T15:00:00Z"
+          />
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: taskAcceptsResponse }}
+            onPress={() => setTaskAcceptsResponse((current) => !current)}
+            style={({ pressed }) => [
+              styles.shareableToggle,
+              taskAcceptsResponse && styles.shareableToggleSelected,
+              pressed && styles.pressed,
+            ]}>
+            <Ionicons
+              name={taskAcceptsResponse ? 'chatbubble-ellipses-outline' : 'chatbubble-outline'}
+              size={17}
+              color={taskAcceptsResponse ? UI.darkPrimary : UI.darkTextMuted}
+            />
+            <Text style={styles.shareableToggleText}>
+              {taskAcceptsResponse ? 'Paciente pode responder' : 'Sem resposta do paciente'}
+            </Text>
+          </Pressable>
+          <View style={styles.shareablePreview}>
+            <Text style={styles.shareablePreviewLabel}>Prévia para paciente</Text>
+            <Text style={styles.shareablePreviewTitle}>{taskTitle.trim() || 'Título da tarefa'}</Text>
+            <Text style={styles.cardText}>
+              {taskDescription.trim() || 'Descrição ou orientação breve aparecerá aqui antes de compartilhar.'}
+            </Text>
+            <Text style={styles.mutedText}>
+              {taskDueAt.trim() ? `Prazo: ${taskDueAt.trim()}` : 'Sem prazo definido'} · {taskAcceptsResponse ? 'Com resposta' : 'Sem resposta'}
+            </Text>
+          </View>
+          <PrimaryButton
+            label="Criar tarefa privada"
+            icon="checkbox-outline"
+            loading={savingShareableAction === 'create-task'}
+            disabled={!appointmentId || !taskTitle.trim() || Boolean(savingShareableAction)}
+            onPress={createPatientTask}
+          />
+        </View>
+
+        <View style={styles.shareableDivider} />
+
+        <View style={styles.shareableBlock}>
+          <Text style={styles.kicker}>Novo material privado</Text>
+          <View style={styles.shareableSegment}>
+            {(['text', 'link'] as ApiSharedMaterialType[]).map((option) => {
+              const selected = materialType === option;
+
+              return (
+                <Pressable
+                  key={option}
+                  accessibilityRole="button"
+                  onPress={() => setMaterialType(option)}
+                  style={({ pressed }) => [
+                    styles.shareableSegmentButton,
+                    selected && styles.shareableSegmentButtonSelected,
+                    pressed && styles.pressed,
+                  ]}>
+                  <Text style={[styles.shareableSegmentText, selected && styles.shareableSegmentTextSelected]}>
+                    {option === 'text' ? 'Texto' : 'Link'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Field
+            appearance="dark"
+            label="Título"
+            value={materialTitle}
+            onChangeText={setMaterialTitle}
+            placeholder="Ex.: material de apoio para a semana"
+          />
+          <Field
+            appearance="dark"
+            label={materialType === 'link' ? 'Descrição opcional' : 'Conteúdo do material'}
+            value={materialDescription}
+            multiline
+            style={styles.shareableTextArea}
+            onChangeText={setMaterialDescription}
+            placeholder={materialType === 'link' ? 'Contexto breve para o link.' : 'Texto que será visto pelo paciente após compartilhar.'}
+          />
+          {materialType === 'link' ? (
+            <Field
+              appearance="dark"
+              label="URL"
+              value={materialUrl}
+              onChangeText={setMaterialUrl}
+              placeholder="https://..."
+            />
+          ) : null}
+          <View style={styles.shareablePreview}>
+            <Text style={styles.shareablePreviewLabel}>Prévia para paciente</Text>
+            <Text style={styles.shareablePreviewTitle}>{materialTitle.trim() || 'Título do material'}</Text>
+            <Text style={styles.cardText}>
+              {materialDescription.trim() || (materialType === 'link' ? 'Descrição opcional do link.' : 'Conteúdo do material aparecerá aqui.')}
+            </Text>
+            {materialType === 'link' ? (
+              <Text style={styles.mutedText}>{materialUrl.trim() || 'https://...'}</Text>
+            ) : null}
+          </View>
+          <PrimaryButton
+            label="Criar material privado"
+            icon="library-outline"
+            loading={savingShareableAction === 'create-material'}
+            disabled={!appointmentId || !materialTitle.trim() || Boolean(savingShareableAction)}
+            onPress={createSharedMaterial}
+          />
+        </View>
+
+        <View style={styles.shareableDivider} />
+
+        <View style={styles.shareableBlock}>
+          <Text style={styles.kicker}>Tarefas cadastradas</Text>
+          {patientTasks.length ? (
+            patientTasks.map((task) => (
+              <View key={task.id} style={styles.shareableItem}>
+                <View style={styles.shareableHeader}>
+                  <View style={styles.shareableTitleRow}>
+                    <Ionicons name="checkbox-outline" size={17} color={UI.darkPrimary} />
+                    <Text style={styles.cardTitle}>{task.title}</Text>
+                  </View>
+                  <View style={[styles.shareablePill, shareableStatusPillStyle(task.status)]}>
+                    <Text style={[styles.shareablePillText, { color: shareableStatusColor(task.status) }]}>
+                      {shareableStatusLabel(task.status)}
+                    </Text>
+                  </View>
+                </View>
+                {task.description ? <Text style={styles.cardText}>{task.description}</Text> : null}
+                <Text style={styles.mutedText}>
+                  {task.dueAt ? `Prazo ${formatDateTimeLabel(task.dueAt)}` : 'Sem prazo'} · {task.acceptsResponse ? 'aceita resposta' : 'não aceita resposta'}
+                </Text>
+                <View style={styles.shareableActions}>
+                  {isSharedStatus(task) ? (
+                    <ShareableActionButton
+                      label="Recolher"
+                      icon="lock-closed-outline"
+                      loading={savingShareableAction === `unshare-task-${task.id}`}
+                      disabled={Boolean(savingShareableAction)}
+                      onPress={() => updateTaskSharing(task, 'unshare')}
+                    />
+                  ) : (
+                    <ShareableActionButton
+                      label="Compartilhar"
+                      icon="share-social-outline"
+                      primary
+                      loading={savingShareableAction === `share-task-${task.id}`}
+                      disabled={isClosedShareable(task.status) || Boolean(savingShareableAction)}
+                      onPress={() => updateTaskSharing(task, 'share')}
+                    />
+                  )}
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.mutedText}>Nenhuma tarefa privada ou compartilhada ainda.</Text>
+          )}
+        </View>
+
+        <View style={styles.shareableBlock}>
+          <Text style={styles.kicker}>Materiais cadastrados</Text>
+          {sharedMaterials.length ? (
+            sharedMaterials.map((material) => (
+              <View key={material.id} style={styles.shareableItem}>
+                <View style={styles.shareableHeader}>
+                  <View style={styles.shareableTitleRow}>
+                    <Ionicons name={material.materialType === 'link' ? 'link-outline' : 'document-text-outline'} size={17} color={UI.darkPrimary} />
+                    <Text style={styles.cardTitle}>{material.title}</Text>
+                  </View>
+                  <View style={[styles.shareablePill, shareableStatusPillStyle(material.status)]}>
+                    <Text style={[styles.shareablePillText, { color: shareableStatusColor(material.status) }]}>
+                      {shareableStatusLabel(material.status)}
+                    </Text>
+                  </View>
+                </View>
+                {material.description ? <Text style={styles.cardText}>{material.description}</Text> : null}
+                <Text style={styles.mutedText}>
+                  {material.materialType === 'link' ? material.url ?? 'Link sem URL' : 'Texto'} · {material.sharedAt ? `compartilhado em ${formatDateTimeLabel(material.sharedAt)}` : 'privado'}
+                </Text>
+                <View style={styles.shareableActions}>
+                  {isSharedStatus(material) ? (
+                    <ShareableActionButton
+                      label="Recolher"
+                      icon="lock-closed-outline"
+                      loading={savingShareableAction === `unshare-material-${material.id}`}
+                      disabled={Boolean(savingShareableAction)}
+                      onPress={() => updateMaterialSharing(material, 'unshare')}
+                    />
+                  ) : (
+                    <ShareableActionButton
+                      label="Compartilhar"
+                      icon="share-social-outline"
+                      primary
+                      loading={savingShareableAction === `share-material-${material.id}`}
+                      disabled={isClosedShareable(material.status) || Boolean(savingShareableAction)}
+                      onPress={() => updateMaterialSharing(material, 'share')}
+                    />
+                  )}
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.mutedText}>Nenhum material privado ou compartilhado ainda.</Text>
+          )}
+        </View>
+      </View>
+
       <SectionTitle appearance="dark" title="Briefing da próxima sessão" />
       <View style={styles.card}>
         <Bullet text="Última sessão, tags marcadas e tarefas pendentes entram aqui." />
@@ -974,6 +1346,44 @@ function ConsentRow({
   );
 }
 
+function ShareableActionButton({
+  label,
+  icon,
+  primary,
+  loading,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  primary?: boolean;
+  loading?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={disabled || loading}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.shareableActionButton,
+        primary && styles.shareableActionButtonPrimary,
+        (disabled || loading) && styles.consentButtonDisabled,
+        pressed && !disabled && !loading && styles.pressed,
+      ]}>
+      <Text style={[styles.shareableActionText, primary && styles.shareableActionTextPrimary]}>
+        {loading ? 'Salvando' : label}
+      </Text>
+      <Ionicons
+        name={icon}
+        size={15}
+        color={primary && !disabled ? UI.darkText : UI.darkTextMuted}
+      />
+    </Pressable>
+  );
+}
+
 function firstParam(value?: string | string[]) {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -1043,6 +1453,80 @@ function linesToList(value: string) {
     .split('\n')
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function nullableText(value: string) {
+  const trimmed = value.trim();
+
+  return trimmed ? trimmed : null;
+}
+
+function normalizeOptionalDateInput(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error('Informe o prazo em um formato de data válido.');
+  }
+
+  return parsed.toISOString();
+}
+
+function isSharedStatus(item: ApiPatientTask | ApiSharedMaterial | string) {
+  const status = typeof item === 'string' ? item : item.status;
+
+  return status === 'shared';
+}
+
+function isClosedShareable(status: string) {
+  return status === 'completed' || status === 'archived';
+}
+
+function shareableStatusLabel(status: string) {
+  switch (status) {
+    case 'shared':
+      return 'Compartilhado';
+    case 'completed':
+      return 'Concluído';
+    case 'archived':
+      return 'Arquivado';
+    case 'private':
+      return 'Privado';
+    default:
+      return status;
+  }
+}
+
+function shareableStatusColor(status: string) {
+  switch (status) {
+    case 'shared':
+      return UI.darkPrimary;
+    case 'completed':
+      return '#F3C969';
+    case 'archived':
+      return '#EAA0A0';
+    case 'private':
+    default:
+      return UI.darkTextMuted;
+  }
+}
+
+function shareableStatusPillStyle(status: string) {
+  switch (status) {
+    case 'shared':
+      return styles.shareablePillShared;
+    case 'completed':
+      return styles.shareablePillCompleted;
+    case 'archived':
+      return styles.shareablePillArchived;
+    case 'private':
+    default:
+      return styles.shareablePillPrivate;
+  }
 }
 
 function canStartSession(session: ApiClinicalSession) {
@@ -1379,6 +1863,160 @@ const styles = StyleSheet.create({
   planTextArea: {
     minHeight: 92,
     textAlignVertical: 'top',
+  },
+  shareableBlock: {
+    gap: 10,
+  },
+  shareableTextArea: {
+    minHeight: 82,
+    textAlignVertical: 'top',
+  },
+  shareableToggle: {
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 11,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 247, 242, 0.12)',
+    backgroundColor: UI.darkSurfaceRaised,
+  },
+  shareableToggleSelected: {
+    borderColor: 'rgba(109, 214, 180, 0.46)',
+    backgroundColor: 'rgba(109, 214, 180, 0.12)',
+  },
+  shareableToggleText: {
+    color: UI.darkText,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '900',
+  },
+  shareablePreview: {
+    gap: 6,
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(109, 214, 180, 0.18)',
+    backgroundColor: 'rgba(109, 214, 180, 0.08)',
+  },
+  shareablePreviewLabel: {
+    color: UI.darkPrimary,
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  shareablePreviewTitle: {
+    color: UI.darkText,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '900',
+  },
+  shareableDivider: {
+    height: 1,
+    backgroundColor: 'rgba(237, 247, 242, 0.08)',
+  },
+  shareableSegment: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  shareableSegmentButton: {
+    minHeight: 34,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 247, 242, 0.12)',
+    backgroundColor: UI.darkSurfaceRaised,
+  },
+  shareableSegmentButtonSelected: {
+    borderColor: 'rgba(109, 214, 180, 0.58)',
+    backgroundColor: 'rgba(109, 214, 180, 0.16)',
+  },
+  shareableSegmentText: {
+    color: UI.darkTextMuted,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  shareableSegmentTextSelected: {
+    color: UI.darkText,
+  },
+  shareableItem: {
+    gap: 7,
+    paddingTop: 11,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(237, 247, 242, 0.08)',
+  },
+  shareableHeader: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  shareableTitleRow: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  shareablePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  shareablePillPrivate: {
+    borderColor: 'rgba(169, 184, 177, 0.28)',
+    backgroundColor: 'rgba(169, 184, 177, 0.08)',
+  },
+  shareablePillShared: {
+    borderColor: 'rgba(109, 214, 180, 0.36)',
+    backgroundColor: 'rgba(109, 214, 180, 0.10)',
+  },
+  shareablePillCompleted: {
+    borderColor: 'rgba(243, 201, 105, 0.36)',
+    backgroundColor: 'rgba(243, 201, 105, 0.10)',
+  },
+  shareablePillArchived: {
+    borderColor: 'rgba(234, 160, 160, 0.34)',
+    backgroundColor: 'rgba(234, 160, 160, 0.09)',
+  },
+  shareablePillText: {
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  shareableActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  shareableActionButton: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 11,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 247, 242, 0.12)',
+    backgroundColor: UI.darkSurfaceRaised,
+  },
+  shareableActionButtonPrimary: {
+    borderColor: 'rgba(109, 214, 180, 0.50)',
+    backgroundColor: 'rgba(109, 214, 180, 0.16)',
+  },
+  shareableActionText: {
+    color: UI.darkTextMuted,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  shareableActionTextPrimary: {
+    color: UI.darkText,
   },
   timelineCard: {
     gap: 8,
