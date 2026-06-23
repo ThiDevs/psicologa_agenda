@@ -30,6 +30,7 @@ import {
   createClinicalAppointmentDraft,
   createClinicalAppointmentTask,
   createClinicalRecordRectification,
+  exportClinicalPatientRecords,
   getApiErrorMessage,
   getClinicalAppointmentWorkspace,
   getClinicalPatientTimeline,
@@ -48,6 +49,7 @@ import {
   type ApiAppointmentDetails,
   type ApiClinicalAlert,
   type ApiClinicalAlertSeverity,
+  type ApiClinicalRecordExport,
   type ApiClinicalSession,
   type ApiClinicalTagInput,
   type ApiClinicalWorkspace,
@@ -272,6 +274,8 @@ export function ClinicalPatientWorkspaceScreen() {
   const [savingSessionAction, setSavingSessionAction] = useState<'start' | 'complete' | null>(null);
   const [approvingDraft, setApprovingDraft] = useState(false);
   const [rectifyingRecordId, setRectifyingRecordId] = useState<string | null>(null);
+  const [recordExport, setRecordExport] = useState<ApiClinicalRecordExport | null>(null);
+  const [loadingRecordExport, setLoadingRecordExport] = useState(false);
   const [savingTreatmentPlan, setSavingTreatmentPlan] = useState(false);
   const [planStatus, setPlanStatus] = useState<ApiTreatmentPlanStatus>('active');
   const [planCaseFormulation, setPlanCaseFormulation] = useState('');
@@ -534,6 +538,29 @@ export function ClinicalPatientWorkspaceScreen() {
       setClinicalMessage(getApiErrorMessage(error));
     } finally {
       setRectifyingRecordId(null);
+    }
+  }
+
+  async function exportApprovedRecords() {
+    const exportPatientId = workspace?.patientId ?? patientId;
+    if (!workspace || !exportPatientId || exportPatientId === 'sem-id') {
+      setClinicalMessage('Carregue um atendimento clínico antes de exportar prontuários aprovados.');
+      return;
+    }
+
+    setLoadingRecordExport(true);
+    setClinicalMessage(null);
+
+    try {
+      const exported = await exportClinicalPatientRecords(exportPatientId);
+      setRecordExport(exported);
+      setClinicalMessage(exported.recordsCount > 0
+        ? 'Exportação de prontuário aprovado gerada com auditoria clínica.'
+        : 'Exportação auditada gerada sem prontuários aprovados para este vínculo.');
+    } catch (error) {
+      setClinicalMessage(getApiErrorMessage(error));
+    } finally {
+      setLoadingRecordExport(false);
     }
   }
 
@@ -1134,6 +1161,36 @@ export function ClinicalPatientWorkspaceScreen() {
           </View>
         </>
       ) : null}
+
+      <SectionTitle
+        appearance="dark"
+        title="Exportação aprovada"
+        actionLabel={recordExport ? `${recordExport.recordsCount} registros` : `${workspace?.records.length ?? 0} aprovados`}
+      />
+      <View style={styles.card}>
+        <Text style={styles.cardText}>
+          Gere apenas o pacote de prontuários aprovados deste vínculo. Rascunhos, memória, alertas,
+          check-ins, tarefas e materiais compartilháveis ficam fora da exportação.
+        </Text>
+        <PrimaryButton
+          label="Gerar exportação"
+          icon="download-outline"
+          variant="secondary"
+          loading={loadingRecordExport}
+          disabled={!workspace || loadingRecordExport}
+          onPress={exportApprovedRecords}
+        />
+        {recordExport ? (
+          <>
+            <DetailRow icon="shield-checkmark-outline" label="Escopo" value={recordExport.scope} />
+            <DetailRow icon="time-outline" label="Gerado em" value={formatDateTimeLabel(recordExport.exportedAt)} />
+            <View style={styles.draftBox}>
+              <Text style={styles.exportNotice}>{recordExport.notice}</Text>
+              <Text selectable style={styles.draftText}>{recordExport.contentText}</Text>
+            </View>
+          </>
+        ) : null}
+      </View>
 
       <SectionTitle appearance="dark" title="Alertas responsáveis" actionLabel={`${activeAlertCount} em revisão`} />
       <View style={styles.card}>
@@ -3116,6 +3173,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     fontWeight: '700',
+  },
+  exportNotice: {
+    marginBottom: 10,
+    color: UI.darkTextMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '800',
   },
   sessionActions: {
     gap: 8,

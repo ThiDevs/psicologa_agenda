@@ -1599,6 +1599,8 @@ Atualizacao da decima oitava entrega: o briefing da proxima sessao no workspace 
 
 Atualizacao da decima nona entrega: o backend agora possui um motor inicial de alertas responsaveis por regras seguras. Tags clinicas com tom `risk` criam ou reutilizam alerta pendente de severidade `alto` por atendimento, e respostas de check-in com escala 1 ou 2 criam alerta pendente `alto` ou `medio` vinculado a resposta. A regra nao usa IA, nao diagnostica, nao envia mensagem automatica ao paciente, nao cria prontuario e audita a criacao sem metadata sensivel. Ainda nao existe configuracao visual das regras, agenda recorrente de check-ins, graficos longitudinais, aprendizado de falso positivo, IA, exportacao ou gravacao/transcricao.
 
+Atualizacao da vigesima entrega: o backend agora exporta prontuarios aprovados por paciente em `GET /api/clinical/patients/{patientId}/records/export`, validando vinculo profissional-paciente e retornando somente `ClinicalRecord` com `status = approved`. A exportacao inclui aviso de escopo, texto consolidado e metadados das versoes aprovadas, deixando fora rascunhos, memoria clinica, alertas, check-ins, tarefas, materiais compartilhaveis e timeline interna. A consulta gera auditoria `clinical.records.exported` sem gravar conteudo clinico em metadata. A tela clinica ganhou painel de exportacao aprovada com resultado selecionavel. Ainda nao existe exportacao seletiva de outras camadas, politica completa de retencao, matriz formal de permissoes, IA, gravacao ou transcricao.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1724,11 +1726,15 @@ Feito agora:
 80. Respostas de check-in com escala 1 ou 2 criam alerta responsavel pendente de severidade `alto` ou `medio`, deduplicado por check-in respondido.
 81. Alertas por regra criam memoria na timeline e auditoria `clinical.alert.rule_created` sem copiar resposta, nota ou conteudo clinico para metadata.
 82. A UI identifica alertas originados de resposta de check-in com label clinico claro.
+83. Psicologa pode exportar prontuarios aprovados por `GET /api/clinical/patients/{patientId}/records/export`.
+84. Exportacao valida vinculo profissional-paciente, retorna somente `ClinicalRecord` aprovado e exclui rascunho, memoria, alertas, check-ins, tarefas, materiais e timeline interna.
+85. Exportacao cria auditoria `clinical.records.exported` sem armazenar conteudo clinico no metadata.
+86. A tela clinica mostra painel de exportacao aprovada com texto selecionavel e aviso de escopo.
 
 Falta para virar produto clinico real:
 
 1. Criar fluxo juridicamente revisado para consentimentos sensiveis de IA, gravacao e transcricao.
-2. Implementar exportacao de evolucoes aprovadas sem expor camadas indevidas.
+2. Ampliar exportacao seletiva para outros cenarios permitidos e formalizar politica de retencao.
 3. Formalizar matriz de permissoes clinicas alem do vinculo profissional-paciente ja validado nos endpoints atuais.
 4. Criar reabertura/edicao de tarefas, materiais completos e agenda recorrente de check-ins.
 5. Conectar IA somente depois de consentimento e minimizacao de dados.
@@ -1742,16 +1748,16 @@ Status por modulo:
 
 | Modulo | Status atual | Feito | Falta |
 | --- | --- | --- | --- |
-| Registro pos-consulta com IA | Parcial | `ClinicalSession`, `ClinicalDraft` manual, `ClinicalRecord` aprovado manualmente e retificacao versionada por atendimento | IA, edicao assistida e exportacao |
+| Registro pos-consulta com IA | Parcial | `ClinicalSession`, `ClinicalDraft` manual, `ClinicalRecord` aprovado manualmente, retificacao versionada por atendimento e exportacao auditada de prontuarios aprovados | IA e edicao assistida |
 | Botoes rapidos e tags clinicas | Parcial | Tags salvas em `AppliedClinicalTag` por atendimento; historico longitudinal filtra por tag aplicada | Biblioteca de tags e personalizacao |
 | Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags, consentimentos, plano, tarefas, materiais, check-ins e alertas revisados; `GET /api/clinical/patients/{patientId}/timeline` com filtros de camada, origem, periodo, busca, tag, severidade e limite; detalhe auditado por `GET /api/clinical/timeline/{itemId}`; arquivamento controlado por `POST /api/clinical/timeline/{itemId}/archive`; UI com vazio/loading/erro; alertas por regra entram como memoria privada | Filtro avancado de alertas e politicas de retencao/exportacao |
 | Plano terapeutico vivo | Parcial | `TreatmentPlan` persistido e editavel no workspace clinico | Historico versionado, revisao periodica e sugestoes por IA |
 | Preparacao da proxima sessao | Parcial | Briefing no workspace usa fontes reais ja carregadas: alertas ativos, tarefas, check-ins, tags e plano; alertas altos aparecem em area prioritaria; perguntas neutras nao viram prontuario | `SessionBriefing` persistido, job automatico, itens fixados, arquivamento e IA somente com consentimento |
-| Separar rascunho, prontuario e memoria | Parcial | Rascunho, memoria, prontuario aprovado e retificacao versionada aparecem como camadas separadas | Exportacao seletiva e politicas de retencao |
+| Separar rascunho, prontuario e memoria | Parcial | Rascunho, memoria, prontuario aprovado e retificacao versionada aparecem como camadas separadas; exportacao aprovada exclui rascunhos, memoria, alertas, check-ins e compartilhaveis | Exportacao seletiva de outras camadas e politicas de retencao |
 | Portal do paciente com cuidado | Parcial | Tarefas, materiais e check-ins privados no workspace; previa antes de compartilhar; share/unshare com consentimento; `/patient-care` para itens liberados, conclusao/resposta de tarefa, resposta de check-in e consentimento direto nao sensivel | Reabertura/edicao de tarefas, historico de visualizacao e refinamento de materiais |
 | Check-ins entre sessoes | Parcial | `PatientCheckIn` persistido, compartilhamento com consentimento e resposta pelo portal com escala/observacao | Agenda recorrente, templates editaveis, graficos e tendencias |
 | Alertas responsaveis | Parcial | `ClinicalAlert`, criacao manual por atendimento, motor inicial por tags `risk` e check-ins com escala 1 ou 2, painel no workspace, acoes de confirmar/acompanhar/descartar/resolver, timeline, auditoria sem mensagem automatica ao paciente e destaque de alerta alto no briefing | Configuracao de regras, aprendizado de falso positivo e tendencias longitudinais |
-| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, shareables com consentimento, consentimento direto nao sensivel no portal e auditoria sem conteudo clinico | Consentimentos sensiveis para IA/gravacao/transcricao, politicas de retencao, criptografia de campos sensiveis e exportacao controlada |
+| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, shareables com consentimento, consentimento direto nao sensivel no portal, exportacao aprovada auditada e auditoria sem conteudo clinico | Consentimentos sensiveis para IA/gravacao/transcricao, matriz formal de permissoes, politicas de retencao e criptografia de campos sensiveis |
 
 ### Navegacao profissional sugerida
 

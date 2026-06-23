@@ -20,10 +20,11 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Retificação de prontuário aprovado nasce como novo ClinicalDraft.',
       'Aprovação de retificação cria nova versão sem sobrescrever histórico.',
       'Rascunho manual salvo com auditoria sem conteúdo clínico no log.',
+      'Exportação auditada retorna somente prontuários aprovados do vínculo clínico.',
     ],
     missing: [
       'Geração de rascunho por IA com consentimento.',
-      'Edição assistida e exportação de prontuário aprovado.',
+      'Edição assistida por IA com revisão humana.',
     ],
   },
   {
@@ -60,7 +61,7 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Alertas responsáveis revisados entram como memória clínica na timeline.',
     ],
     missing: [
-      'Motor automático de alertas por tags/check-ins.',
+      'Filtro avançado de alertas e política de retenção/exportação.',
     ],
   },
   {
@@ -107,9 +108,10 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Rascunho salvo pode virar prontuário aprovado por ação humana.',
       'Retificação cria nova versão de prontuário preservando a versão anterior.',
       'Timeline diferencia memória, rascunho e prontuário.',
+      'Exportação aprovada exclui rascunhos, memória, alertas e compartilháveis.',
     ],
     missing: [
-      'Exportação seletiva por camada.',
+      'Exportação seletiva de outras camadas e política de retenção.',
     ],
   },
   {

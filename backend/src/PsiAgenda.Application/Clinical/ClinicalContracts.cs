@@ -81,6 +81,26 @@ public sealed record ClinicalRecordDto(
     DateTimeOffset ApprovedAt,
     DateTimeOffset CreatedAt);
 
+public sealed record ClinicalRecordExportDto(
+    Guid PatientId,
+    Guid ProfessionalId,
+    Guid SpaceId,
+    DateTimeOffset ExportedAt,
+    int RecordsCount,
+    string Scope,
+    string Notice,
+    IReadOnlyList<ClinicalRecordExportItemDto> Records,
+    string ContentText);
+
+public sealed record ClinicalRecordExportItemDto(
+    Guid Id,
+    Guid? AppointmentId,
+    string RecordType,
+    int Version,
+    Guid? PreviousRecordId,
+    DateTimeOffset ApprovedAt,
+    IReadOnlyList<ClinicalTagInput> Tags);
+
 public sealed record ClinicalAlertDto(
     Guid Id,
     Guid? AppointmentId,
@@ -301,6 +321,7 @@ public interface IClinicalService
     Task<IReadOnlyList<PatientTimelineItemDto>> GetPatientTimelineAsync(Guid professionalUserId, Guid patientId, PatientTimelineQuery query, CancellationToken cancellationToken);
     Task<PatientTimelineItemDetailDto> GetTimelineItemDetailAsync(Guid professionalUserId, Guid itemId, CancellationToken cancellationToken);
     Task<PatientTimelineItemDetailDto> ArchiveTimelineItemAsync(Guid professionalUserId, Guid itemId, ArchiveTimelineItemRequest request, CancellationToken cancellationToken);
+    Task<ClinicalRecordExportDto> ExportPatientRecordsAsync(Guid professionalUserId, Guid patientId, CancellationToken cancellationToken);
     Task<PatientCarePortalDto> GetPatientCarePortalAsync(Guid patientUserId, CancellationToken cancellationToken);
     Task<PatientTaskDto> CompletePatientTaskAsync(Guid patientUserId, Guid taskId, CompletePatientTaskRequest request, CancellationToken cancellationToken);
     Task<PatientCheckInDto> RespondPatientCheckInAsync(Guid patientUserId, Guid checkInId, RespondPatientCheckInRequest request, CancellationToken cancellationToken);

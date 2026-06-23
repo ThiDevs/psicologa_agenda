@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using PsiAgenda.Application.Clinical;
@@ -223,6 +224,46 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return alerts.Select(ToDto).ToList();
+    }
+
+    public async Task<ClinicalRecordExportDto> ExportPatientRecordsAsync(
+        Guid professionalUserId,
+        Guid patientId,
+        CancellationToken cancellationToken)
+    {
+        var relationship = await EnsureProfessionalPatientRelationshipAsync(professionalUserId, patientId, cancellationToken);
+        var records = await dbContext.ClinicalRecords
+            .AsNoTracking()
+            .Where(record =>
+                record.PatientId == patientId &&
+                record.ProfessionalId == relationship.ProfessionalId &&
+                record.Status == "approved")
+            .OrderBy(record => record.ApprovedAt)
+            .ThenBy(record => record.Version)
+            .ToListAsync(cancellationToken);
+        var exportedAt = DateTimeOffset.UtcNow;
+        var exportItems = records.Select(ToExportItemDto).ToList();
+        var contentText = BuildClinicalRecordExportText(patientId, relationship, records, exportedAt);
+
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            relationship.SpaceId,
+            "clinical.records.exported",
+            "ClinicalRecordExport",
+            patientId,
+            cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new ClinicalRecordExportDto(
+            patientId,
+            relationship.ProfessionalId,
+            relationship.SpaceId,
+            exportedAt,
+            exportItems.Count,
+            "approved_records_only",
+            "Exportação contém somente prontuários aprovados. Rascunhos, memória clínica, alertas, check-ins, tarefas e materiais compartilháveis ficam fora deste pacote.",
+            exportItems,
+            contentText);
     }
 
     public async Task<IReadOnlyList<PatientTimelineItemDto>> GetPatientTimelineAsync(
@@ -3036,11 +3077,71 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         return $"{header}{OriginalLabel}\n{record.ContentText[..availableOriginalLength]}...";
     }
 
+    private static string BuildClinicalRecordExportText(
+        Guid patientId,
+        ProfessionalPatientRelationship relationship,
+        IReadOnlyList<ClinicalRecord> records,
+        DateTimeOffset exportedAt)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("Exportação de prontuário aprovado");
+        builder.AppendLine($"Gerada em: {exportedAt:O}");
+        builder.AppendLine($"Paciente: {patientId}");
+        builder.AppendLine($"Profissional: {relationship.ProfessionalId}");
+        builder.AppendLine($"Espaço: {relationship.SpaceId}");
+        builder.AppendLine("Escopo: somente ClinicalRecord aprovado.");
+        builder.AppendLine("Exclui: rascunhos, memória clínica, alertas, check-ins, tarefas, materiais compartilháveis e timeline interna.");
+        builder.AppendLine();
+
+        if (records.Count == 0)
+        {
+            builder.AppendLine("Nenhum prontuário aprovado encontrado para este vínculo clínico.");
+            return builder.ToString().TrimEnd();
+        }
+
+        foreach (var record in records)
+        {
+            var tags = DeserializeClinicalTags(record.TagsJson);
+            builder.AppendLine($"Versão {record.Version} - {ClinicalRecordTypeLabel(record.RecordType)}");
+            builder.AppendLine($"RecordId: {record.Id}");
+            builder.AppendLine($"AppointmentId: {record.AppointmentId?.ToString() ?? "sem atendimento vinculado"}");
+            builder.AppendLine($"Aprovado em: {record.ApprovedAt:O}");
+
+            if (record.PreviousRecordId is not null)
+            {
+                builder.AppendLine($"Retifica: {record.PreviousRecordId}");
+            }
+
+            if (tags.Count > 0)
+            {
+                builder.AppendLine($"Tags aprovadas no registro: {string.Join(", ", tags.Select(tag => $"{tag.Label} ({tag.Tone})"))}");
+            }
+
+            builder.AppendLine("Conteúdo aprovado:");
+            builder.AppendLine(record.ContentText);
+            builder.AppendLine();
+            builder.AppendLine("---");
+            builder.AppendLine();
+        }
+
+        return builder.ToString().TrimEnd();
+    }
+
+    private static string ClinicalRecordTypeLabel(string recordType)
+    {
+        return recordType switch
+        {
+            "initial_assessment" => "Avaliação inicial",
+            "follow_up" => "Acompanhamento",
+            "rectification" => "Retificação",
+            "other" => "Outro registro",
+            _ => "Evolução da sessão"
+        };
+    }
+
     private static ClinicalDraftDto ToDto(ClinicalDraft draft)
     {
-        var tags = string.IsNullOrWhiteSpace(draft.TagsJson)
-            ? []
-            : JsonSerializer.Deserialize<List<ClinicalTagInput>>(draft.TagsJson, JsonOptions) ?? [];
+        var tags = DeserializeClinicalTags(draft.TagsJson);
 
         return new ClinicalDraftDto(
             draft.Id,
@@ -3092,9 +3193,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
 
     private static ClinicalRecordDto ToDto(ClinicalRecord record)
     {
-        var tags = string.IsNullOrWhiteSpace(record.TagsJson)
-            ? []
-            : JsonSerializer.Deserialize<List<ClinicalTagInput>>(record.TagsJson, JsonOptions) ?? [];
+        var tags = DeserializeClinicalTags(record.TagsJson);
 
         return new ClinicalRecordDto(
             record.Id,
@@ -3111,6 +3210,25 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             record.PreviousRecordId,
             record.ApprovedAt,
             record.CreatedAt);
+    }
+
+    private static ClinicalRecordExportItemDto ToExportItemDto(ClinicalRecord record)
+    {
+        return new ClinicalRecordExportItemDto(
+            record.Id,
+            record.AppointmentId,
+            record.RecordType,
+            record.Version,
+            record.PreviousRecordId,
+            record.ApprovedAt,
+            DeserializeClinicalTags(record.TagsJson));
+    }
+
+    private static IReadOnlyList<ClinicalTagInput> DeserializeClinicalTags(string? tagsJson)
+    {
+        return string.IsNullOrWhiteSpace(tagsJson)
+            ? []
+            : JsonSerializer.Deserialize<List<ClinicalTagInput>>(tagsJson, JsonOptions) ?? [];
     }
 
     private static TreatmentPlanDto ToDto(TreatmentPlan plan)

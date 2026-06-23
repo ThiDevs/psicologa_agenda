@@ -316,6 +316,26 @@ export type ApiClinicalRecord = {
   createdAt: string;
 };
 
+export type ApiClinicalRecordExport = {
+  patientId: string;
+  professionalId: string;
+  spaceId: string;
+  exportedAt: string;
+  recordsCount: number;
+  scope: string;
+  notice: string;
+  records: {
+    id: string;
+    appointmentId?: string | null;
+    recordType: string;
+    version: number;
+    previousRecordId?: string | null;
+    approvedAt: string;
+    tags: ApiClinicalTagInput[];
+  }[];
+  contentText: string;
+};
+
 export type ApiPatientTimelineItem = {
   id: string;
   appointmentId?: string | null;
@@ -1140,6 +1160,10 @@ export async function getClinicalTimelineItemDetail(itemId: string) {
 
 export async function getClinicalPatientAlerts(patientId: string) {
   return request<ApiClinicalAlert[]>(`/clinical/patients/${patientId}/alerts`, { authenticated: true });
+}
+
+export async function exportClinicalPatientRecords(patientId: string) {
+  return request<ApiClinicalRecordExport>(`/clinical/patients/${patientId}/records/export`, { authenticated: true });
 }
 
 export async function archiveClinicalTimelineItem(itemId: string, input: { reason?: string | null } = {}) {
