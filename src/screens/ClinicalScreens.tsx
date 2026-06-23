@@ -31,6 +31,7 @@ import {
   getApiErrorMessage,
   getClinicalAppointmentWorkspace,
   getClinicalPatientTimeline,
+  getClinicalTimelineItemDetail,
   getProfessionalAppointmentDetails,
   shareClinicalMaterial,
   shareClinicalCheckIn,
@@ -50,6 +51,7 @@ import {
   type ApiPatientCheckIn,
   type ApiPatientTask,
   type ApiPatientTimelineItem,
+  type ApiPatientTimelineItemDetail,
   type ApiSharedMaterial,
   type ApiSharedMaterialType,
   type ApiTreatmentPlan,
@@ -171,6 +173,7 @@ export function ClinicalIntegrationScreen() {
         <Bullet text="Paciente pode conceder ou revogar consentimentos não sensíveis no portal." />
         <Bullet text="Check-ins manuais já podem ser compartilhados e respondidos pelo paciente com consentimento ativo." />
         <Bullet text="Timeline longitudinal já busca eventos reais por paciente com filtros e busca clínica." />
+        <Bullet text="Detalhe auditado da timeline já exibe origem, status e nota de acesso sem revelar conteúdo sensível fora do módulo." />
         <Bullet text="Documento de especificação acompanha o status por módulo." />
       </View>
 
@@ -265,6 +268,8 @@ export function ClinicalPatientWorkspaceScreen() {
   const [timelineFrom, setTimelineFrom] = useState('');
   const [timelineTo, setTimelineTo] = useState('');
   const [loadingTimeline, setLoadingTimeline] = useState(false);
+  const [selectedTimelineDetail, setSelectedTimelineDetail] = useState<ApiPatientTimelineItemDetail | null>(null);
+  const [loadingTimelineDetailId, setLoadingTimelineDetailId] = useState<string | null>(null);
 
   const hydrateTreatmentPlan = useCallback((plan: ApiTreatmentPlan) => {
     setPlanStatus(toTreatmentPlanStatus(plan.status));
@@ -570,11 +575,27 @@ export function ClinicalPatientWorkspaceScreen() {
       });
 
       setWorkspace((current) => current ? { ...current, timeline } : current);
+      setSelectedTimelineDetail(null);
       setClinicalMessage('Timeline longitudinal filtrada carregada. Conteúdo clínico segue restrito à profissional vinculada.');
     } catch (error) {
       setClinicalMessage(getApiErrorMessage(error));
     } finally {
       setLoadingTimeline(false);
+    }
+  }
+
+  async function openTimelineItemDetail(itemId: string) {
+    setLoadingTimelineDetailId(itemId);
+    setClinicalMessage(null);
+
+    try {
+      const detail = await getClinicalTimelineItemDetail(itemId);
+      setSelectedTimelineDetail(detail);
+      setClinicalMessage('Detalhe da timeline carregado com auditoria clínica.');
+    } catch (error) {
+      setClinicalMessage(getApiErrorMessage(error));
+    } finally {
+      setLoadingTimelineDetailId(null);
     }
   }
 
@@ -1045,7 +1066,18 @@ export function ClinicalPatientWorkspaceScreen() {
       </View>
       <View style={styles.list}>
         {timelineItems.length ? (
-          timelineItems.map((item) => <TimelineCard key={item.id} item={item} />)
+          timelineItems.map((item) => {
+            const apiItem = isApiTimelineItem(item) ? item : null;
+
+            return (
+              <TimelineCard
+                key={item.id}
+                item={item}
+                loading={apiItem ? loadingTimelineDetailId === apiItem.id : false}
+                onOpen={apiItem ? () => openTimelineItemDetail(apiItem.id) : undefined}
+              />
+            );
+          })
         ) : (
           <EmptyState
             appearance="dark"
@@ -1055,6 +1087,12 @@ export function ClinicalPatientWorkspaceScreen() {
           />
         )}
       </View>
+      {selectedTimelineDetail ? (
+        <TimelineDetailPanel
+          detail={selectedTimelineDetail}
+          onClose={() => setSelectedTimelineDetail(null)}
+        />
+      ) : null}
 
       <SectionTitle appearance="dark" title="Plano terapêutico" />
       <View style={styles.card}>
@@ -1573,14 +1611,26 @@ function Bullet({ text, compact }: { text: string; compact?: boolean }) {
 
 function TimelineCard({
   item,
+  loading,
+  onOpen,
 }: {
   item: ApiPatientTimelineItem | (typeof clinicalTimelinePreview)[number];
+  loading?: boolean;
+  onOpen?: () => void;
 }) {
   const dateLabel = 'dateLabel' in item ? item.dateLabel : formatDateTimeLabel(item.occurredAt);
   const sourceLabel = 'sourceType' in item ? timelineSourceLabel(item.sourceType) : 'Prévia';
 
   return (
-    <View style={styles.timelineCard}>
+    <Pressable
+      accessibilityRole={onOpen ? 'button' : undefined}
+      disabled={!onOpen || loading}
+      onPress={onOpen}
+      style={({ pressed }) => [
+        styles.timelineCard,
+        onOpen && styles.timelineCardInteractive,
+        pressed && onOpen && styles.pressed,
+      ]}>
       <View style={styles.timelineHeader}>
         <Text style={styles.timelineTitle}>{item.title}</Text>
         <View style={styles.layerPill}>
@@ -1592,6 +1642,64 @@ function TimelineCard({
         <Text style={styles.timelineMetaText}>{sourceLabel}</Text>
         <View style={styles.timelineMetaDot} />
         <Text style={styles.timelineMetaText}>{dateLabel}</Text>
+      </View>
+      {onOpen ? (
+        <View style={styles.timelineOpenRow}>
+          <Text style={styles.timelineOpenText}>{loading ? 'Carregando detalhe' : 'Ver detalhes'}</Text>
+          <Ionicons name={loading ? 'hourglass-outline' : 'chevron-forward'} size={15} color={UI.darkPrimary} />
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+function TimelineDetailPanel({
+  detail,
+  onClose,
+}: {
+  detail: ApiPatientTimelineItemDetail;
+  onClose: () => void;
+}) {
+  return (
+    <View style={styles.timelineDetailPanel}>
+      <View style={styles.timelineDetailHeader}>
+        <View style={styles.timelineDetailTitleWrap}>
+          <Text style={styles.kicker}>Detalhe auditado</Text>
+          <Text style={styles.timelineDetailTitle}>{detail.item.title}</Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Fechar detalhe da timeline"
+          onPress={onClose}
+          style={({ pressed }) => [styles.timelineCloseButton, pressed && styles.pressed]}>
+          <Ionicons name="close" size={18} color={UI.darkText} />
+        </Pressable>
+      </View>
+      <Text style={styles.timelineSummary}>{detail.item.summary}</Text>
+      <View style={styles.timelineDetailGrid}>
+        <DetailRow icon="git-branch-outline" label="Origem" value={detail.sourceLabel} />
+        <DetailRow icon="layers-outline" label="Camada" value={layerLabels[detail.item.layer]} />
+        <DetailRow icon="time-outline" label="Evento" value={formatDateTimeLabel(detail.item.occurredAt)} />
+        {detail.appointmentCode ? (
+          <DetailRow
+            icon="calendar-outline"
+            label="Atendimento"
+            value={`${detail.appointmentCode} · ${formatDateTimeLabel(detail.appointmentStartDateTime ?? undefined)}`}
+          />
+        ) : null}
+        {detail.sourceStatus ? (
+          <DetailRow icon="ellipse-outline" label="Status da origem" value={detail.sourceStatus} />
+        ) : null}
+        {detail.sourceTypeDetail ? (
+          <DetailRow icon="information-circle-outline" label="Tipo da origem" value={timelineSourceDetailLabel(detail.sourceTypeDetail)} />
+        ) : null}
+        {detail.sourceVersion ? (
+          <DetailRow icon="albums-outline" label="Versão" value={String(detail.sourceVersion)} />
+        ) : null}
+      </View>
+      <View style={styles.timelineAccessNote}>
+        <Ionicons name="shield-checkmark-outline" size={17} color={UI.darkPrimary} />
+        <Text style={styles.timelineAccessText}>{detail.accessNote}</Text>
       </View>
     </View>
   );
@@ -1861,6 +1969,45 @@ function normalizeOptionalTimelineDateInput(value: string, label: string) {
 
 function timelineSourceLabel(sourceType: string) {
   return timelineSourceLabels[sourceType] ?? sourceType;
+}
+
+function timelineSourceDetailLabel(value: string) {
+  switch (value) {
+    case 'session_evolution':
+      return 'Evolução da sessão';
+    case 'initial_assessment':
+      return 'Avaliação inicial';
+    case 'follow_up':
+      return 'Acompanhamento';
+    case 'rectification':
+      return 'Retificação';
+    case 'online':
+      return 'Sessão online';
+    case 'in_person':
+      return 'Sessão presencial';
+    case 'phone':
+      return 'Sessão por telefone';
+    case 'portal':
+      return 'Portal do paciente';
+    case 'materials':
+      return 'Materiais compartilhados';
+    case 'checkins':
+      return 'Check-ins';
+    case 'notifications':
+      return 'Notificações';
+    case 'text':
+      return 'Texto';
+    case 'link':
+      return 'Link';
+    default:
+      return value;
+  }
+}
+
+function isApiTimelineItem(
+  item: ApiPatientTimelineItem | (typeof clinicalTimelinePreview)[number],
+): item is ApiPatientTimelineItem {
+  return 'sourceType' in item;
 }
 
 function isSharedStatus(item: ApiPatientTask | ApiSharedMaterial | ApiPatientCheckIn | string) {
@@ -2493,6 +2640,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(237, 247, 242, 0.10)',
     backgroundColor: UI.darkSurface,
   },
+  timelineCardInteractive: {
+    borderColor: 'rgba(109, 214, 180, 0.22)',
+  },
   timelineHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2528,6 +2678,79 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 999,
     backgroundColor: 'rgba(169, 184, 177, 0.55)',
+  },
+  timelineOpenRow: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 5,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(237, 247, 242, 0.08)',
+    paddingTop: 6,
+  },
+  timelineOpenText: {
+    color: UI.darkPrimary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  timelineDetailPanel: {
+    gap: 12,
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(109, 214, 180, 0.22)',
+    backgroundColor: UI.darkSurface,
+  },
+  timelineDetailHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  timelineDetailTitleWrap: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  timelineDetailTitle: {
+    color: UI.darkText,
+    fontSize: 15,
+    lineHeight: 19,
+    fontWeight: '600',
+  },
+  timelineCloseButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 247, 242, 0.12)',
+    backgroundColor: UI.darkSurfaceRaised,
+  },
+  timelineDetailGrid: {
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(237, 247, 242, 0.08)',
+    paddingTop: 10,
+  },
+  timelineAccessNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(109, 214, 180, 0.16)',
+    backgroundColor: 'rgba(109, 214, 180, 0.08)',
+  },
+  timelineAccessText: {
+    flex: 1,
+    color: UI.darkTextMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '400',
   },
   layerPill: {
     paddingHorizontal: 8,

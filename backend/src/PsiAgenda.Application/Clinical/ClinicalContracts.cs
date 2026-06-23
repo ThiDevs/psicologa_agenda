@@ -94,6 +94,18 @@ public sealed record PatientTimelineItemDto(
     DateTimeOffset OccurredAt,
     DateTimeOffset CreatedAt);
 
+public sealed record PatientTimelineItemDetailDto(
+    PatientTimelineItemDto Item,
+    string? AppointmentCode,
+    DateTimeOffset? AppointmentStartDateTime,
+    string SourceLabel,
+    string? SourceStatus,
+    string? SourceTypeDetail,
+    int? SourceVersion,
+    bool CanOpenSource,
+    bool CanArchive,
+    string AccessNote);
+
 public sealed record PatientConsentDto(
     Guid? Id,
     Guid PatientId,
@@ -251,6 +263,7 @@ public interface IClinicalService
 {
     Task<ClinicalWorkspaceDto> GetAppointmentWorkspaceAsync(Guid professionalUserId, Guid appointmentId, CancellationToken cancellationToken);
     Task<IReadOnlyList<PatientTimelineItemDto>> GetPatientTimelineAsync(Guid professionalUserId, Guid patientId, PatientTimelineQuery query, CancellationToken cancellationToken);
+    Task<PatientTimelineItemDetailDto> GetTimelineItemDetailAsync(Guid professionalUserId, Guid itemId, CancellationToken cancellationToken);
     Task<PatientCarePortalDto> GetPatientCarePortalAsync(Guid patientUserId, CancellationToken cancellationToken);
     Task<PatientTaskDto> CompletePatientTaskAsync(Guid patientUserId, Guid taskId, CompletePatientTaskRequest request, CancellationToken cancellationToken);
     Task<PatientCheckInDto> RespondPatientCheckInAsync(Guid patientUserId, Guid checkInId, RespondPatientCheckInRequest request, CancellationToken cancellationToken);

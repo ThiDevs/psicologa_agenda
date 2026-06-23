@@ -340,6 +340,19 @@ export type ApiClinicalTimelineFilters = {
   limit?: number | null;
 };
 
+export type ApiPatientTimelineItemDetail = {
+  item: ApiPatientTimelineItem;
+  appointmentCode?: string | null;
+  appointmentStartDateTime?: string | null;
+  sourceLabel: string;
+  sourceStatus?: string | null;
+  sourceTypeDetail?: string | null;
+  sourceVersion?: number | null;
+  canOpenSource: boolean;
+  canArchive: boolean;
+  accessNote: string;
+};
+
 export type ApiPatientConsentStatus = 'pending' | 'granted' | 'revoked' | 'expired';
 
 export type ApiPatientConsent = {
@@ -1083,6 +1096,10 @@ export async function getClinicalPatientTimeline(patientId: string, filters: Api
     `/clinical/patients/${patientId}/timeline${query ? `?${query}` : ''}`,
     { authenticated: true },
   );
+}
+
+export async function getClinicalTimelineItemDetail(itemId: string) {
+  return request<ApiPatientTimelineItemDetail>(`/clinical/timeline/${itemId}`, { authenticated: true });
 }
 
 export async function startClinicalAppointmentSession(appointmentId: string) {

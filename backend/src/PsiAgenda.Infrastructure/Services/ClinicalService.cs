@@ -246,6 +246,65 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         return items.Select(ToDto).ToList();
     }
 
+    public async Task<PatientTimelineItemDetailDto> GetTimelineItemDetailAsync(
+        Guid professionalUserId,
+        Guid itemId,
+        CancellationToken cancellationToken)
+    {
+        var professional = await GetLinkedProfessionalAsync(professionalUserId, cancellationToken);
+        var item = await dbContext.PatientTimelineItems
+            .AsNoTracking()
+            .FirstOrDefaultAsync(timelineItem =>
+                    timelineItem.Id == itemId &&
+                    timelineItem.ProfessionalId == professional.Id,
+                cancellationToken);
+
+        if (item is null)
+        {
+            throw new KeyNotFoundException("Item da timeline clínica não encontrado.");
+        }
+
+        await EnsureProfessionalPatientRelationshipAsync(professionalUserId, item.PatientId, cancellationToken);
+
+        var appointment = item.AppointmentId is null
+            ? null
+            : await dbContext.Appointments
+                .AsNoTracking()
+                .Where(appointmentItem =>
+                    appointmentItem.Id == item.AppointmentId.Value &&
+                    appointmentItem.CustomerId == item.PatientId &&
+                    appointmentItem.ProfessionalId == item.ProfessionalId &&
+                    appointmentItem.SpaceId == item.SpaceId)
+                .Select(appointmentItem => new
+                {
+                    appointmentItem.Code,
+                    appointmentItem.StartDateTime
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+        var source = await GetTimelineSourceMetadataAsync(item, cancellationToken);
+
+        await AddClinicalAuditAsync(
+            professionalUserId,
+            item.SpaceId,
+            "clinical.timeline_item.viewed",
+            nameof(PatientTimelineItem),
+            item.Id,
+            cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new PatientTimelineItemDetailDto(
+            ToSafeTimelineDetailDto(item),
+            appointment?.Code,
+            appointment?.StartDateTime,
+            source.SourceLabel,
+            source.SourceStatus,
+            source.SourceTypeDetail,
+            source.SourceVersion,
+            source.CanOpenSource,
+            item.Layer != "prontuario" && item.SourceType != "record",
+            BuildTimelineAccessNote(item));
+    }
+
     public async Task<PatientCarePortalDto> GetPatientCarePortalAsync(
         Guid patientUserId,
         CancellationToken cancellationToken)
@@ -1985,6 +2044,203 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         await Task.CompletedTask;
     }
 
+    private async Task<TimelineSourceMetadata> GetTimelineSourceMetadataAsync(
+        PatientTimelineItem item,
+        CancellationToken cancellationToken)
+    {
+        if (item.SourceId is null)
+        {
+            return new TimelineSourceMetadata(
+                TimelineSourceLabel(item.SourceType),
+                null,
+                null,
+                null,
+                false);
+        }
+
+        return item.SourceType switch
+        {
+            "draft" => await dbContext.ClinicalDrafts
+                .AsNoTracking()
+                .Where(draft =>
+                    draft.Id == item.SourceId.Value &&
+                    draft.PatientId == item.PatientId &&
+                    draft.ProfessionalId == item.ProfessionalId)
+                .Select(draft => new TimelineSourceMetadata(
+                    "Rascunho clínico",
+                    draft.Status,
+                    draft.RecordType,
+                    null,
+                    true))
+                .FirstOrDefaultAsync(cancellationToken) ?? MissingTimelineSource(item.SourceType),
+            "record" => await dbContext.ClinicalRecords
+                .AsNoTracking()
+                .Where(record =>
+                    record.Id == item.SourceId.Value &&
+                    record.PatientId == item.PatientId &&
+                    record.ProfessionalId == item.ProfessionalId)
+                .Select(record => new TimelineSourceMetadata(
+                    "Prontuário aprovado",
+                    record.Status,
+                    record.RecordType,
+                    record.Version,
+                    true))
+                .FirstOrDefaultAsync(cancellationToken) ?? MissingTimelineSource(item.SourceType),
+            "session" => await dbContext.ClinicalSessions
+                .AsNoTracking()
+                .Where(session =>
+                    session.Id == item.SourceId.Value &&
+                    session.PatientId == item.PatientId &&
+                    session.ProfessionalId == item.ProfessionalId)
+                .Select(session => new TimelineSourceMetadata(
+                    "Sessão clínica",
+                    session.Status,
+                    session.SessionType,
+                    null,
+                    true))
+                .FirstOrDefaultAsync(cancellationToken) ?? MissingTimelineSource(item.SourceType),
+            "tag" => await GetTagTimelineSourceMetadataAsync(item, cancellationToken),
+            "consent" => await dbContext.PatientConsents
+                .AsNoTracking()
+                .Where(consent =>
+                    consent.Id == item.SourceId.Value &&
+                    consent.PatientId == item.PatientId &&
+                    consent.ProfessionalId == item.ProfessionalId)
+                .Select(consent => new TimelineSourceMetadata(
+                    "Consentimento",
+                    consent.Status,
+                    consent.ConsentType,
+                    null,
+                    true))
+                .FirstOrDefaultAsync(cancellationToken) ?? MissingTimelineSource(item.SourceType),
+            "plan_update" => await dbContext.TreatmentPlans
+                .AsNoTracking()
+                .Where(plan =>
+                    plan.Id == item.SourceId.Value &&
+                    plan.PatientId == item.PatientId &&
+                    plan.ProfessionalId == item.ProfessionalId)
+                .Select(plan => new TimelineSourceMetadata(
+                    "Plano terapêutico",
+                    plan.Status,
+                    null,
+                    null,
+                    true))
+                .FirstOrDefaultAsync(cancellationToken) ?? MissingTimelineSource(item.SourceType),
+            "task" or "task_response" => await dbContext.PatientTasks
+                .AsNoTracking()
+                .Where(task =>
+                    task.Id == item.SourceId.Value &&
+                    task.PatientId == item.PatientId &&
+                    task.ProfessionalId == item.ProfessionalId)
+                .Select(task => new TimelineSourceMetadata(
+                    item.SourceType == "task_response" ? "Resposta de tarefa" : "Tarefa",
+                    task.Status,
+                    task.AcceptsResponse ? "aceita resposta" : "sem resposta textual",
+                    null,
+                    true))
+                .FirstOrDefaultAsync(cancellationToken) ?? MissingTimelineSource(item.SourceType),
+            "material" => await dbContext.SharedMaterials
+                .AsNoTracking()
+                .Where(material =>
+                    material.Id == item.SourceId.Value &&
+                    material.PatientId == item.PatientId &&
+                    material.ProfessionalId == item.ProfessionalId)
+                .Select(material => new TimelineSourceMetadata(
+                    "Material compartilhável",
+                    material.Status,
+                    material.MaterialType,
+                    null,
+                    true))
+                .FirstOrDefaultAsync(cancellationToken) ?? MissingTimelineSource(item.SourceType),
+            "checkin" or "checkin_response" => await dbContext.PatientCheckIns
+                .AsNoTracking()
+                .Where(checkIn =>
+                    checkIn.Id == item.SourceId.Value &&
+                    checkIn.PatientId == item.PatientId &&
+                    checkIn.ProfessionalId == item.ProfessionalId)
+                .Select(checkIn => new TimelineSourceMetadata(
+                    item.SourceType == "checkin_response" ? "Resposta de check-in" : "Check-in",
+                    checkIn.Status,
+                    null,
+                    null,
+                    true))
+                .FirstOrDefaultAsync(cancellationToken) ?? MissingTimelineSource(item.SourceType),
+            _ => new TimelineSourceMetadata(
+                TimelineSourceLabel(item.SourceType),
+                null,
+                null,
+                null,
+                false)
+        };
+    }
+
+    private async Task<TimelineSourceMetadata> GetTagTimelineSourceMetadataAsync(
+        PatientTimelineItem item,
+        CancellationToken cancellationToken)
+    {
+        if (item.SourceId is not Guid sourceId)
+        {
+            return MissingTimelineSource(item.SourceType);
+        }
+
+        var tagsCount = await dbContext.AppliedClinicalTags
+            .AsNoTracking()
+            .CountAsync(tag =>
+                    tag.AppointmentId == sourceId &&
+                    tag.PatientId == item.PatientId &&
+                    tag.ProfessionalId == item.ProfessionalId,
+                cancellationToken);
+
+        return tagsCount == 0
+            ? MissingTimelineSource(item.SourceType)
+            : new TimelineSourceMetadata(
+                "Tags clínicas",
+                null,
+                tagsCount == 1 ? "1 tag aplicada" : $"{tagsCount} tags aplicadas",
+                null,
+                true);
+    }
+
+    private static TimelineSourceMetadata MissingTimelineSource(string sourceType)
+    {
+        return new TimelineSourceMetadata(
+            TimelineSourceLabel(sourceType),
+            null,
+            "origem não localizada",
+            null,
+            false);
+    }
+
+    private static string TimelineSourceLabel(string sourceType)
+    {
+        return sourceType switch
+        {
+            "session" => "Sessão clínica",
+            "draft" => "Rascunho clínico",
+            "record" => "Prontuário aprovado",
+            "tag" => "Tags clínicas",
+            "consent" => "Consentimento",
+            "plan_update" => "Plano terapêutico",
+            "task" => "Tarefa",
+            "task_response" => "Resposta de tarefa",
+            "material" => "Material compartilhável",
+            "checkin" => "Check-in",
+            "checkin_response" => "Resposta de check-in",
+            _ => sourceType
+        };
+    }
+
+    private static string BuildTimelineAccessNote(PatientTimelineItem item)
+    {
+        return item.Layer switch
+        {
+            "prontuario" => "Evento de prontuário aprovado. A timeline não edita nem arquiva esse conteúdo; use retificação formal quando necessário.",
+            "rascunho" => "Evento de rascunho clínico. Revise no módulo de rascunhos antes de qualquer aprovação como prontuário.",
+            "compartilhado" => "Evento compartilhável. A disponibilidade ao paciente depende da ação explícita da psicóloga e dos consentimentos ativos.",
+            _ => "Evento de memória clínica privada. O portal do paciente não exibe esta timeline interna."
+        };
+    }
+
     private static string NormalizeRecordType(string? recordType)
     {
         var normalized = string.IsNullOrWhiteSpace(recordType)
@@ -2500,6 +2756,23 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             item.CreatedAt);
     }
 
+    private static PatientTimelineItemDto ToSafeTimelineDetailDto(PatientTimelineItem item)
+    {
+        return ToDto(item) with { Summary = SafeTimelineDetailSummary(item) };
+    }
+
+    private static string SafeTimelineDetailSummary(PatientTimelineItem item)
+    {
+        return item.SourceType switch
+        {
+            "draft" => "Rascunho clínico criado. Revise o texto completo na seção de rascunhos antes de qualquer aprovação.",
+            "tag" => "Tags clínicas atualizadas neste atendimento. Consulte a seção de tags para revisar os marcadores atuais.",
+            "task_response" => "Paciente concluiu uma tarefa compartilhada. Revise a resposta na seção de tarefas.",
+            "checkin_response" => "Paciente respondeu um check-in de acompanhamento. Revise a resposta na seção de check-ins.",
+            _ => item.Summary
+        };
+    }
+
     private static PatientConsentDto ToDto(PatientConsent consent)
     {
         return new PatientConsentDto(
@@ -2546,4 +2819,11 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
     private sealed record ProfessionalPatientRelationship(
         Guid ProfessionalId,
         Guid SpaceId);
+
+    private sealed record TimelineSourceMetadata(
+        string SourceLabel,
+        string? SourceStatus,
+        string? SourceTypeDetail,
+        int? SourceVersion,
+        bool CanOpenSource);
 }

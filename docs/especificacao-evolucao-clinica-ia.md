@@ -1583,6 +1583,8 @@ Atualizacao da decima segunda entrega: o backend agora possui `PatientCheckIn`, 
 
 Atualizacao da decima terceira entrega: a timeline clinica ganhou consulta longitudinal por paciente em `GET /api/clinical/patients/{patientId}/timeline`, restrita a profissional vinculada por atendimento nao expirado/rejeitado. O endpoint aceita filtros de camada, origem, periodo, busca textual e limite, retornando eventos reais de sessao, rascunhos, prontuario, tags, consentimentos, plano, tarefas, materiais e check-ins quando existirem. A tela clinica passou a ter busca e chips de filtro, mostrando vazio real quando nenhum evento corresponde, sem expor timeline interna no portal do paciente. A auditoria da consulta nao grava termo de busca nem conteudo clinico em metadata. Ainda nao existe detalhe/arquivamento de item da timeline, filtro por tag aplicada/severidade, alertas, IA, exportacao ou gravacao/transcricao.
 
+Atualizacao da decima quarta entrega: a timeline agora possui detalhe auditado em `GET /api/clinical/timeline/{itemId}`. A rota valida profissional vinculada ao paciente, retorna o item, dados operacionais do atendimento e metadados seguros da origem, como status, tipo e versao quando aplicavel, sem copiar `ContentText` de rascunho/prontuario, resposta livre de paciente ou conteudo clinico sensivel para fora do modulo correto. A tela clinica permite abrir o detalhe a partir de eventos reais e mostra nota de acesso por camada. A auditoria usa `clinical.timeline_item.viewed` sem metadata sensivel. Ainda nao existe arquivamento controlado de itens nao oficiais, filtro por tag aplicada/severidade, alertas, IA, exportacao ou gravacao/transcricao.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1679,6 +1681,10 @@ Feito agora:
 54. Timeline aceita filtros por camada, origem, periodo, busca textual e limite seguro.
 55. Tela clinica ganhou painel de filtros e estados de loading, vazio real e erro para timeline.
 56. Visual da timeline foi refinado para separar rascunho, prontuario, memoria e compartilhado com chips e cards compactos.
+57. Psicologa pode abrir detalhe auditado de item por `GET /api/clinical/timeline/{itemId}`.
+58. Detalhe valida vinculo profissional-paciente antes de retornar qualquer dado.
+59. Detalhe retorna metadados seguros da origem sem expor texto de prontuario, rascunho ou respostas livres.
+60. A tela clinica exibe nota de acesso por camada e registra loading/erro do detalhe.
 
 Falta para virar produto clinico real:
 
@@ -1699,7 +1705,7 @@ Status por modulo:
 | --- | --- | --- | --- |
 | Registro pos-consulta com IA | Parcial | `ClinicalSession`, `ClinicalDraft` manual, `ClinicalRecord` aprovado manualmente e retificacao versionada por atendimento | IA, edicao assistida e exportacao |
 | Botoes rapidos e tags clinicas | Parcial | Tags salvas em `AppliedClinicalTag` por atendimento | Biblioteca de tags, personalizacao, filtros e gestao completa |
-| Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags, consentimentos, plano, tarefas, materiais e check-ins; `GET /api/clinical/patients/{patientId}/timeline` com filtros de camada, origem, periodo, busca e limite; UI com vazio/loading/erro | Detalhe/arquivamento de item, filtro por tag aplicada/severidade e eventos reais de alertas quando o motor existir |
+| Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags, consentimentos, plano, tarefas, materiais e check-ins; `GET /api/clinical/patients/{patientId}/timeline` com filtros de camada, origem, periodo, busca e limite; detalhe auditado por `GET /api/clinical/timeline/{itemId}`; UI com vazio/loading/erro | Arquivamento controlado de item nao oficial, filtro por tag aplicada/severidade e eventos reais de alertas quando o motor existir |
 | Plano terapeutico vivo | Parcial | `TreatmentPlan` persistido e editavel no workspace clinico | Historico versionado, revisao periodica e sugestoes por IA |
 | Preparacao da proxima sessao | Parcial | Card de briefing conceitual | Job automatico, fontes reais e arquivamento |
 | Separar rascunho, prontuario e memoria | Parcial | Rascunho, memoria, prontuario aprovado e retificacao versionada aparecem como camadas separadas | Exportacao seletiva e politicas de retencao |

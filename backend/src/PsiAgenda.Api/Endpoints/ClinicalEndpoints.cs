@@ -13,6 +13,7 @@ public static class ClinicalEndpoints
 
         group.MapGet("/appointments/{appointmentId:guid}/workspace", GetAppointmentWorkspaceAsync);
         group.MapGet("/patients/{patientId:guid}/timeline", GetPatientTimelineAsync);
+        group.MapGet("/timeline/{itemId:guid}", GetTimelineItemDetailAsync);
         group.MapPost("/appointments/{appointmentId:guid}/session/start", StartAppointmentSessionAsync)
             .RequireRateLimiting("Sensitive");
         group.MapPost("/appointments/{appointmentId:guid}/session/complete", CompleteAppointmentSessionAsync)
@@ -95,6 +96,20 @@ public static class ClinicalEndpoints
                 currentUser.UserIdOrThrow(),
                 patientId,
                 new PatientTimelineQuery(sourceType, layer, from, to, q, limit),
+                cancellationToken),
+            Results.Ok);
+    }
+
+    private static async Task<IResult> GetTimelineItemDetailAsync(
+        Guid itemId,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.GetTimelineItemDetailAsync(
+                currentUser.UserIdOrThrow(),
+                itemId,
                 cancellationToken),
             Results.Ok);
     }
