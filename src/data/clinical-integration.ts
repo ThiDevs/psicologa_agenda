@@ -160,9 +160,10 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Painel clínico permite confirmar, acompanhar, descartar ou resolver alertas.',
       'Decisões geram timeline e auditoria sem enviar mensagem automática ao paciente.',
       'Alertas altos ativos aparecem no briefing pré-sessão.',
+      'Motor inicial cria alerta pendente por tag de risco e check-in com escala baixa.',
     ],
     missing: [
-      'Motor de alertas por tag/check-in.',
+      'Configuração visual das regras de alerta.',
       'Aprendizado de falso positivo para regras futuras.',
     ],
   },

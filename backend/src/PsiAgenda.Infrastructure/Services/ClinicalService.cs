@@ -638,6 +638,23 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             nameof(PatientCheckIn),
             checkIn.Id,
             cancellationToken);
+        var checkInAlertSeverity = CheckInAlertSeverity(request.MoodScore);
+        if (checkInAlertSeverity is not null)
+        {
+            await CreateRuleBasedAlertAsync(
+                patientUserId,
+                checkIn.AppointmentId,
+                checkIn.PatientId,
+                checkIn.ProfessionalId,
+                checkIn.SpaceId,
+                "checkin_response",
+                checkIn.Id,
+                "Possível ponto de atenção: check-in baixo",
+                "Resposta de check-in com escala baixa registrada. Revisar o contexto antes de concluir qualquer conduta. Não é diagnóstico.",
+                checkInAlertSeverity,
+                now,
+                cancellationToken);
+        }
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -930,6 +947,22 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             nameof(AppliedClinicalTag),
             appointment.Id,
             cancellationToken);
+        if (HasRiskTag(tags))
+        {
+            await CreateRuleBasedAlertAsync(
+                professionalUserId,
+                appointment.Id,
+                appointment.CustomerId,
+                appointment.ProfessionalId,
+                appointment.SpaceId,
+                "tag",
+                appointment.Id,
+                "Possível ponto de atenção: tag sensível",
+                "Tag de risco aplicada neste atendimento. Revisar o contexto clínico antes da próxima sessão. Não é diagnóstico.",
+                "alto",
+                now,
+                cancellationToken);
+        }
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -1725,6 +1758,78 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return ToDto(alert);
+    }
+
+    private async Task CreateRuleBasedAlertAsync(
+        Guid actorUserId,
+        Guid? appointmentId,
+        Guid patientId,
+        Guid professionalId,
+        Guid spaceId,
+        string sourceType,
+        Guid sourceId,
+        string title,
+        string description,
+        string severity,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var normalizedSeverity = ValidateAlertSeverity(severity);
+        var unresolvedExists = await dbContext.ClinicalAlerts
+            .AnyAsync(alert =>
+                    alert.PatientId == patientId &&
+                    alert.ProfessionalId == professionalId &&
+                    alert.SourceType == sourceType &&
+                    alert.SourceId == sourceId &&
+                    alert.Status != "dismissed" &&
+                    alert.Status != "resolved",
+                cancellationToken);
+
+        if (unresolvedExists)
+        {
+            return;
+        }
+
+        var alert = new ClinicalAlert
+        {
+            AppointmentId = appointmentId,
+            PatientId = patientId,
+            ProfessionalId = professionalId,
+            SpaceId = spaceId,
+            CreatedByUserId = actorUserId,
+            SourceType = sourceType,
+            SourceId = sourceId,
+            Title = title,
+            Description = description,
+            Severity = normalizedSeverity,
+            Status = "pending",
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        dbContext.ClinicalAlerts.Add(alert);
+        dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+        {
+            AppointmentId = appointmentId,
+            PatientId = patientId,
+            ProfessionalId = professionalId,
+            SpaceId = spaceId,
+            CreatedByUserId = actorUserId,
+            SourceType = "alert",
+            SourceId = alert.Id,
+            Title = "Alerta responsável criado por regra",
+            Summary = $"Possível ponto de atenção criado por regra segura. Nível: {AlertSeverityLabel(normalizedSeverity)}. Não é diagnóstico e não notifica o paciente.",
+            Layer = "memoria",
+            OccurredAt = now,
+            CreatedAt = now
+        });
+        await AddClinicalAuditAsync(
+            actorUserId,
+            spaceId,
+            "clinical.alert.rule_created",
+            nameof(ClinicalAlert),
+            alert.Id,
+            cancellationToken);
     }
 
     public async Task<ClinicalAlertDto> ReviewAlertAsync(
@@ -2690,6 +2795,21 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         }
 
         return normalized;
+    }
+
+    private static bool HasRiskTag(IReadOnlyList<ClinicalTagInput> tags)
+    {
+        return tags.Any(tag => string.Equals(tag.Tone, "risk", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string? CheckInAlertSeverity(int moodScore)
+    {
+        return moodScore switch
+        {
+            1 => "alto",
+            2 => "medio",
+            _ => null
+        };
     }
 
     private static string ValidateAlertStatus(string status)

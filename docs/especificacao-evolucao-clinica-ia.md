@@ -1597,6 +1597,8 @@ Atualizacao da decima setima entrega: o backend agora possui `ClinicalAlert`, cr
 
 Atualizacao da decima oitava entrega: o briefing da proxima sessao no workspace clinico deixou de ser apenas conceitual e passou a usar dados reais ja carregados no atendimento: alertas ativos, tarefas, check-ins, tags aplicadas e objetivos do plano terapeutico. Alertas ativos de severidade `alto` aparecem em uma area de atencao prioritaria, com linguagem neutra, sem diagnostico automatico, sem prontuario e sem notificar o paciente. Ainda nao existe entidade `SessionBriefing` persistida, job automatico, itens fixados, IA, exportacao ou gravacao/transcricao.
 
+Atualizacao da decima nona entrega: o backend agora possui um motor inicial de alertas responsaveis por regras seguras. Tags clinicas com tom `risk` criam ou reutilizam alerta pendente de severidade `alto` por atendimento, e respostas de check-in com escala 1 ou 2 criam alerta pendente `alto` ou `medio` vinculado a resposta. A regra nao usa IA, nao diagnostica, nao envia mensagem automatica ao paciente, nao cria prontuario e audita a criacao sem metadata sensivel. Ainda nao existe configuracao visual das regras, agenda recorrente de check-ins, graficos longitudinais, aprendizado de falso positivo, IA, exportacao ou gravacao/transcricao.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1718,6 +1720,10 @@ Feito agora:
 76. Alertas ativos de severidade `alto` aparecem em area de atencao prioritaria no briefing.
 77. Briefing exibe fontes e perguntas neutras sem IA, sem prontuario e sem mensagem automatica ao paciente.
 78. O status do modulo de preparacao foi atualizado para deixar claro que ainda faltam job automatico, persistencia e itens fixados.
+79. Tags clinicas com tom `risk` criam alerta responsavel pendente de severidade `alto`, deduplicado por atendimento enquanto nao for descartado ou resolvido.
+80. Respostas de check-in com escala 1 ou 2 criam alerta responsavel pendente de severidade `alto` ou `medio`, deduplicado por check-in respondido.
+81. Alertas por regra criam memoria na timeline e auditoria `clinical.alert.rule_created` sem copiar resposta, nota ou conteudo clinico para metadata.
+82. A UI identifica alertas originados de resposta de check-in com label clinico claro.
 
 Falta para virar produto clinico real:
 
@@ -1727,7 +1733,7 @@ Falta para virar produto clinico real:
 4. Criar reabertura/edicao de tarefas, materiais completos e agenda recorrente de check-ins.
 5. Conectar IA somente depois de consentimento e minimizacao de dados.
 6. Criar historico completo e politicas de retencao/revogacao de consentimentos.
-7. Criar motor automatico de alertas responsaveis por tags/check-ins.
+7. Refinar alertas responsaveis com configuracao de regras, aprendizagem de falso positivo e tendencias longitudinais.
 8. Adicionar testes de contrato da API e testes de tela.
 9. Ajustar copy legal/clinica com revisao profissional.
 10. Definir politica de retencao, exportacao e retificacao.
@@ -1738,13 +1744,13 @@ Status por modulo:
 | --- | --- | --- | --- |
 | Registro pos-consulta com IA | Parcial | `ClinicalSession`, `ClinicalDraft` manual, `ClinicalRecord` aprovado manualmente e retificacao versionada por atendimento | IA, edicao assistida e exportacao |
 | Botoes rapidos e tags clinicas | Parcial | Tags salvas em `AppliedClinicalTag` por atendimento; historico longitudinal filtra por tag aplicada | Biblioteca de tags e personalizacao |
-| Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags, consentimentos, plano, tarefas, materiais, check-ins e alertas revisados; `GET /api/clinical/patients/{patientId}/timeline` com filtros de camada, origem, periodo, busca, tag, severidade e limite; detalhe auditado por `GET /api/clinical/timeline/{itemId}`; arquivamento controlado por `POST /api/clinical/timeline/{itemId}/archive`; UI com vazio/loading/erro | Motor automatico de alertas por tags/check-ins |
+| Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags, consentimentos, plano, tarefas, materiais, check-ins e alertas revisados; `GET /api/clinical/patients/{patientId}/timeline` com filtros de camada, origem, periodo, busca, tag, severidade e limite; detalhe auditado por `GET /api/clinical/timeline/{itemId}`; arquivamento controlado por `POST /api/clinical/timeline/{itemId}/archive`; UI com vazio/loading/erro; alertas por regra entram como memoria privada | Filtro avancado de alertas e politicas de retencao/exportacao |
 | Plano terapeutico vivo | Parcial | `TreatmentPlan` persistido e editavel no workspace clinico | Historico versionado, revisao periodica e sugestoes por IA |
 | Preparacao da proxima sessao | Parcial | Briefing no workspace usa fontes reais ja carregadas: alertas ativos, tarefas, check-ins, tags e plano; alertas altos aparecem em area prioritaria; perguntas neutras nao viram prontuario | `SessionBriefing` persistido, job automatico, itens fixados, arquivamento e IA somente com consentimento |
 | Separar rascunho, prontuario e memoria | Parcial | Rascunho, memoria, prontuario aprovado e retificacao versionada aparecem como camadas separadas | Exportacao seletiva e politicas de retencao |
 | Portal do paciente com cuidado | Parcial | Tarefas, materiais e check-ins privados no workspace; previa antes de compartilhar; share/unshare com consentimento; `/patient-care` para itens liberados, conclusao/resposta de tarefa, resposta de check-in e consentimento direto nao sensivel | Reabertura/edicao de tarefas, historico de visualizacao e refinamento de materiais |
 | Check-ins entre sessoes | Parcial | `PatientCheckIn` persistido, compartilhamento com consentimento e resposta pelo portal com escala/observacao | Agenda recorrente, templates editaveis, graficos e tendencias |
-| Alertas responsaveis | Parcial | `ClinicalAlert`, criacao manual por atendimento, painel no workspace, acoes de confirmar/acompanhar/descartar/resolver, timeline, auditoria sem mensagem automatica ao paciente e destaque de alerta alto no briefing | Motor automatico por tags/check-ins e aprendizado de falso positivo |
+| Alertas responsaveis | Parcial | `ClinicalAlert`, criacao manual por atendimento, motor inicial por tags `risk` e check-ins com escala 1 ou 2, painel no workspace, acoes de confirmar/acompanhar/descartar/resolver, timeline, auditoria sem mensagem automatica ao paciente e destaque de alerta alto no briefing | Configuracao de regras, aprendizado de falso positivo e tendencias longitudinais |
 | Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, shareables com consentimento, consentimento direto nao sensivel no portal e auditoria sem conteudo clinico | Consentimentos sensiveis para IA/gravacao/transcricao, politicas de retencao, criptografia de campos sensiveis e exportacao controlada |
 
 ### Navegacao profissional sugerida

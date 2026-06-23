@@ -2580,6 +2580,8 @@ function alertSourceLabel(sourceType: string) {
       return 'Tag clínica';
     case 'checkin':
       return 'Check-in';
+    case 'checkin_response':
+      return 'Resposta de check-in';
     case 'transcription':
       return 'Transcrição autorizada';
     case 'ai':
