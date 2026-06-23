@@ -33,6 +33,7 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
     public DbSet<PatientTimelineItem> PatientTimelineItems => Set<PatientTimelineItem>();
     public DbSet<PatientConsent> PatientConsents => Set<PatientConsent>();
     public DbSet<PatientConsentEvent> PatientConsentEvents => Set<PatientConsentEvent>();
+    public DbSet<PatientConsentTerm> PatientConsentTerms => Set<PatientConsentTerm>();
     public DbSet<ClinicalSession> ClinicalSessions => Set<ClinicalSession>();
     public DbSet<TreatmentPlan> TreatmentPlans => Set<TreatmentPlan>();
     public DbSet<PatientTask> PatientTasks => Set<PatientTask>();
@@ -784,6 +785,29 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
                 .WithMany()
                 .HasForeignKey(consentEvent => consentEvent.ActorUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PatientConsentTerm>(entity =>
+        {
+            entity.ToTable("patient_consent_terms");
+            entity.HasKey(term => term.Id);
+            entity.Property(term => term.Id).HasColumnName("id");
+            entity.Property(term => term.ConsentType).HasColumnName("consent_type").HasMaxLength(40).IsRequired();
+            entity.Property(term => term.Version).HasColumnName("version").HasMaxLength(40).IsRequired();
+            entity.Property(term => term.Title).HasColumnName("title").HasMaxLength(140).IsRequired();
+            entity.Property(term => term.Summary).HasColumnName("summary").HasMaxLength(700).IsRequired();
+            entity.Property(term => term.LegalBasis).HasColumnName("legal_basis").HasMaxLength(300).IsRequired();
+            entity.Property(term => term.RetentionPolicy).HasColumnName("retention_policy").HasMaxLength(500).IsRequired();
+            entity.Property(term => term.ReviewNotice).HasColumnName("review_notice").HasMaxLength(300).IsRequired();
+            entity.Property(term => term.Sensitive).HasColumnName("sensitive");
+            entity.Property(term => term.RequiresExplicitPatientDecision).HasColumnName("requires_explicit_patient_decision");
+            entity.Property(term => term.IsActive).HasColumnName("is_active");
+            entity.Property(term => term.EffectiveAt).HasColumnName("effective_at");
+            entity.Property(term => term.RetiredAt).HasColumnName("retired_at");
+            entity.Property(term => term.CreatedAt).HasColumnName("created_at");
+            entity.Property(term => term.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(term => new { term.ConsentType, term.Version }).IsUnique();
+            entity.HasIndex(term => new { term.ConsentType, term.IsActive });
         });
 
         modelBuilder.Entity<ClinicalAlert>(entity =>

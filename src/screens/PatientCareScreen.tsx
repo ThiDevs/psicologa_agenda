@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -21,6 +21,7 @@ import {
   updatePatientSensitiveConsent,
   type ApiPatientConsentEvent,
   type ApiPatientConsentStatus,
+  type ApiPatientConsentTerm,
   type ApiPatientCarePortal,
   type ApiPatientCheckIn,
   type ApiPatientPortalConsent,
@@ -182,6 +183,7 @@ export function PatientCarePortalScreen() {
   const consents = portal?.consents ?? [];
   const sensitiveConsents = portal?.sensitiveConsents ?? [];
   const consentHistory = (portal?.consentHistory ?? []).slice(0, 8);
+  const consentTermByKey = useMemo(() => buildConsentTermMap(portal?.consentTerms), [portal?.consentTerms]);
   const openTasks = tasks.filter((task) => task.status !== 'completed');
   const openCheckIns = checkIns.filter((checkIn) => checkIn.status !== 'answered');
   const grantedConsentCount = consents.filter((consent) => consent.status === 'granted').length;
@@ -334,6 +336,7 @@ export function PatientCarePortalScreen() {
                 <PatientConsentRow
                   key={consentKey(consent)}
                   consent={consent}
+                  term={consentTermByKey.get(consentTermKey(consent.consentType, consent.termsVersion))}
                   isFirst={index === 0}
                   saving={savingConsentKey === consentKey(consent)}
                   disabled={savingConsentKey !== null}
@@ -360,6 +363,7 @@ export function PatientCarePortalScreen() {
                 <PatientConsentRow
                   key={consentKey(consent)}
                   consent={consent}
+                  term={consentTermByKey.get(consentTermKey(consent.consentType, consent.termsVersion))}
                   isFirst={index === 0}
                   saving={savingConsentKey === consentKey(consent)}
                   disabled={savingConsentKey !== null}
@@ -663,6 +667,7 @@ function SharedMaterialRow({
 
 function PatientConsentRow({
   consent,
+  term,
   isFirst,
   saving,
   disabled,
@@ -671,6 +676,7 @@ function PatientConsentRow({
   onRevoke,
 }: {
   consent: ApiPatientPortalConsent;
+  term?: ApiPatientConsentTerm;
   isFirst: boolean;
   saving: boolean;
   disabled: boolean;
@@ -683,6 +689,7 @@ function PatientConsentRow({
   const statusColor = consentStatusColor(consent.status);
   const statusDate = consent.grantedAt ?? consent.revokedAt ?? consent.updatedAt;
   const revokeLabel = sensitive && !granted ? 'Recusar' : 'Revogar';
+  const description = term?.summary ?? consentTypeDescription(consent.consentType);
 
   return (
     <View style={[styles.listRow, isFirst && styles.listRowFirst]}>
@@ -698,12 +705,20 @@ function PatientConsentRow({
             </Text>
           </View>
         </View>
-        <Text style={styles.rowText}>{consentTypeDescription(consent.consentType)}</Text>
+        <Text style={styles.rowText}>{description}</Text>
         <Text style={styles.rowMeta}>
           {consent.professionalName} · {consent.spaceName}
           {statusDate ? ` · ${formatDateLabel(statusDate)}` : ''}
         </Text>
-        <Text style={styles.consentTerms}>Termos {consent.termsVersion}</Text>
+        <Text style={styles.consentTerms}>
+          {term?.title ? `${term.title} · ` : ''}Termos {consent.termsVersion}
+        </Text>
+        {term?.retentionPolicy ? (
+          <Text style={styles.rowMeta}>Política: {term.retentionPolicy}</Text>
+        ) : null}
+        {term?.reviewNotice ? (
+          <Text style={styles.rowMeta}>{term.reviewNotice}</Text>
+        ) : null}
         <View style={styles.consentActions}>
           <Pressable
             accessibilityRole="button"
@@ -803,6 +818,14 @@ function CareStep({
 
 function consentKey(consent: ApiPatientPortalConsent) {
   return `${consent.professionalId}:${consent.consentType}`;
+}
+
+function buildConsentTermMap(terms?: ApiPatientConsentTerm[]) {
+  return new Map((terms ?? []).map((term) => [consentTermKey(term.consentType, term.version), term]));
+}
+
+function consentTermKey(consentType: string, version: string) {
+  return `${consentType}:${version}`;
 }
 
 function consentTypeLabel(consentType: string) {

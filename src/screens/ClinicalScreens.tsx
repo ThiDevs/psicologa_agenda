@@ -58,6 +58,7 @@ import {
   type ApiPatientConsent,
   type ApiPatientConsentEvent,
   type ApiPatientConsentStatus,
+  type ApiPatientConsentTerm,
   type ApiPatientCheckIn,
   type ApiPatientTask,
   type ApiPatientTimelineItem,
@@ -426,7 +427,11 @@ export function ClinicalPatientWorkspaceScreen() {
     patientCheckIns.filter(isPatientVisibleStatus).length;
   const accessPolicy = workspace?.accessPolicy ?? null;
   const grantedPermissionCount = accessPolicy?.permissions.filter((permission) => permission.granted).length ?? 0;
-  const consentRows = useMemo(() => buildConsentRows(workspace?.consents), [workspace?.consents]);
+  const consentTermByKey = useMemo(() => buildConsentTermMap(workspace?.consentTerms), [workspace?.consentTerms]);
+  const consentRows = useMemo(
+    () => buildConsentRows(workspace?.consents, consentTermByKey),
+    [workspace?.consents, consentTermByKey],
+  );
   const grantedConsentCount = consentRows.filter((consent) => consent.status === 'granted').length;
   const consentHistory = (workspace?.consentHistory ?? []).slice(0, 8);
 
@@ -2413,6 +2418,7 @@ function TimelineFilterGroup<TValue extends string>({
 type ConsentRowModel = ClinicalConsentItem & {
   status: ApiPatientConsentStatus;
   termsVersion: string;
+  term?: ApiPatientConsentTerm;
   grantedAt?: string | null;
   revokedAt?: string | null;
   expiresAt?: string | null;
@@ -2468,6 +2474,7 @@ function ConsentRow({
   const statusDate = consent.grantedAt ?? consent.revokedAt ?? consent.expiresAt;
   const primaryDisabled = disabled || isGranted || (sensitive && isPending);
   const primaryLabel = sensitive ? 'Solicitar' : 'Conceder';
+  const description = consent.term?.summary ?? consent.description;
 
   return (
     <View style={styles.consentRow}>
@@ -2484,12 +2491,19 @@ function ConsentRow({
               </Text>
             </View>
           </View>
-          <Text style={styles.consentDescription}>{consent.description}</Text>
+          <Text style={styles.consentDescription}>{description}</Text>
           <Text style={styles.consentMeta}>
             {statusDate ? `${formatDateTimeLabel(statusDate)} · ` : ''}
+            {consent.term?.title ? `${consent.term.title} · ` : ''}
             Termos {consent.termsVersion}
             {sensitive ? ' · aceite pelo paciente no portal' : ''}
           </Text>
+          {consent.term?.retentionPolicy ? (
+            <Text style={styles.consentMeta}>Política: {consent.term.retentionPolicy}</Text>
+          ) : null}
+          {consent.term?.reviewNotice ? (
+            <Text style={styles.consentMeta}>{consent.term.reviewNotice}</Text>
+          ) : null}
         </View>
       </View>
       <View style={styles.consentActions}>
@@ -3049,19 +3063,36 @@ function canCompleteSession(session: ApiClinicalSession) {
   return session.status === 'scheduled' || session.status === 'in_progress';
 }
 
-function buildConsentRows(consents?: ApiPatientConsent[]): ConsentRowModel[] {
+function buildConsentRows(
+  consents?: ApiPatientConsent[],
+  termsByKey?: Map<string, ApiPatientConsentTerm>,
+): ConsentRowModel[] {
   return clinicalConsentPreview.map((definition) => {
     const saved = consents?.find((consent) => consent.consentType === definition.id);
+    const termsVersion = saved?.termsVersion ?? defaultConsentTermsVersion(definition.id);
 
     return {
       ...definition,
       status: saved?.status ?? 'pending',
-      termsVersion: saved?.termsVersion ?? 'clinical-consent-v1',
+      termsVersion,
+      term: termsByKey?.get(consentTermKey(definition.id, termsVersion)),
       grantedAt: saved?.grantedAt,
       revokedAt: saved?.revokedAt,
       expiresAt: saved?.expiresAt,
     };
   });
+}
+
+function buildConsentTermMap(terms?: ApiPatientConsentTerm[]) {
+  return new Map((terms ?? []).map((term) => [consentTermKey(term.consentType, term.version), term]));
+}
+
+function consentTermKey(consentType: string, version: string) {
+  return `${consentType}:${version}`;
+}
+
+function defaultConsentTermsVersion(consentType: string) {
+  return isSensitiveConsentType(consentType) ? 'clinical-sensitive-consent-v1' : 'clinical-consent-v1';
 }
 
 function consentTypeLabel(consentType: string) {

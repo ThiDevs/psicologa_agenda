@@ -439,6 +439,22 @@ export type ApiPatientConsentEvent = {
   createdAt: string;
 };
 
+export type ApiPatientConsentTerm = {
+  id: string;
+  consentType: string;
+  version: string;
+  title: string;
+  summary: string;
+  legalBasis: string;
+  retentionPolicy: string;
+  reviewNotice: string;
+  sensitive: boolean;
+  requiresExplicitPatientDecision: boolean;
+  isActive: boolean;
+  effectiveAt: string;
+  retiredAt?: string | null;
+};
+
 export type ApiClinicalPermission = {
   key: string;
   label: string;
@@ -554,6 +570,7 @@ export type ApiClinicalWorkspace = {
   tags: ApiAppliedClinicalTag[];
   consents: ApiPatientConsent[];
   consentHistory: ApiPatientConsentEvent[];
+  consentTerms: ApiPatientConsentTerm[];
   treatmentPlan: ApiTreatmentPlan;
   tasks: ApiPatientTask[];
   materials: ApiSharedMaterial[];
@@ -570,6 +587,7 @@ export type ApiPatientCarePortal = {
   consents: ApiPatientPortalConsent[];
   sensitiveConsents: ApiPatientPortalConsent[];
   consentHistory: ApiPatientConsentEvent[];
+  consentTerms: ApiPatientConsentTerm[];
 };
 
 export type ApiStarterSetupResponse = {

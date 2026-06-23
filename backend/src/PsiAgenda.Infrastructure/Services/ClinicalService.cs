@@ -11,6 +11,8 @@ namespace PsiAgenda.Infrastructure.Services;
 public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private const string DefaultConsentTermsVersion = "clinical-consent-v1";
+    private const string DefaultSensitiveConsentTermsVersion = "clinical-sensitive-consent-v1";
     private static readonly HashSet<string> AllowedTagTones = new(StringComparer.OrdinalIgnoreCase)
     {
         "neutral",
@@ -136,6 +138,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             appointment.CustomerId,
             [appointment.ProfessionalId],
             cancellationToken);
+        var consentTerms = await GetConsentTermsAsync(ConsentTypes, cancellationToken);
         var treatmentPlan = await GetTreatmentPlanAsync(appointment, cancellationToken);
         var tasks = await dbContext.PatientTasks
             .AsNoTracking()
@@ -202,6 +205,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             tags.Select(ToDto).ToList(),
             consents,
             consentHistory,
+            consentTerms,
             treatmentPlan,
             tasks.Select(ToDto).ToList(),
             materials.Select(ToDto).ToList(),
@@ -624,6 +628,9 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
                 .Distinct()
                 .ToList(),
             cancellationToken);
+        var consentTerms = await GetConsentTermsAsync(
+            PatientPortalConsentTypes.Concat(SensitiveConsentTypes),
+            cancellationToken);
 
         var tasks = await dbContext.PatientTasks
             .AsNoTracking()
@@ -719,7 +726,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             checkIns.Select(ToDto).ToList(),
             consents,
             sensitiveConsents,
-            consentHistory);
+            consentHistory,
+            consentTerms);
     }
 
     public async Task<PatientTaskDto> CompletePatientTaskAsync(
@@ -905,7 +913,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             throw new KeyNotFoundException("Profissional não encontrada no seu acompanhamento.");
         }
 
-        var termsVersion = NormalizeOptionalText(request.TermsVersion, 40, "Versão dos termos") ?? "clinical-consent-v1";
+        var term = await ResolveActiveConsentTermAsync(normalizedType, request.TermsVersion, cancellationToken);
+        var termsVersion = term.Version;
         var now = DateTimeOffset.UtcNow;
         var consent = await dbContext.PatientConsents
             .FirstOrDefaultAsync(item =>
@@ -1015,7 +1024,16 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             throw new InvalidOperationException("Consentimento sensível só pode ser concedido quando houver solicitação pendente.");
         }
 
-        var termsVersion = NormalizeOptionalText(request.TermsVersion, 40, "Versão dos termos") ?? consent.TermsVersion;
+        var term = await ResolveActiveConsentTermAsync(
+            normalizedType,
+            request.TermsVersion ?? consent.TermsVersion,
+            cancellationToken);
+        if (normalizedStatus == "granted" && term.Version != consent.TermsVersion)
+        {
+            throw new InvalidOperationException("Consentimento sensível deve ser decidido na mesma versão solicitada.");
+        }
+
+        var termsVersion = term.Version;
         var now = DateTimeOffset.UtcNow;
 
         consent.SpaceId = relationship.SpaceId;
@@ -1406,7 +1424,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             throw new InvalidOperationException("Consentimentos sensíveis de IA, gravação e transcrição devem ser concedidos pelo paciente no portal.");
         }
 
-        var termsVersion = NormalizeOptionalText(request.TermsVersion, 40, "Versão dos termos") ?? "clinical-consent-v1";
+        var term = await ResolveActiveConsentTermAsync(normalizedType, request.TermsVersion, cancellationToken);
+        var termsVersion = term.Version;
         var now = DateTimeOffset.UtcNow;
 
         var consent = await dbContext.PatientConsents
@@ -1495,7 +1514,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
     {
         var appointment = await EnsureProfessionalAppointmentAsync(professionalUserId, appointmentId, cancellationToken);
         var requestedTypes = NormalizeSensitiveConsentTypes(request.ConsentTypes);
-        var termsVersion = NormalizeOptionalText(request.TermsVersion, 40, "Versão dos termos") ?? "clinical-sensitive-consent-v1";
+        var termByType = await ResolveActiveConsentTermsAsync(requestedTypes, request.TermsVersion, cancellationToken);
         var now = DateTimeOffset.UtcNow;
 
         var existing = await dbContext.PatientConsents
@@ -1509,6 +1528,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
 
         foreach (var consentTypeItem in requestedTypes)
         {
+            var termsVersion = termByType[consentTypeItem].Version;
             if (!byType.TryGetValue(consentTypeItem, out var consent))
             {
                 consent = new PatientConsent
@@ -2411,7 +2431,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
                     appointment.SpaceId,
                     type,
                     "pending",
-                    "clinical-consent-v1",
+                    DefaultConsentTermsVersionFor(type),
                     null,
                     null,
                     null,
@@ -2439,6 +2459,80 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             .ToListAsync(cancellationToken);
 
         return events.Select(ToDto).ToList();
+    }
+
+    private async Task<IReadOnlyList<PatientConsentTermDto>> GetConsentTermsAsync(
+        IEnumerable<string> consentTypes,
+        CancellationToken cancellationToken)
+    {
+        var types = consentTypes
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (types.Count == 0)
+        {
+            return [];
+        }
+
+        var terms = await dbContext.PatientConsentTerms
+            .AsNoTracking()
+            .Where(term =>
+                types.Contains(term.ConsentType) &&
+                term.IsActive &&
+                term.RetiredAt == null)
+            .OrderBy(term => term.Sensitive)
+            .ThenBy(term => term.ConsentType)
+            .ToListAsync(cancellationToken);
+
+        return terms.Select(ToDto).ToList();
+    }
+
+    private async Task<PatientConsentTerm> ResolveActiveConsentTermAsync(
+        string consentType,
+        string? requestedVersion,
+        CancellationToken cancellationToken)
+    {
+        var normalizedVersion = NormalizeOptionalText(requestedVersion, 40, "Versão dos termos");
+        var query = dbContext.PatientConsentTerms
+            .AsNoTracking()
+            .Where(term =>
+                term.ConsentType == consentType &&
+                term.IsActive &&
+                term.RetiredAt == null);
+
+        if (normalizedVersion is not null)
+        {
+            query = query.Where(term => term.Version == normalizedVersion);
+        }
+        else
+        {
+            query = query.OrderByDescending(term => term.EffectiveAt);
+        }
+
+        var term = await query.FirstOrDefaultAsync(cancellationToken);
+        if (term is null)
+        {
+            var message = normalizedVersion is null
+                ? $"Não há termo ativo para {ConsentTypeLabel(consentType)}."
+                : $"Versão de termos inativa ou inexistente para {ConsentTypeLabel(consentType)}.";
+            throw new InvalidOperationException(message);
+        }
+
+        return term;
+    }
+
+    private async Task<IReadOnlyDictionary<string, PatientConsentTerm>> ResolveActiveConsentTermsAsync(
+        IReadOnlyList<string> consentTypes,
+        string? requestedVersion,
+        CancellationToken cancellationToken)
+    {
+        var terms = new Dictionary<string, PatientConsentTerm>(StringComparer.OrdinalIgnoreCase);
+        foreach (var consentType in consentTypes)
+        {
+            terms[consentType] = await ResolveActiveConsentTermAsync(consentType, requestedVersion, cancellationToken);
+        }
+
+        return terms;
     }
 
     private void AddConsentEvent(
@@ -2552,7 +2646,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
                         relationship.SpaceName,
                         type,
                         "pending",
-                        "clinical-consent-v1",
+                        DefaultConsentTermsVersionFor(type),
                         null,
                         null,
                         null,
@@ -3151,6 +3245,13 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         }
 
         return normalized;
+    }
+
+    private static string DefaultConsentTermsVersionFor(string consentType)
+    {
+        return AllowedSensitiveConsentTypes.Contains(consentType)
+            ? DefaultSensitiveConsentTermsVersion
+            : DefaultConsentTermsVersion;
     }
 
     private static string ValidatePatientPortalConsentType(string consentType)
@@ -3879,6 +3980,24 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             consentEvent.RevokedAt,
             consentEvent.ExpiresAt,
             consentEvent.CreatedAt);
+    }
+
+    private static PatientConsentTermDto ToDto(PatientConsentTerm term)
+    {
+        return new PatientConsentTermDto(
+            term.Id,
+            term.ConsentType,
+            term.Version,
+            term.Title,
+            term.Summary,
+            term.LegalBasis,
+            term.RetentionPolicy,
+            term.ReviewNotice,
+            term.Sensitive,
+            term.RequiresExplicitPatientDecision,
+            term.IsActive,
+            term.EffectiveAt,
+            term.RetiredAt);
     }
 
     private static PatientPortalConsentDto ToPortalDto(
