@@ -1573,7 +1573,9 @@ Atualizacao da setima entrega: o backend agora possui `TreatmentPlan` persistido
 
 Atualizacao da oitava entrega: o backend agora possui `PatientTask` e `SharedMaterial`, exibidos no workspace clinico e criados como conteudo privado por `POST /api/clinical/appointments/{appointmentId}/tasks` e `POST /api/clinical/appointments/{appointmentId}/materials`. O compartilhamento e o recolhimento sao acoes explicitas da psicologa, exigem consentimento ativo quando aplicavel e registram timeline/auditoria sem copiar conteudo clinico sensivel para metadata. Ainda nao existe area do paciente para consumir tarefas/materiais, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
 
-Atualizacao da nona entrega: o paciente agora possui a area "Meu acompanhamento" em `/patient-care`, alimentada por `GET /api/patients/me/care`. Esse endpoint retorna apenas `PatientTask` e `SharedMaterial` com `status = shared`, validando consentimento ativo de portal e, para materiais, consentimento de materiais. A rota nao retorna rascunhos, prontuarios, tags privadas, plano terapeutico ou timeline interna. Ainda nao existe resposta/conclusao de tarefa pelo paciente, consentimento direto pelo portal, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
+Atualizacao da nona entrega: o paciente agora possui a area "Meu acompanhamento" em `/patient-care`, alimentada por `GET /api/patients/me/care`. Esse endpoint retorna apenas `PatientTask` compartilhada/concluida e `SharedMaterial` com `status = shared`, validando consentimento ativo de portal e, para materiais, consentimento de materiais. A rota nao retorna rascunhos, prontuarios, tags privadas, plano terapeutico ou timeline interna. Ainda nao existe resposta/conclusao de tarefa pelo paciente, consentimento direto pelo portal, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
+
+Atualizacao da decima entrega: o paciente agora pode concluir uma tarefa compartilhada por `POST /api/patients/me/tasks/{taskId}/complete`, enviando uma resposta opcional quando a tarefa aceita resposta. A conclusao muda a tarefa para `completed`, registra `responseText`, `responseSubmittedAt` e `completedAt`, e cria memoria/timeline privada para revisao da psicologa sem copiar a resposta para metadata de auditoria. Ainda nao existe consentimento direto pelo portal, reabertura/edicao de tarefa, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
 
 Arquivos criados ou alterados:
 
@@ -1606,6 +1608,7 @@ Arquivos criados ou alterados:
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623043000_AddClinicalDraftRectifications.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623050000_AddTreatmentPlans.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623053000_AddPatientShareables.cs`
+- `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623060000_AddPatientTaskResponses.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/PsiAgendaDbContext.cs`
 - `backend/src/PsiAgenda.Infrastructure/DependencyInjection.cs`
 - `backend/src/PsiAgenda.Api/Program.cs`
@@ -1651,13 +1654,16 @@ Feito agora:
 37. Paciente acessa `/patient-care` a partir da home e ve apenas tarefas e materiais ja compartilhados.
 38. `GET /api/patients/me/care` filtra conteudo por paciente autenticado, status compartilhado e consentimentos ativos.
 39. Portal do paciente nao retorna rascunho, prontuario, memoria interna, tags privadas nem plano terapeutico.
+40. Paciente pode concluir tarefa compartilhada por `POST /api/patients/me/tasks/{taskId}/complete`.
+41. Resposta opcional de tarefa fica visivel para paciente e psicologa, mas nao entra em metadata de auditoria.
+42. Conclusao de tarefa cria memoria privada na timeline para revisao da psicologa.
 
 Falta para virar produto clinico real:
 
-1. Permitir que o paciente conclua ou responda tarefas liberadas.
+1. Criar consentimento direto pelo portal do paciente.
 2. Implementar exportacao de evolucoes aprovadas sem expor camadas indevidas.
 3. Implementar permissao clinica por vinculo paciente-profissional.
-4. Criar consentimento direto pelo portal do paciente, respostas de tarefas, materiais completos e check-ins.
+4. Criar reabertura/edicao de tarefas, materiais completos e check-ins.
 5. Conectar IA somente depois de consentimento e minimizacao de dados.
 6. Criar telas e politicas de retencao/revogacao de consentimentos.
 7. Criar motor de alertas responsaveis com revisao humana.
@@ -1675,7 +1681,7 @@ Status por modulo:
 | Plano terapeutico vivo | Parcial | `TreatmentPlan` persistido e editavel no workspace clinico | Historico versionado, revisao periodica e sugestoes por IA |
 | Preparacao da proxima sessao | Parcial | Card de briefing conceitual | Job automatico, fontes reais e arquivamento |
 | Separar rascunho, prontuario e memoria | Parcial | Rascunho, memoria, prontuario aprovado e retificacao versionada aparecem como camadas separadas | Exportacao seletiva e politicas de retencao |
-| Portal do paciente com cuidado | Parcial | Tarefas e materiais privados no workspace, previa antes de compartilhar, share/unshare com consentimento e `/patient-care` para itens liberados | Respostas/conclusao de tarefas, consentimento direto, check-ins e historico de visualizacao |
+| Portal do paciente com cuidado | Parcial | Tarefas e materiais privados no workspace, previa antes de compartilhar, share/unshare com consentimento, `/patient-care` para itens liberados e conclusao/resposta de tarefa | Consentimento direto, reabertura/edicao de tarefas, check-ins e historico de visualizacao |
 | Check-ins entre sessoes | Pendente | Templates e fluxo especificados | Agenda, respostas, graficos e tendencias |
 | Alertas responsaveis | Pendente | Linguagem e estados especificados | Motor de alertas, painel e auditoria de revisao |
 | Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, shareables com consentimento e auditoria sem conteudo clinico | Portal para consentimento direto, politicas de retencao, criptografia de campos sensiveis e exportacao controlada |

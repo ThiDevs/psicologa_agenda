@@ -5,6 +5,7 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   EmptyState,
+  Field,
   HeaderBar,
   InfoStrip,
   PrimaryButton,
@@ -12,6 +13,7 @@ import {
   SectionTitle,
 } from '@/components/app-ui';
 import {
+  completePatientCareTask,
   getApiErrorMessage,
   getPatientCarePortal,
   type ApiPatientCarePortal,
@@ -40,9 +42,15 @@ export function PatientCarePortalScreen() {
   const [portal, setPortal] = useState<ApiPatientCarePortal | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [portalMessage, setPortalMessage] = useState<string | null>(null);
+  const [portalMessageTone, setPortalMessageTone] = useState<'success' | 'warning'>('success');
+  const [taskResponses, setTaskResponses] = useState<Record<string, string>>({});
+  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
 
-  const loadPortal = useCallback(async () => {
-    setLoading(true);
+  const loadPortal = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true);
+    }
     setErrorMessage(null);
 
     try {
@@ -55,12 +63,41 @@ export function PatientCarePortalScreen() {
     }
   }, []);
 
+  async function completeTask(task: ApiPatientTask) {
+    const responseText = taskResponses[task.id]?.trim() || null;
+
+    setCompletingTaskId(task.id);
+    setPortalMessage(null);
+    setErrorMessage(null);
+
+    try {
+      await completePatientCareTask(task.id, { responseText });
+      setTaskResponses((current) => {
+        const next = { ...current };
+        delete next[task.id];
+
+        return next;
+      });
+      await loadPortal(false);
+      setPortalMessageTone('success');
+      setPortalMessage(responseText
+        ? 'Resposta enviada para revisão da sua psicóloga.'
+        : 'Tarefa marcada como concluída.');
+    } catch (error) {
+      setPortalMessageTone('warning');
+      setPortalMessage(getApiErrorMessage(error));
+    } finally {
+      setCompletingTaskId(null);
+    }
+  }
+
   useEffect(() => {
     loadPortal();
   }, [loadPortal]);
 
   const tasks = portal?.tasks ?? [];
   const materials = portal?.materials ?? [];
+  const openTasks = tasks.filter((task) => task.status !== 'completed');
 
   return (
     <ScreenScaffold>
@@ -84,6 +121,14 @@ export function PatientCarePortalScreen() {
           text="Aqui aparecem somente itens liberados pela sua psicóloga para o seu acompanhamento."
         />
       )}
+      {portalMessage ? (
+        <InfoStrip
+          icon="checkmark-circle-outline"
+          title="Tarefas"
+          text={portalMessage}
+          tone={portalMessageTone}
+        />
+      ) : null}
 
       {loading ? (
         <View style={styles.card}>
@@ -104,7 +149,7 @@ export function PatientCarePortalScreen() {
       ) : (
         <>
           <View style={styles.summaryGrid}>
-            <SummaryTile icon="checkbox-outline" label="Tarefas abertas" value={String(tasks.length)} />
+            <SummaryTile icon="checkbox-outline" label="Tarefas abertas" value={String(openTasks.length)} />
             <SummaryTile icon="library-outline" label="Materiais" value={String(materials.length)} />
           </View>
 
@@ -116,6 +161,15 @@ export function PatientCarePortalScreen() {
                   key={task.id}
                   task={task}
                   isFirst={index === 0}
+                  responseText={taskResponses[task.id] ?? ''}
+                  saving={completingTaskId === task.id}
+                  onChangeResponse={(value) => {
+                    setTaskResponses((current) => ({
+                      ...current,
+                      [task.id]: value,
+                    }));
+                  }}
+                  onComplete={() => completeTask(task)}
                 />
               ))
             ) : (
@@ -149,8 +203,8 @@ export function PatientCarePortalScreen() {
           <SectionTitle title="Linha do cuidado" />
           <View style={styles.careTimeline}>
             <CareStep icon="calendar-outline" title="Sessão" text="Acompanhe seus horários" done />
-            <CareStep icon="checkbox-outline" title="Tarefas" text={tasks.length ? 'Em andamento' : 'Sem pendências'} current={tasks.length > 0} />
-            <CareStep icon="library-outline" title="Materiais" text={materials.length ? 'Disponíveis' : 'Aguardando'} current={tasks.length === 0 && materials.length > 0} />
+            <CareStep icon="checkbox-outline" title="Tarefas" text={openTasks.length ? 'Em andamento' : 'Sem pendências'} current={openTasks.length > 0} />
+            <CareStep icon="library-outline" title="Materiais" text={materials.length ? 'Disponíveis' : 'Aguardando'} current={openTasks.length === 0 && materials.length > 0} />
           </View>
         </>
       )}
@@ -181,28 +235,71 @@ function SummaryTile({
 function PatientTaskRow({
   task,
   isFirst,
+  responseText,
+  saving,
+  onChangeResponse,
+  onComplete,
 }: {
   task: ApiPatientTask;
   isFirst: boolean;
+  responseText: string;
+  saving: boolean;
+  onChangeResponse: (value: string) => void;
+  onComplete: () => void;
 }) {
+  const completed = task.status === 'completed';
+
   return (
     <View style={[styles.listRow, isFirst && styles.listRowFirst]}>
       <View style={styles.rowIcon}>
-        <Ionicons name="checkbox-outline" size={18} color={CARE_COLORS.primary} />
+        <Ionicons name={completed ? 'checkmark' : 'checkbox-outline'} size={18} color={CARE_COLORS.primary} />
       </View>
       <View style={styles.rowCopy}>
         <View style={styles.rowHeader}>
           <Text style={styles.rowTitle}>{task.title}</Text>
-          <View style={styles.statusPill}>
-            <Text style={styles.statusText}>Aberta</Text>
+          <View style={[styles.statusPill, completed && styles.completedPill]}>
+            <Text style={[styles.statusText, completed && styles.completedStatusText]}>
+              {completed ? 'Concluída' : 'Aberta'}
+            </Text>
           </View>
         </View>
         {task.description ? (
           <Text style={styles.rowText}>{task.description}</Text>
         ) : null}
         <Text style={styles.rowMeta}>
-          {task.dueAt ? `Prazo ${formatDateLabel(task.dueAt)}` : 'Sem prazo definido'} · {task.acceptsResponse ? 'aceita resposta' : 'sem resposta'}
+          {task.completedAt
+            ? `Concluída em ${formatDateLabel(task.completedAt)}`
+            : task.dueAt
+            ? `Prazo ${formatDateLabel(task.dueAt)}`
+            : 'Sem prazo definido'} · {task.acceptsResponse ? 'aceita resposta' : 'sem resposta'}
         </Text>
+        {completed && task.responseText ? (
+          <View style={styles.responseBox}>
+            <Text style={styles.responseLabel}>Sua resposta</Text>
+            <Text style={styles.responseText}>{task.responseText}</Text>
+          </View>
+        ) : null}
+        {!completed && task.acceptsResponse ? (
+          <Field
+            label="Resposta opcional"
+            value={responseText}
+            multiline
+            maxLength={2000}
+            autoCapitalize="sentences"
+            editable={!saving}
+            style={styles.responseInput}
+            onChangeText={onChangeResponse}
+            placeholder="Escreva uma observação breve, se quiser."
+          />
+        ) : null}
+        {!completed ? (
+          <PrimaryButton
+            label={task.acceptsResponse ? 'Enviar e concluir' : 'Marcar como feita'}
+            icon="checkmark-circle-outline"
+            loading={saving}
+            onPress={onComplete}
+          />
+        ) : null}
       </View>
     </View>
   );
@@ -410,6 +507,37 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 14,
     fontWeight: '600',
+  },
+  completedPill: {
+    backgroundColor: CARE_COLORS.primarySoft,
+  },
+  completedStatusText: {
+    color: CARE_COLORS.primary,
+  },
+  responseInput: {
+    minHeight: 74,
+    textAlignVertical: 'top',
+  },
+  responseBox: {
+    gap: 4,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
+    backgroundColor: CARE_COLORS.surfaceSage,
+  },
+  responseLabel: {
+    color: CARE_COLORS.sage,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  responseText: {
+    color: CARE_COLORS.ink,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '400',
   },
   materialPill: {
     backgroundColor: CARE_COLORS.amberSoft,

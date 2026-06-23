@@ -119,10 +119,11 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Tela clínica mostra prévia do que o paciente verá antes de compartilhar.',
       'Compartilhamento consulta consentimento ativo antes de liberar conteúdo.',
       'Área Meu acompanhamento lista apenas tarefas e materiais já compartilhados.',
+      'Paciente pode concluir tarefa compartilhada e enviar resposta opcional.',
     ],
     missing: [
-      'Resposta/conclusão de tarefas pelo portal.',
       'Consentimento direto pelo portal do paciente.',
+      'Edição/reabertura de tarefa após revisão da psicóloga.',
     ],
   },
   {

@@ -44,6 +44,10 @@ public static class ClinicalEndpoints
         app.MapGet("/api/patients/me/care", GetPatientCarePortalAsync)
             .WithTags("Clinical")
             .RequireAuthorization();
+        app.MapPost("/api/patients/me/tasks/{taskId:guid}/complete", CompletePatientTaskAsync)
+            .WithTags("Clinical")
+            .RequireAuthorization()
+            .RequireRateLimiting("Sensitive");
 
         return app;
     }
@@ -66,6 +70,22 @@ public static class ClinicalEndpoints
     {
         return await ExecuteAsync(
             () => clinicalService.GetPatientCarePortalAsync(currentUser.UserIdOrThrow(), cancellationToken),
+            Results.Ok);
+    }
+
+    private static async Task<IResult> CompletePatientTaskAsync(
+        Guid taskId,
+        CompletePatientTaskRequest request,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.CompletePatientTaskAsync(
+                currentUser.UserIdOrThrow(),
+                taskId,
+                request,
+                cancellationToken),
             Results.Ok);
     }
 

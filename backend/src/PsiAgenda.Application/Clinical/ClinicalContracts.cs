@@ -129,6 +129,8 @@ public sealed record PatientTaskDto(
     DateTimeOffset? DueAt,
     string Status,
     bool AcceptsResponse,
+    string? ResponseText,
+    DateTimeOffset? ResponseSubmittedAt,
     DateTimeOffset? SharedAt,
     DateTimeOffset? CompletedAt,
     DateTimeOffset CreatedAt,
@@ -184,6 +186,9 @@ public sealed record CreatePatientTaskRequest(
     DateTimeOffset? DueAt,
     bool AcceptsResponse);
 
+public sealed record CompletePatientTaskRequest(
+    string? ResponseText);
+
 public sealed record CreateSharedMaterialRequest(
     string MaterialType,
     string Title,
@@ -194,6 +199,7 @@ public interface IClinicalService
 {
     Task<ClinicalWorkspaceDto> GetAppointmentWorkspaceAsync(Guid professionalUserId, Guid appointmentId, CancellationToken cancellationToken);
     Task<PatientCarePortalDto> GetPatientCarePortalAsync(Guid patientUserId, CancellationToken cancellationToken);
+    Task<PatientTaskDto> CompletePatientTaskAsync(Guid patientUserId, Guid taskId, CompletePatientTaskRequest request, CancellationToken cancellationToken);
     Task<ClinicalDraftDto> CreateAppointmentDraftAsync(Guid professionalUserId, Guid appointmentId, CreateClinicalDraftRequest request, CancellationToken cancellationToken);
     Task<ClinicalDraftDto> CreateRecordRectificationDraftAsync(Guid professionalUserId, Guid recordId, CancellationToken cancellationToken);
     Task<IReadOnlyList<AppliedClinicalTagDto>> ApplyAppointmentTagsAsync(Guid professionalUserId, Guid appointmentId, ApplyClinicalTagsRequest request, CancellationToken cancellationToken);

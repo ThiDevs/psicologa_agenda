@@ -13,6 +13,8 @@ public sealed class PatientTask
     public DateTimeOffset? DueAt { get; set; }
     public required string Status { get; set; }
     public bool AcceptsResponse { get; set; }
+    public string? ResponseText { get; set; }
+    public DateTimeOffset? ResponseSubmittedAt { get; set; }
     public DateTimeOffset? SharedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

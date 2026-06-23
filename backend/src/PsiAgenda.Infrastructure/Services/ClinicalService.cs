@@ -150,14 +150,15 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             .AsNoTracking()
             .Where(task =>
                 task.PatientId == patientUserId &&
-                task.Status == "shared" &&
+                (task.Status == "shared" || task.Status == "completed") &&
                 dbContext.PatientConsents.Any(consent =>
                     consent.PatientId == task.PatientId &&
                     consent.ProfessionalId == task.ProfessionalId &&
                     consent.ConsentType == "portal" &&
                     consent.Status == "granted" &&
                     (consent.ExpiresAt == null || consent.ExpiresAt > now)))
-            .OrderBy(task => task.DueAt == null)
+            .OrderBy(task => task.Status == "completed")
+            .ThenBy(task => task.DueAt == null)
             .ThenBy(task => task.DueAt)
             .ThenByDescending(task => task.CreatedAt)
             .Take(50)
@@ -210,6 +211,76 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             patientUserId,
             tasks.Select(ToDto).ToList(),
             materials.Select(ToDto).ToList());
+    }
+
+    public async Task<PatientTaskDto> CompletePatientTaskAsync(
+        Guid patientUserId,
+        Guid taskId,
+        CompletePatientTaskRequest request,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePatientUserAsync(patientUserId, cancellationToken);
+        var task = await dbContext.PatientTasks
+            .FirstOrDefaultAsync(item => item.Id == taskId && item.PatientId == patientUserId, cancellationToken);
+
+        if (task is null)
+        {
+            throw new KeyNotFoundException("Tarefa não encontrada no seu acompanhamento.");
+        }
+
+        if (task.Status != "shared")
+        {
+            throw new InvalidOperationException("Apenas tarefas abertas e compartilhadas podem ser concluídas pelo portal.");
+        }
+
+        await EnsureConsentGrantedAsync(
+            task.PatientId,
+            task.ProfessionalId,
+            "portal",
+            "Concluir tarefa exige consentimento ativo para o portal do paciente.",
+            cancellationToken);
+
+        var responseText = NormalizeOptionalText(request.ResponseText, 2000, "Resposta da tarefa");
+        if (!task.AcceptsResponse && responseText is not null)
+        {
+            throw new InvalidOperationException("Esta tarefa não aceita resposta textual.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        task.Status = "completed";
+        task.ResponseText = responseText;
+        task.ResponseSubmittedAt = responseText is null ? null : now;
+        task.CompletedAt = now;
+        task.UpdatedAt = now;
+
+        dbContext.PatientTimelineItems.Add(new PatientTimelineItem
+        {
+            AppointmentId = task.AppointmentId,
+            PatientId = task.PatientId,
+            ProfessionalId = task.ProfessionalId,
+            SpaceId = task.SpaceId,
+            CreatedByUserId = patientUserId,
+            SourceType = "task_response",
+            SourceId = task.Id,
+            Title = responseText is null ? "Tarefa concluída pelo paciente" : "Resposta de tarefa recebida",
+            Summary = responseText is null
+                ? "Paciente marcou a tarefa como concluída no portal."
+                : "Paciente concluiu a tarefa e enviou uma resposta para revisão da psicóloga.",
+            Layer = "memoria",
+            OccurredAt = now,
+            CreatedAt = now
+        });
+        await AddClinicalAuditAsync(
+            patientUserId,
+            task.SpaceId,
+            "patient.task.completed",
+            nameof(PatientTask),
+            task.Id,
+            cancellationToken);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(task);
     }
 
     public async Task<ClinicalDraftDto> CreateAppointmentDraftAsync(
@@ -1694,6 +1765,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             task.DueAt,
             task.Status,
             task.AcceptsResponse,
+            task.ResponseText,
+            task.ResponseSubmittedAt,
             task.SharedAt,
             task.CompletedAt,
             task.CreatedAt,

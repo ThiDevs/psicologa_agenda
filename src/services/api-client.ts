@@ -391,6 +391,8 @@ export type ApiPatientTask = {
   dueAt?: string | null;
   status: ApiShareableStatus | string;
   acceptsResponse: boolean;
+  responseText?: string | null;
+  responseSubmittedAt?: string | null;
   sharedAt?: string | null;
   completedAt?: string | null;
   createdAt: string;
@@ -933,6 +935,16 @@ export async function getCustomerAppointmentDetails(appointmentId: string) {
 
 export async function getPatientCarePortal() {
   return request<ApiPatientCarePortal>('/patients/me/care', { authenticated: true });
+}
+
+export async function completePatientCareTask(taskId: string, input: {
+  responseText?: string | null;
+}) {
+  return request<ApiPatientTask>(`/patients/me/tasks/${taskId}/complete`, {
+    method: 'POST',
+    authenticated: true,
+    body: input,
+  });
 }
 
 export async function cancelCustomerAppointment(appointmentId: string, reason?: string) {

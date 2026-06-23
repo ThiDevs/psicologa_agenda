@@ -129,6 +129,7 @@ export function ClinicalIntegrationScreen() {
         <Bullet text="Plano terapêutico e consentimentos já persistem; briefing segue como interface de preparação." />
         <Bullet text="Tarefas e materiais já nascem privados e podem ser compartilhados ou recolhidos com consentimento." />
         <Bullet text="Paciente já vê em Meu acompanhamento apenas tarefas e materiais compartilhados." />
+        <Bullet text="Paciente pode concluir tarefas compartilhadas com resposta opcional para revisão da psicóloga." />
         <Bullet text="Documento de especificação acompanha o status por módulo." />
       </View>
 
@@ -1092,7 +1093,17 @@ export function ClinicalPatientWorkspaceScreen() {
                   </View>
                 </View>
                 {task.description ? <Text style={styles.cardText}>{task.description}</Text> : null}
+                {task.responseText ? (
+                  <View style={styles.shareableResponseBox}>
+                    <Text style={styles.shareablePreviewLabel}>Resposta do paciente</Text>
+                    <Text selectable style={styles.cardText}>{task.responseText}</Text>
+                    {task.responseSubmittedAt ? (
+                      <Text style={styles.mutedText}>{formatDateTimeLabel(task.responseSubmittedAt)}</Text>
+                    ) : null}
+                  </View>
+                ) : null}
                 <Text style={styles.mutedText}>
+                  {task.completedAt ? `Concluída em ${formatDateTimeLabel(task.completedAt)} · ` : ''}
                   {task.dueAt ? `Prazo ${formatDateTimeLabel(task.dueAt)}` : 'Sem prazo'} · {task.acceptsResponse ? 'aceita resposta' : 'não aceita resposta'}
                 </Text>
                 <View style={styles.shareableActions}>
@@ -1912,6 +1923,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     fontWeight: '900',
+  },
+  shareableResponseBox: {
+    gap: 6,
+    padding: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(243, 201, 105, 0.24)',
+    backgroundColor: 'rgba(243, 201, 105, 0.08)',
   },
   shareableDivider: {
     height: 1,

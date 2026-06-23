@@ -807,6 +807,8 @@ public sealed class PsiAgendaDbContext(DbContextOptions<PsiAgendaDbContext> opti
             entity.Property(task => task.DueAt).HasColumnName("due_at");
             entity.Property(task => task.Status).HasColumnName("status").HasMaxLength(40).IsRequired();
             entity.Property(task => task.AcceptsResponse).HasColumnName("accepts_response");
+            entity.Property(task => task.ResponseText).HasColumnName("response_text").HasMaxLength(2000);
+            entity.Property(task => task.ResponseSubmittedAt).HasColumnName("response_submitted_at");
             entity.Property(task => task.SharedAt).HasColumnName("shared_at");
             entity.Property(task => task.CompletedAt).HasColumnName("completed_at");
             entity.Property(task => task.CreatedAt).HasColumnName("created_at");
