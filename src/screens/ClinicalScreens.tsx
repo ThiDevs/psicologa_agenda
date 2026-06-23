@@ -36,6 +36,7 @@ import {
   getClinicalPatientTimeline,
   getClinicalTimelineItemDetail,
   getProfessionalAppointmentDetails,
+  requestClinicalSensitiveConsents,
   reviewClinicalAlert,
   shareClinicalMaterial,
   shareClinicalCheckIn,
@@ -585,6 +586,31 @@ export function ClinicalPatientWorkspaceScreen() {
       setWorkspace(updated);
       hydrateFromWorkspace(updated);
       setClinicalMessage('Consentimento atualizado no backend clínico.');
+    } catch (error) {
+      setClinicalMessage(getApiErrorMessage(error));
+    } finally {
+      setSavingConsent(null);
+    }
+  }
+
+  async function requestSensitiveConsent(consentType: string) {
+    if (!appointmentId) {
+      setClinicalMessage('Abra a tela a partir de um atendimento para solicitar consentimento sensível.');
+      return;
+    }
+
+    setSavingConsent(consentType);
+    setClinicalMessage(null);
+
+    try {
+      await requestClinicalSensitiveConsents(appointmentId, {
+        consentTypes: [consentType],
+        termsVersion: 'clinical-sensitive-consent-v1',
+      });
+      const updated = await getClinicalAppointmentWorkspace(appointmentId);
+      setWorkspace(updated);
+      hydrateFromWorkspace(updated);
+      setClinicalMessage('Solicitação enviada para o portal do paciente. O recurso segue bloqueado até aceite explícito.');
     } catch (error) {
       setClinicalMessage(getApiErrorMessage(error));
     } finally {
@@ -1978,19 +2004,24 @@ export function ClinicalPatientWorkspaceScreen() {
       />
       <View style={styles.card}>
         <Text style={styles.cardText}>
-          Registre apenas consentimentos documentados. IA, gravação e transcrição continuam bloqueadas
-          enquanto não houver status liberado.
+          Registre consentimentos não sensíveis documentados. IA, gravação e transcrição devem ser
+          solicitadas ao paciente e seguem bloqueadas até aceite explícito no portal.
         </Text>
-        {consentRows.map((consent) => (
-          <ConsentRow
-            key={consent.id}
-            consent={consent}
-            disabled={!appointmentId || Boolean(savingConsent)}
-            saving={savingConsent === consent.id}
-            onGrant={() => updateConsent(consent.id, 'granted')}
-            onRevoke={() => updateConsent(consent.id, 'revoked')}
-          />
-        ))}
+        {consentRows.map((consent) => {
+          const sensitive = isSensitiveConsentType(consent.id);
+
+          return (
+            <ConsentRow
+              key={consent.id}
+              consent={consent}
+              sensitive={sensitive}
+              disabled={!appointmentId || Boolean(savingConsent)}
+              saving={savingConsent === consent.id}
+              onGrant={() => sensitive ? requestSensitiveConsent(consent.id) : updateConsent(consent.id, 'granted')}
+              onRevoke={() => updateConsent(consent.id, 'revoked')}
+            />
+          );
+        })}
       </View>
     </ScreenScaffold>
   );
@@ -2392,20 +2423,25 @@ function ClinicalPermissionRow({ permission }: { permission: ApiClinicalPermissi
 
 function ConsentRow({
   consent,
+  sensitive,
   disabled,
   saving,
   onGrant,
   onRevoke,
 }: {
   consent: ConsentRowModel;
+  sensitive?: boolean;
   disabled?: boolean;
   saving?: boolean;
   onGrant: () => void;
   onRevoke: () => void;
 }) {
   const isGranted = consent.status === 'granted';
+  const isPending = consent.status === 'pending';
   const statusLabel = consentStatusLabel(consent.status);
   const statusDate = consent.grantedAt ?? consent.revokedAt ?? consent.expiresAt;
+  const primaryDisabled = disabled || isGranted || (sensitive && isPending);
+  const primaryLabel = sensitive ? 'Solicitar' : 'Conceder';
 
   return (
     <View style={styles.consentRow}>
@@ -2426,21 +2462,23 @@ function ConsentRow({
           <Text style={styles.consentMeta}>
             {statusDate ? `${formatDateTimeLabel(statusDate)} · ` : ''}
             Termos {consent.termsVersion}
+            {sensitive ? ' · aceite pelo paciente no portal' : ''}
           </Text>
         </View>
       </View>
       <View style={styles.consentActions}>
         <Pressable
           accessibilityRole="button"
-          disabled={disabled || isGranted}
+          accessibilityLabel={`${primaryLabel} ${consent.label}`}
+          disabled={primaryDisabled}
           onPress={onGrant}
           style={({ pressed }) => [
             styles.consentButton,
             styles.consentButtonPrimary,
-            (disabled || isGranted) && styles.consentButtonDisabled,
+            primaryDisabled && styles.consentButtonDisabled,
             pressed && styles.pressed,
           ]}>
-          <Text style={styles.consentButtonTextPrimary}>{saving ? 'Salvando' : 'Conceder'}</Text>
+          <Text style={styles.consentButtonTextPrimary}>{saving ? 'Salvando' : primaryLabel}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -2966,6 +3004,10 @@ function buildConsentRows(consents?: ApiPatientConsent[]): ConsentRowModel[] {
 
 function consentTypeLabel(consentType: string) {
   return clinicalConsentPreview.find((definition) => definition.id === consentType)?.label ?? consentType;
+}
+
+function isSensitiveConsentType(consentType: string) {
+  return consentType === 'ai_analysis' || consentType === 'recording' || consentType === 'transcription';
 }
 
 function consentStatusLabel(status: ApiPatientConsentStatus) {

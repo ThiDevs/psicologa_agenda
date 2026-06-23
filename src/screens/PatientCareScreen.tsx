@@ -18,6 +18,7 @@ import {
   getPatientCarePortal,
   respondPatientCheckIn,
   updatePatientPortalConsent,
+  updatePatientSensitiveConsent,
   type ApiPatientConsentStatus,
   type ApiPatientCarePortal,
   type ApiPatientCheckIn,
@@ -102,7 +103,11 @@ export function PatientCarePortalScreen() {
     }
   }
 
-  async function updateConsent(consent: ApiPatientPortalConsent, status: ApiPatientConsentStatus) {
+  async function updateConsent(
+    consent: ApiPatientPortalConsent,
+    status: ApiPatientConsentStatus,
+    sensitive = false,
+  ) {
     const key = consentKey(consent);
 
     setSavingConsentKey(key);
@@ -110,15 +115,21 @@ export function PatientCarePortalScreen() {
     setErrorMessage(null);
 
     try {
-      await updatePatientPortalConsent(consent.professionalId, consent.consentType, {
+      const update = sensitive ? updatePatientSensitiveConsent : updatePatientPortalConsent;
+
+      await update(consent.professionalId, consent.consentType, {
         status,
         termsVersion: consent.termsVersion || 'clinical-consent-v1',
       });
       await loadPortal(false);
       setPortalMessageTone('success');
-      setPortalMessage(status === 'granted'
-        ? 'Consentimento concedido para próximos usos.'
-        : 'Consentimento revogado para próximos usos.');
+      let successMessage = 'Consentimento revogado para próximos usos.';
+      if (status === 'granted') {
+        successMessage = 'Consentimento concedido para próximos usos.';
+      } else if (sensitive) {
+        successMessage = 'Consentimento sensível recusado para próximos usos.';
+      }
+      setPortalMessage(successMessage);
     } catch (error) {
       setPortalMessageTone('warning');
       setPortalMessage(getApiErrorMessage(error));
@@ -168,9 +179,11 @@ export function PatientCarePortalScreen() {
   const materials = portal?.materials ?? [];
   const checkIns = portal?.checkIns ?? [];
   const consents = portal?.consents ?? [];
+  const sensitiveConsents = portal?.sensitiveConsents ?? [];
   const openTasks = tasks.filter((task) => task.status !== 'completed');
   const openCheckIns = checkIns.filter((checkIn) => checkIn.status !== 'answered');
   const grantedConsentCount = consents.filter((consent) => consent.status === 'granted').length;
+  const pendingSensitiveConsentCount = sensitiveConsents.filter((consent) => consent.status === 'pending').length;
 
   return (
     <ScreenScaffold>
@@ -331,6 +344,33 @@ export function PatientCarePortalScreen() {
                 icon="shield-checkmark-outline"
                 title="Sem consentimentos"
                 text="Quando houver um vínculo de atendimento, seus consentimentos aparecerão aqui."
+              />
+            )}
+          </View>
+
+          <SectionTitle
+            title="Consentimentos sensíveis"
+            actionLabel={sensitiveConsents.length ? `${pendingSensitiveConsentCount} pendentes` : 'nenhum pedido'}
+          />
+          <View style={styles.card}>
+            {sensitiveConsents.length ? (
+              sensitiveConsents.map((consent, index) => (
+                <PatientConsentRow
+                  key={consentKey(consent)}
+                  consent={consent}
+                  isFirst={index === 0}
+                  saving={savingConsentKey === consentKey(consent)}
+                  disabled={savingConsentKey !== null}
+                  sensitive
+                  onGrant={() => updateConsent(consent, 'granted', true)}
+                  onRevoke={() => updateConsent(consent, 'revoked', true)}
+                />
+              ))
+            ) : (
+              <EmptyState
+                icon="lock-closed-outline"
+                title="Sem pedidos sensíveis"
+                text="Pedidos de IA, gravação ou transcrição aparecerão aqui para sua decisão explícita."
               />
             )}
           </View>
@@ -597,6 +637,7 @@ function PatientConsentRow({
   isFirst,
   saving,
   disabled,
+  sensitive,
   onGrant,
   onRevoke,
 }: {
@@ -604,6 +645,7 @@ function PatientConsentRow({
   isFirst: boolean;
   saving: boolean;
   disabled: boolean;
+  sensitive?: boolean;
   onGrant: () => void;
   onRevoke: () => void;
 }) {
@@ -611,6 +653,7 @@ function PatientConsentRow({
   const revoked = consent.status === 'revoked';
   const statusColor = consentStatusColor(consent.status);
   const statusDate = consent.grantedAt ?? consent.revokedAt ?? consent.updatedAt;
+  const revokeLabel = sensitive && !granted ? 'Recusar' : 'Revogar';
 
   return (
     <View style={[styles.listRow, isFirst && styles.listRowFirst]}>
@@ -649,7 +692,7 @@ function PatientConsentRow({
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Revogar ${consentTypeLabel(consent.consentType)}`}
+            accessibilityLabel={`${revokeLabel} ${consentTypeLabel(consent.consentType)}`}
             disabled={disabled || revoked}
             onPress={onRevoke}
             style={({ pressed }) => [
@@ -659,7 +702,7 @@ function PatientConsentRow({
               pressed && styles.pressed,
             ]}>
             <Ionicons name="close-outline" size={14} color={CARE_COLORS.primary} />
-            <Text style={styles.consentButtonText}>Revogar</Text>
+            <Text style={styles.consentButtonText}>{revokeLabel}</Text>
           </Pressable>
         </View>
       </View>
@@ -705,6 +748,9 @@ function consentTypeLabel(consentType: string) {
     materials: 'Materiais compartilhados',
     checkins: 'Check-ins',
     notifications: 'Notificações',
+    ai_analysis: 'Análise por IA',
+    recording: 'Gravação',
+    transcription: 'Transcrição',
   };
 
   return labels[consentType] ?? consentType;
@@ -716,6 +762,9 @@ function consentTypeDescription(consentType: string) {
     materials: 'Permite receber materiais escolhidos pela psicóloga.',
     checkins: 'Permite responder check-ins de acompanhamento quando forem ativados.',
     notifications: 'Permite receber avisos relacionados ao seu cuidado.',
+    ai_analysis: 'Permite usar IA apenas como apoio a rascunhos e sugestões revisadas pela psicóloga.',
+    recording: 'Permite gravar sessão ou chamada quando esse recurso estiver disponível.',
+    transcription: 'Permite transcrever áudio para apoio clínico revisado pela psicóloga.',
   };
 
   return descriptions[consentType] ?? 'Consentimento granular do seu acompanhamento.';

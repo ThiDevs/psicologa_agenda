@@ -549,6 +549,7 @@ export type ApiPatientCarePortal = {
   materials: ApiSharedMaterial[];
   checkIns: ApiPatientCheckIn[];
   consents: ApiPatientPortalConsent[];
+  sensitiveConsents: ApiPatientPortalConsent[];
 };
 
 export type ApiStarterSetupResponse = {
@@ -1256,12 +1257,35 @@ export async function updateClinicalAppointmentConsent(appointmentId: string, co
   });
 }
 
+export async function requestClinicalSensitiveConsents(appointmentId: string, input: {
+  consentTypes: string[];
+  termsVersion?: string | null;
+}) {
+  return request<ApiPatientConsent[]>(`/clinical/appointments/${appointmentId}/sensitive-consents/request`, {
+    method: 'POST',
+    authenticated: true,
+    body: input,
+  });
+}
+
 export async function updatePatientPortalConsent(professionalId: string, consentType: string, input: {
   status: ApiPatientConsentStatus;
   termsVersion?: string | null;
   expiresAt?: string | null;
 }) {
   return request<ApiPatientPortalConsent>(`/patients/me/consents/${professionalId}/${consentType}`, {
+    method: 'POST',
+    authenticated: true,
+    body: input,
+  });
+}
+
+export async function updatePatientSensitiveConsent(professionalId: string, consentType: string, input: {
+  status: ApiPatientConsentStatus;
+  termsVersion?: string | null;
+  expiresAt?: string | null;
+}) {
+  return request<ApiPatientPortalConsent>(`/patients/me/sensitive-consents/${professionalId}/${consentType}`, {
     method: 'POST',
     authenticated: true,
     body: input,

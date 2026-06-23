@@ -29,6 +29,8 @@ public static class ClinicalEndpoints
             .RequireRateLimiting("Sensitive");
         group.MapPost("/appointments/{appointmentId:guid}/consents/{consentType}", UpdateAppointmentConsentAsync)
             .RequireRateLimiting("Sensitive");
+        group.MapPost("/appointments/{appointmentId:guid}/sensitive-consents/request", RequestAppointmentSensitiveConsentsAsync)
+            .RequireRateLimiting("Sensitive");
         group.MapPost("/appointments/{appointmentId:guid}/treatment-plan", UpdateAppointmentTreatmentPlanAsync)
             .RequireRateLimiting("Sensitive");
         group.MapPost("/appointments/{appointmentId:guid}/tasks", CreateAppointmentTaskAsync)
@@ -76,6 +78,10 @@ public static class ClinicalEndpoints
             .RequireAuthorization()
             .RequireRateLimiting("Sensitive");
         app.MapPost("/api/patients/me/consents/{professionalId:guid}/{consentType}", UpdatePatientPortalConsentAsync)
+            .WithTags("Clinical")
+            .RequireAuthorization()
+            .RequireRateLimiting("Sensitive");
+        app.MapPost("/api/patients/me/sensitive-consents/{professionalId:guid}/{consentType}", UpdatePatientSensitiveConsentAsync)
             .WithTags("Clinical")
             .RequireAuthorization()
             .RequireRateLimiting("Sensitive");
@@ -235,6 +241,24 @@ public static class ClinicalEndpoints
             Results.Ok);
     }
 
+    private static async Task<IResult> UpdatePatientSensitiveConsentAsync(
+        Guid professionalId,
+        string consentType,
+        UpdatePatientConsentRequest request,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.UpdatePatientSensitiveConsentAsync(
+                currentUser.UserIdOrThrow(),
+                professionalId,
+                consentType,
+                request,
+                cancellationToken),
+            Results.Ok);
+    }
+
     private static async Task<IResult> CreateAppointmentDraftAsync(
         Guid appointmentId,
         CreateClinicalDraftRequest request,
@@ -317,6 +341,22 @@ public static class ClinicalEndpoints
                 currentUser.UserIdOrThrow(),
                 appointmentId,
                 consentType,
+                request,
+                cancellationToken),
+            Results.Ok);
+    }
+
+    private static async Task<IResult> RequestAppointmentSensitiveConsentsAsync(
+        Guid appointmentId,
+        RequestSensitiveConsentRequest request,
+        ICurrentUserService currentUser,
+        IClinicalService clinicalService,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteAsync(
+            () => clinicalService.RequestAppointmentSensitiveConsentsAsync(
+                currentUser.UserIdOrThrow(),
+                appointmentId,
                 request,
                 cancellationToken),
             Results.Ok);

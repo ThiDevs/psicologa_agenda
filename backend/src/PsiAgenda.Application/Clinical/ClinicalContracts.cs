@@ -36,7 +36,8 @@ public sealed record PatientCarePortalDto(
     IReadOnlyList<PatientTaskDto> Tasks,
     IReadOnlyList<SharedMaterialDto> Materials,
     IReadOnlyList<PatientCheckInDto> CheckIns,
-    IReadOnlyList<PatientPortalConsentDto> Consents);
+    IReadOnlyList<PatientPortalConsentDto> Consents,
+    IReadOnlyList<PatientPortalConsentDto> SensitiveConsents);
 
 public sealed record ClinicalSessionDto(
     Guid Id,
@@ -275,6 +276,10 @@ public sealed record UpdatePatientConsentRequest(
     string? TermsVersion,
     DateTimeOffset? ExpiresAt);
 
+public sealed record RequestSensitiveConsentRequest(
+    IReadOnlyList<string> ConsentTypes,
+    string? TermsVersion);
+
 public sealed record UpdateTreatmentPlanRequest(
     string Status,
     string? CaseFormulation,
@@ -340,11 +345,13 @@ public interface IClinicalService
     Task<PatientTaskDto> CompletePatientTaskAsync(Guid patientUserId, Guid taskId, CompletePatientTaskRequest request, CancellationToken cancellationToken);
     Task<PatientCheckInDto> RespondPatientCheckInAsync(Guid patientUserId, Guid checkInId, RespondPatientCheckInRequest request, CancellationToken cancellationToken);
     Task<PatientPortalConsentDto> UpdatePatientPortalConsentAsync(Guid patientUserId, Guid professionalId, string consentType, UpdatePatientConsentRequest request, CancellationToken cancellationToken);
+    Task<PatientPortalConsentDto> UpdatePatientSensitiveConsentAsync(Guid patientUserId, Guid professionalId, string consentType, UpdatePatientConsentRequest request, CancellationToken cancellationToken);
     Task<ClinicalDraftDto> CreateAppointmentDraftAsync(Guid professionalUserId, Guid appointmentId, CreateClinicalDraftRequest request, CancellationToken cancellationToken);
     Task<ClinicalDraftDto> CreateRecordRectificationDraftAsync(Guid professionalUserId, Guid recordId, CancellationToken cancellationToken);
     Task<IReadOnlyList<AppliedClinicalTagDto>> ApplyAppointmentTagsAsync(Guid professionalUserId, Guid appointmentId, ApplyClinicalTagsRequest request, CancellationToken cancellationToken);
     Task<ClinicalRecordDto> ApproveDraftAsync(Guid professionalUserId, Guid draftId, ApproveClinicalDraftRequest request, CancellationToken cancellationToken);
     Task<PatientConsentDto> UpdateAppointmentConsentAsync(Guid professionalUserId, Guid appointmentId, string consentType, UpdatePatientConsentRequest request, CancellationToken cancellationToken);
+    Task<IReadOnlyList<PatientConsentDto>> RequestAppointmentSensitiveConsentsAsync(Guid professionalUserId, Guid appointmentId, RequestSensitiveConsentRequest request, CancellationToken cancellationToken);
     Task<TreatmentPlanDto> UpdateAppointmentTreatmentPlanAsync(Guid professionalUserId, Guid appointmentId, UpdateTreatmentPlanRequest request, CancellationToken cancellationToken);
     Task<PatientTaskDto> CreateAppointmentTaskAsync(Guid professionalUserId, Guid appointmentId, CreatePatientTaskRequest request, CancellationToken cancellationToken);
     Task<PatientTaskDto> ShareTaskAsync(Guid professionalUserId, Guid taskId, CancellationToken cancellationToken);
