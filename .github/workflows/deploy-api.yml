@@ -15,6 +15,12 @@ jobs:
 
 
 
+      - name: Send Telegram Start Notification
+        run: |
+          curl -s -X POST https://api.telegram.org/bot781330833:AAEyaTY2MiIq6411OmWJjARt0Gl61kk8jBQ/sendMessage \
+          -H "Content-Type: application/json" \
+          -d "{\"chat_id\": \"714716311\", \"text\": \"🚀 Iniciando build do projeto: psi-agenda (via GitHub Actions)\"}"
+
       - name: Execute Local Deploy Script
         run: |
           set -euo pipefail
@@ -23,3 +29,10 @@ jobs:
           source .env.prod
           set +a
           bash ./deploy-prod.sh
+
+      - name: Send Telegram End Notification
+        run: |
+          HEALTH=$(curl -s https://api.felicio.app/api/health || echo "Falha ao acessar /health")
+          curl -s -X POST https://api.telegram.org/bot781330833:AAEyaTY2MiIq6411OmWJjARt0Gl61kk8jBQ/sendMessage \
+          -H "Content-Type: application/json" \
+          -d "{\"chat_id\": \"714716311\", \"text\": \"✅ Build concluída para o projeto: psi-agenda (via GitHub Actions)\n\nHealth: $HEALTH\"}"
