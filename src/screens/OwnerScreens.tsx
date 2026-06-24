@@ -1,8 +1,8 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, type ViewStyle, View } from 'react-native';
 import Animated, { FadeInUp, LinearTransition } from 'react-native-reanimated';
 
 import {
@@ -520,6 +520,12 @@ export function OwnerOnboardingChecklistScreen() {
 
 export function OwnerDashboardScreen() {
   const router = useRouter();
+  const isWeb = Platform.OS === 'web';
+  const { width: viewportWidth } = useWindowDimensions();
+  const compactLayout = !isWeb || viewportWidth < 900;
+  const compactWebContentStyle = isWeb && compactLayout
+    ? ({ width: 'calc(100vw - 32px)', maxWidth: 430 } as unknown as ViewStyle)
+    : undefined;
   const {
     sessionSource,
     user,
@@ -549,6 +555,7 @@ export function OwnerDashboardScreen() {
   const spaceServices = services.filter((service) => service.spaceId === ownerSpace?.id);
   const spaceProfessionals = professionals.filter((professional) => professional.spaceId === ownerSpace?.id);
   const spaceAppointments = appointments.filter((appointment) => appointment.spaceId === ownerSpace?.id);
+  const patientsCount = new Set(spaceAppointments.map((appointment) => appointment.customerId)).size;
   const todaysRevenue = spaceAppointments
     .filter((appointment) => !['cancelled', 'expired', 'rejected'].includes(appointment.status))
     .reduce((total, appointment) => total + appointment.total, 0);
@@ -569,26 +576,33 @@ export function OwnerDashboardScreen() {
       todaysRevenue,
     ],
   );
-  const completedChecklistCount = checklist.filter((item) => item.complete).length;
-  const setupProgress = checklist.length > 0
-    ? Math.round((completedChecklistCount / checklist.length) * 100)
+  const incompleteChecklist = checklist.filter((item) => !item.complete);
+  const nextChecklistItem = incompleteChecklist[0] ?? checklist[0] ?? null;
+  const checklistPreview = getDefaultOwnerChecklistPreview(ownerSpace != null).map((previewItem) => {
+    const sourceItem = checklist.find((item) => item.id === previewItem.id);
+
+    return sourceItem ? { ...previewItem, complete: sourceItem.complete } : previewItem;
+  });
+  const completedChecklistCount = checklistPreview.filter((item) => item.complete).length;
+  const setupProgress = checklistPreview.length > 0
+    ? Math.round((completedChecklistCount / checklistPreview.length) * 100)
     : checklistDone
       ? 100
       : 0;
-  const incompleteChecklist = checklist.filter((item) => !item.complete);
-  const nextChecklistItem = incompleteChecklist[0] ?? checklist[0] ?? null;
-  const checklistPreview = ownerSpace && checklist.length > 0
-    ? checklist.slice(0, 4)
-    : getDefaultOwnerChecklistPreview(ownerSpace != null);
   const upcomingAppointments = [...spaceAppointments]
     .filter((appointment) => ['confirmed', 'pending_payment', 'pending_confirmation'].includes(appointment.status))
     .sort((first, second) => first.startDateTime.localeCompare(second.startDateTime))
     .slice(0, 3);
-  const firstName = user?.name?.split(' ').filter(Boolean)[0] ?? 'psicóloga';
-  const selectedSpaceTitle = ownerSpace?.name ?? 'Consultório ainda não criado';
-  const selectedSpaceMeta = ownerSpace
-    ? `${ownerSpace.published ? 'Publicado' : 'Rascunho'} • ${ownerSpace.neighborhood || ownerSpace.city || 'Endereço em ajuste'}`
-    : 'Crie o primeiro consultório para liberar agenda, serviços e equipe.';
+  const ownerSetupTitle = ownerSpace && checklistDone
+    ? 'Seu consultório está pronto para atender'
+    : 'Meu consultório ainda não está pronto';
+  const ownerSetupText = ownerSpace
+    ? compactLayout
+      ? 'Revise horários, valores, equipe e recursos.'
+      : 'Revise horários, valores, equipe e recursos antes de ampliar sua agenda clínica.'
+    : compactLayout
+      ? 'Finalize a configuração para começar a atender.'
+      : 'Finalize a configuração para começar a atender e organizar sua prática clínica.';
   const primarySetupLabel = !ownerSpace ? 'Criar consultório' : checklistDone ? 'Abrir agenda' : 'Continuar checklist';
   const primarySetupIcon = !ownerSpace
     ? 'add-circle-outline'
@@ -685,51 +699,89 @@ export function OwnerDashboardScreen() {
   }, [ownerSpace?.id, sessionSource, syncSpacesFromApi]);
 
   return (
-    <ScreenScaffold>
-      <Animated.View entering={FadeInUp.duration(260)} layout={LinearTransition.duration(220)} style={styles.ownerDashboardShell}>
-        <Animated.View entering={FadeInUp.delay(40).duration(260)} style={styles.ownerSidebar}>
-          <View style={styles.ownerBrand}>
-            <View style={styles.ownerBrandMark}>
-              <Text style={styles.ownerBrandGlyph}>Ψ</Text>
+    <ScreenScaffold footer={compactLayout ? <OwnerMobileTabs onNavigate={(route) => router.push(route)} /> : undefined}>
+      <Animated.View
+        entering={FadeInUp.duration(260)}
+        layout={LinearTransition.duration(220)}
+        style={[
+          styles.ownerDashboardShell,
+          compactLayout && styles.ownerDashboardShellMobile,
+          compactWebContentStyle,
+        ]}>
+        {isWeb && !compactLayout && (
+          <Animated.View entering={FadeInUp.delay(40).duration(260)} style={styles.ownerSidebar}>
+            <View style={styles.ownerBrand}>
+              <View style={styles.ownerBrandMark}>
+                <Text style={styles.ownerBrandGlyph}>Ψ</Text>
+              </View>
+              <View style={styles.ownerBrandCopy}>
+                <Text style={styles.ownerBrandTitle}>Psi Agenda</Text>
+                <Text style={styles.ownerBrandMeta}>Online</Text>
+              </View>
             </View>
-            <View style={styles.ownerBrandCopy}>
-              <Text style={styles.ownerBrandTitle}>Psi Agenda</Text>
-              <Text style={styles.ownerBrandMeta}>Consultório clínico</Text>
-            </View>
-          </View>
 
-          <View style={styles.ownerNavList}>
-            <OwnerNavItem icon="grid-outline" label="Visão geral" selected onPress={() => undefined} />
-            <OwnerNavItem icon="calendar-outline" label="Agenda clínica" onPress={() => router.push('/owner-agenda')} />
-            <OwnerNavItem icon="pricetag-outline" label="Consultas" onPress={() => router.push('/manage-services')} />
-            <OwnerNavItem icon="people-outline" label="Psicólogas" onPress={() => router.push('/manage-professionals')} />
-            <OwnerNavItem icon="settings-outline" label="Configurações" onPress={() => router.push('/space-settings')} />
-          </View>
-
-          <View style={styles.ownerSidebarFoot}>
-            <View style={styles.ownerSidebarFootIcon}>
-              <Ionicons name="shield-checkmark-outline" size={18} color={UI.success} />
+            <View style={styles.ownerNavList}>
+              <OwnerNavItem icon="home-outline" label="Painel" selected onPress={() => undefined} />
+              <OwnerNavItem icon="calendar-outline" label="Agenda" onPress={() => router.push('/owner-agenda')} />
+              <OwnerNavItem icon="sparkles-outline" label="Consultas" onPress={() => router.push('/manage-services')} />
+              <OwnerNavItem icon="people-outline" label="Pacientes" onPress={() => router.push('/owner-agenda')} />
+              <OwnerNavItem icon="list-outline" label="Tarefas clínicas" onPress={() => router.push('/clinical-integration')} />
+              <OwnerNavItem icon="shield-checkmark-outline" label="Check-ins" onPress={() => router.push('/clinical-integration')} />
+              <OwnerNavItem icon="document-lock-outline" label="Plano terapêutico" onPress={() => router.push('/clinical-integration')} />
+              <OwnerNavItem icon="file-tray-full-outline" label="Recursos" onPress={() => router.push('/clinical-integration')} />
+              <OwnerNavItem icon="cash-outline" label="Financeiro" onPress={() => router.push('/payment-settings')} />
+              <OwnerNavItem icon="mail-outline" label="Mensagens" onPress={() => router.push('/notification-settings')} />
+              <OwnerNavItem icon="bar-chart-outline" label="Relatórios" onPress={() => router.push('/owner-dashboard')} />
+              <OwnerNavItem icon="settings-outline" label="Configurações" onPress={() => router.push('/space-settings')} />
             </View>
-            <View style={styles.ownerSidebarFootCopy}>
-              <Text style={styles.ownerSidebarFootTitle}>Rotina segura</Text>
-              <Text style={styles.ownerSidebarFootText}>
-                Dados operacionais separados do conteúdo clínico privado.
-              </Text>
-            </View>
-          </View>
-        </Animated.View>
 
-        <View style={styles.ownerMain}>
-          <Animated.View entering={FadeInUp.delay(80).duration(260)} layout={LinearTransition.duration(220)} style={styles.ownerTopBar}>
-            <View style={styles.ownerTopCopy}>
-              <Text style={styles.ownerKicker}>Hoje no consultório</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Recolher menu"
+              style={({ pressed }) => [styles.ownerSidebarCollapse, pressed && styles.pressed]}>
+              <Ionicons name="chevron-back" size={16} color={UI.textMuted} />
+              <Text style={styles.ownerSidebarCollapseText}>Recolher menu</Text>
+            </Pressable>
+          </Animated.View>
+        )}
+
+        <View style={[styles.ownerMain, compactLayout && styles.ownerMainMobile]}>
+          <Animated.View
+            entering={FadeInUp.delay(80).duration(260)}
+            layout={LinearTransition.duration(220)}
+            style={[styles.ownerTopBar, compactLayout && styles.ownerTopBarMobile]}>
+            <View style={[styles.ownerTopCopy, compactLayout && styles.ownerTopCopyMobile]}>
+              {compactLayout && (
+                <View style={styles.ownerMobileBrandLine}>
+                  <View style={styles.ownerBrandMark}>
+                    <Text style={styles.ownerBrandGlyph}>Ψ</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.ownerBrandTitle}>Psi Agenda</Text>
+                    <Text style={styles.ownerBrandMeta}>Online</Text>
+                  </View>
+                </View>
+              )}
               <Text style={styles.ownerTitle}>Painel da psicóloga</Text>
-              <Text style={styles.ownerSubtitle}>
-                Olá, {firstName}. Acompanhe agenda, equipe e publicação sem misturar rascunhos clínicos ou prontuário.
-              </Text>
+              {compactLayout && (
+                <Text style={styles.ownerSubtitle}>
+                  Acompanhe agenda, equipe e configuração sem misturar prontuário ou memória clínica.
+                </Text>
+              )}
             </View>
 
-            <View style={styles.ownerTopActions}>
+            <View style={[styles.ownerTopActions, compactLayout && styles.ownerTopActionsMobile]}>
+              <View style={styles.ownerNotificationButton}>
+                <Ionicons name="notifications-outline" size={20} color={UI.text} />
+                <View style={styles.ownerNotificationBadge}>
+                  <Text style={styles.ownerNotificationBadgeText}>3</Text>
+                </View>
+              </View>
+              <View style={styles.ownerAvailabilityBadge}>
+                <View style={styles.ownerAvailabilityDot} />
+                <Text style={styles.ownerAvailabilityText}>Disponível</Text>
+              </View>
+
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Abrir menu do perfil"
@@ -744,14 +796,16 @@ export function OwnerDashboardScreen() {
                     {getInitials(user?.name ?? 'Psicóloga')}
                   </Text>
                 </View>
-                <View style={styles.ownerProfileCopy}>
-                  <Text numberOfLines={1} style={styles.ownerProfileName}>
-                    {user?.name ?? 'Psicóloga'}
-                  </Text>
-                  <Text numberOfLines={1} style={styles.ownerProfileMeta}>
-                    {professionalProfileActive ? 'Atendimento ativo' : 'Perfil administrativo'}
-                  </Text>
-                </View>
+                {!compactLayout && (
+                  <View style={styles.ownerProfileCopy}>
+                    <Text numberOfLines={1} style={styles.ownerProfileName}>
+                      {user?.name ?? 'Psicóloga'}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.ownerProfileMeta}>
+                      Psicóloga
+                    </Text>
+                  </View>
+                )}
                 <Ionicons name={profileMenuOpen ? 'chevron-up' : 'chevron-down'} size={17} color={UI.textMuted} />
               </Pressable>
             </View>
@@ -810,139 +864,173 @@ export function OwnerDashboardScreen() {
           {remoteError && (
             <InfoStrip
               icon="alert-circle-outline"
-              title="Painel em modo local"
+              title="Consulta indisponível"
               text={remoteError}
               tone="warning"
             />
           )}
 
-          <View style={styles.ownerDashboardGrid}>
-            <View style={styles.ownerPrimaryColumn}>
-              <Animated.View entering={FadeInUp.delay(120).duration(260)} layout={LinearTransition.duration(220)} style={styles.ownerActionPanel}>
-                <View style={styles.ownerActionHeader}>
-                  <View style={styles.ownerActionIcon}>
-                    <Ionicons name={ownerSpace ? 'storefront-outline' : 'medical-outline'} size={22} color={UI.primary} />
+          <View style={[styles.ownerDashboardGrid, compactLayout && styles.ownerDashboardGridMobile]}>
+            <View style={[styles.ownerPrimaryColumn, compactLayout && styles.ownerPrimaryColumnMobile]}>
+              <View style={[styles.ownerHeroRow, compactLayout && styles.ownerHeroRowMobile]}>
+                <Animated.View
+                  entering={FadeInUp.delay(120).duration(260)}
+                  layout={LinearTransition.duration(220)}
+                  style={[styles.ownerActionPanel, compactLayout && styles.ownerActionPanelMobile]}>
+                  <View style={[styles.ownerActionIntro, compactLayout && styles.ownerActionIntroMobile]}>
+                    <View style={styles.ownerActionIconLarge}>
+                      <Ionicons name={ownerSpace ? 'storefront-outline' : 'business-outline'} size={34} color={UI.primary} />
+                    </View>
+                    <View style={styles.ownerActionCopy}>
+                      <Text style={styles.ownerActionTitle}>{ownerSetupTitle}</Text>
+                      <Text style={styles.ownerActionText}>{ownerSetupText}</Text>
+                      <View style={styles.ownerActionButtonWrap}>
+                        <PrimaryButton
+                          label={primarySetupLabel}
+                          icon={primarySetupIcon}
+                          onPress={openPrimarySetup}
+                        />
+                      </View>
+                    </View>
                   </View>
-                  <View style={styles.ownerActionCopy}>
-                    <Text style={styles.ownerActionEyebrow}>
-                      {ownerSpace ? 'Consultório selecionado' : 'Primeiro passo'}
-                    </Text>
-                    <Text numberOfLines={1} style={styles.ownerActionTitle}>
-                      {selectedSpaceTitle}
-                    </Text>
-                    <Text style={styles.ownerActionText}>{selectedSpaceMeta}</Text>
-                  </View>
-                  <View style={[styles.ownerStatusPill, checklistDone && styles.ownerStatusPillReady]}>
-                    <Text style={[styles.ownerStatusPillText, checklistDone && styles.ownerStatusPillTextReady]}>
-                      {checklistDone ? 'Pronto para receber pacientes' : 'Em configuração'}
-                    </Text>
-                  </View>
-                </View>
 
-                <View style={styles.ownerProgressBlock}>
-                  <View style={styles.ownerProgressHeader}>
-                    <Text style={styles.ownerProgressTitle}>Publicação responsável</Text>
-                    <Text style={styles.ownerProgressValue}>{setupProgress}%</Text>
+                  <View style={styles.ownerProgressDivider} />
+                  <View style={[styles.ownerProgressHeader, compactLayout && styles.ownerProgressHeaderMobile]}>
+                    <Text style={styles.ownerProgressTitle}>Checklist de configuração</Text>
+                    <Text style={styles.ownerProgressValue}>
+                      {completedChecklistCount} de {checklistPreview.length} concluídos
+                    </Text>
                   </View>
                   <View style={styles.ownerProgressRail}>
                     <View style={[styles.ownerProgressFill, { width: `${setupProgress}%` }]} />
                   </View>
-                  <Text style={styles.ownerProgressText}>
-                    {checklistDone
-                      ? 'Perfil, horários e regras estão prontos para agendamentos.'
-                      : nextChecklistItem
-                        ? `Próximo ajuste: ${nextChecklistItem.label}.`
-                        : 'Crie o consultório para iniciar a configuração obrigatória.'}
-                  </Text>
-                </View>
+                </Animated.View>
 
-                <View style={styles.ownerActionFooter}>
-                  <PrimaryButton
-                    label={primarySetupLabel}
-                    icon={primarySetupIcon}
-                    onPress={openPrimarySetup}
-                  />
-                  <PrimaryButton
-                    label="Ver checklist"
-                    icon="list-outline"
-                    variant="secondary"
-                    onPress={() => router.push('/owner-onboarding-checklist')}
-                  />
-                </View>
-              </Animated.View>
+                <Animated.View
+                  entering={FadeInUp.delay(150).duration(260)}
+                  layout={LinearTransition.duration(220)}
+                  style={[styles.ownerAgendaCard, compactLayout && styles.ownerAgendaCardMobile]}>
+                  <View style={[styles.ownerCardHeader, compactLayout && styles.ownerCardHeaderMobile]}>
+                    <Text style={styles.ownerCardTitle}>Agenda clínica</Text>
+                    <View style={[styles.ownerAgendaControls, compactLayout && styles.ownerAgendaControlsMobile]}>
+                      <View style={styles.ownerSegmented}>
+                        <OwnerModeChip label="Hoje" selected />
+                        <OwnerModeChip label="Semana" />
+                        <OwnerModeChip label="Mês" />
+                      </View>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Abrir agenda"
+                        onPress={() => router.push('/owner-agenda')}
+                        style={({ pressed }) => [styles.ownerInlineAction, pressed && styles.pressed]}>
+                        <Ionicons name="calendar-outline" size={18} color={UI.primary} />
+                      </Pressable>
+                    </View>
+                  </View>
 
-              <View style={styles.ownerMetricGrid}>
-                <OwnerMetricCard icon="calendar-outline" label="Atendimentos hoje" value={String(metrics.appointmentsCount)} detail="Agenda operacional" />
-                <OwnerMetricCard icon="cash-outline" label="Receita estimada" value={formatCurrency(metrics.revenue)} detail="Sem dados clínicos" />
-                <OwnerMetricCard icon="sparkles-outline" label="Consultas ativas" value={String(metrics.servicesCount)} detail="Serviços publicados" />
-                <OwnerMetricCard icon="people-outline" label="Psicólogas" value={String(metrics.professionalsCount)} detail="Equipe vinculada" />
+                  <View style={styles.ownerAgendaBody}>
+                    {upcomingAppointments.length > 0 ? (
+                      <View style={styles.ownerAppointmentList}>
+                        {upcomingAppointments.map((appointment, index) => (
+                          <OwnerAppointmentRow
+                            key={appointment.id}
+                            appointment={appointment}
+                            services={services}
+                            professionals={professionals}
+                            isFirst={index === 0}
+                            onPress={() => router.push({ pathname: '/owner-appointment-details', params: { appointmentId: appointment.id } })}
+                          />
+                        ))}
+                      </View>
+                    ) : (
+                      <View style={styles.ownerAgendaEmpty}>
+                        <View style={styles.ownerAgendaEmptyIcon}>
+                          <Ionicons name="calendar-outline" size={30} color={UI.primary} />
+                        </View>
+                        <Text style={styles.ownerEmptyTitle}>Nenhuma consulta agendada para hoje</Text>
+                        <Text style={styles.ownerEmptyText}>Sua agenda está livre.</Text>
+                        <PrimaryButton
+                          label="Ver agenda completa"
+                          icon="calendar-outline"
+                          variant="secondary"
+                          onPress={() => router.push('/owner-agenda')}
+                        />
+                      </View>
+                    )}
+                  </View>
+                </Animated.View>
               </View>
 
-              <Animated.View entering={FadeInUp.delay(170).duration(260)} layout={LinearTransition.duration(220)} style={styles.ownerAgendaCard}>
-                <View style={styles.ownerCardHeader}>
-                  <View>
-                    <Text style={styles.ownerCardTitle}>Agenda clínica</Text>
-                    <Text style={styles.ownerCardText}>Próximos atendimentos e reservas do consultório.</Text>
-                  </View>
-                  <View style={styles.ownerSegmented}>
-                    <OwnerModeChip label="Hoje" selected />
-                    <OwnerModeChip label="Semana" />
-                    <OwnerModeChip label="Mês" />
-                  </View>
-                </View>
+              <View style={[styles.ownerMetricGrid, compactLayout && styles.ownerMetricGridMobile]}>
+                <OwnerMetricCard icon="calendar-outline" label="Atendimentos" value={String(metrics.appointmentsCount)} detail="este mês" />
+                <OwnerMetricCard icon="people-outline" label="Consultas" value={String(metrics.servicesCount)} detail="este mês" />
+                <OwnerMetricCard icon="people-circle-outline" label="Pacientes" value={String(patientsCount)} detail="em acompanhamento" />
+                <OwnerMetricCard icon="logo-usd" label="Receita estimada" value={formatCurrency(metrics.revenue)} detail="este mês" />
+              </View>
 
-                <View style={styles.ownerAppointmentList}>
-                  {upcomingAppointments.length > 0 ? (
-                    upcomingAppointments.map((appointment, index) => (
-                      <OwnerAppointmentRow
-                        key={appointment.id}
-                        appointment={appointment}
-                        services={services}
-                        professionals={professionals}
-                        isFirst={index === 0}
-                        onPress={() => router.push({ pathname: '/owner-appointment-details', params: { appointmentId: appointment.id } })}
-                      />
-                    ))
-                  ) : (
-                    <View style={styles.ownerEmptyRow}>
-                      <View style={styles.ownerEmptyIcon}>
-                        <Ionicons name="calendar-clear-outline" size={20} color={UI.primary} />
-                      </View>
-                      <View style={styles.ownerEmptyCopy}>
-                        <Text style={styles.ownerEmptyTitle}>Nenhum atendimento próximo</Text>
-                        <Text style={styles.ownerEmptyText}>
-                          Assim que houver reservas, elas aparecem aqui com status operacional e horário.
-                        </Text>
-                      </View>
+              <View style={[styles.ownerLowerGrid, compactLayout && styles.ownerLowerGridMobile]}>
+                <Animated.View
+                  entering={FadeInUp.delay(190).duration(260)}
+                  layout={LinearTransition.duration(220)}
+                  style={[styles.ownerWideCard, compactLayout && styles.ownerWideCardMobile]}>
+                  <Text style={styles.ownerCardTitle}>Próximas ações sugeridas</Text>
+                  <View style={styles.ownerSuggestedList}>
+                    <OwnerSuggestedAction
+                      icon="business-outline"
+                      title="Configure seu consultório"
+                      text="Inicie completando as informações básicas do seu consultório."
+                      onPress={() => router.push(ownerSpace ? '/space-settings' : '/create-space')}
+                    />
+                    <OwnerSuggestedAction
+                      icon="time-outline"
+                      title="Defina seus horários"
+                      text="Informe sua disponibilidade para consultas."
+                      onPress={() => router.push('/space-opening-hours')}
+                    />
+                    <OwnerSuggestedAction
+                      icon="folder-outline"
+                      title="Adicione recursos clínicos"
+                      text="Questionários, escalas e materiais para suas sessões."
+                      onPress={() => router.push('/clinical-integration')}
+                    />
+                    <OwnerSuggestedAction
+                      icon="person-add-outline"
+                      title="Convide sua equipe"
+                      text="Adicione colaboradores e organize permissões."
+                      onPress={() => router.push('/manage-professionals')}
+                    />
+                  </View>
+                </Animated.View>
+
+                <Animated.View entering={FadeInUp.delay(220).duration(260)} layout={LinearTransition.duration(220)} style={styles.ownerTaskCard}>
+                  <Text style={styles.ownerCardTitle}>Tarefas clínicas</Text>
+                  <View style={styles.ownerTaskEmpty}>
+                    <View style={styles.ownerTaskEmptyIcon}>
+                      <Ionicons name="clipboard-outline" size={34} color={UI.primary} />
                     </View>
-                  )}
-                </View>
-              </Animated.View>
-
-              <View style={styles.ownerQuickGrid}>
-                <OwnerQuickAction icon="pricetag-outline" label="Consultas" value={`${metrics.servicesCount} ativas`} onPress={() => router.push('/manage-services')} />
-                <OwnerQuickAction icon="people-outline" label="Equipe" value={`${metrics.professionalsCount} psicólogas`} onPress={() => router.push('/manage-professionals')} />
-                <OwnerQuickAction icon="calendar-outline" label="Agenda" value={`${metrics.appointmentsCount} reservas`} onPress={() => router.push('/owner-agenda')} />
-                <OwnerQuickAction icon="image-outline" label="Fotos" value="Galeria pública" onPress={() => router.push('/space-photos')} />
+                    <Text style={styles.ownerEmptyTitle}>Nenhuma tarefa por enquanto</Text>
+                    <Text style={styles.ownerEmptyText}>Todas as suas tarefas clínicas aparecerão aqui.</Text>
+                    <PrimaryButton
+                      label="Ver todas as tarefas"
+                      icon="list-outline"
+                      variant="secondary"
+                      onPress={() => router.push('/clinical-integration')}
+                    />
+                  </View>
+                </Animated.View>
               </View>
             </View>
 
-            <View style={styles.ownerSideColumn}>
+            <View style={[styles.ownerSideColumn, compactLayout && styles.ownerSideColumnMobile]}>
               <Animated.View entering={FadeInUp.delay(140).duration(260)} layout={LinearTransition.duration(220)} style={styles.ownerSideCard}>
-                <View style={styles.ownerCardHeader}>
-                  <View>
-                    <Text style={styles.ownerCardTitle}>Checklist</Text>
-                    <Text style={styles.ownerCardText}>
-                      {completedChecklistCount} de {Math.max(checklist.length, checklistPreview.length)} itens concluídos.
+                <View style={styles.ownerChecklistHeader}>
+                  <Text style={styles.ownerCardTitle}>Checklist</Text>
+                  <View style={styles.ownerChecklistProgress}>
+                    <View style={styles.ownerChecklistProgressRing} />
+                    <Text style={styles.ownerChecklistProgressText}>
+                      {completedChecklistCount} / {checklistPreview.length}
                     </Text>
                   </View>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Abrir checklist"
-                    onPress={() => router.push('/owner-onboarding-checklist')}
-                    style={({ pressed }) => [styles.ownerInlineAction, pressed && styles.pressed]}>
-                    <Ionicons name="arrow-forward" size={18} color={UI.primary} />
-                  </Pressable>
                 </View>
 
                 <View style={styles.ownerChecklistPreview}>
@@ -962,45 +1050,46 @@ export function OwnerDashboardScreen() {
                     />
                   ))}
                 </View>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.push('/owner-onboarding-checklist')}
+                  style={({ pressed }) => [styles.ownerTextAction, pressed && styles.pressed]}>
+                  <Text style={styles.ownerTextActionLabel}>Ver checklist completo</Text>
+                </Pressable>
               </Animated.View>
 
               <Animated.View entering={FadeInUp.delay(180).duration(260)} layout={LinearTransition.duration(220)} style={styles.ownerSideCard}>
-                <View>
-                  <Text style={styles.ownerCardTitle}>Avisos do consultório</Text>
-                  <Text style={styles.ownerCardText}>Somente sinais operacionais, sem metadata clínica sensível.</Text>
+                <View style={styles.ownerSideCardTitleLine}>
+                  <Ionicons name="megaphone-outline" size={18} color={UI.text} />
+                  <Text style={styles.ownerCardTitle}>Avisos e novidades</Text>
                 </View>
-                <View style={styles.ownerNoticeList}>
-                  <OwnerNoticeRow
-                    icon={checklistDone ? 'checkmark-circle-outline' : 'alert-circle-outline'}
-                    title={checklistDone ? 'Publicação liberada' : 'Publicação pendente'}
-                    text={checklistDone ? 'Pacientes podem encontrar o consultório.' : 'Conclua o checklist antes de publicar.'}
-                    tone={checklistDone ? 'success' : 'warning'}
-                  />
-                  <OwnerNoticeRow
-                    icon="lock-closed-outline"
-                    title="Sigilo clínico"
-                    text="Administração operacional não acessa prontuário privado por padrão."
-                    tone="info"
-                  />
-                  <OwnerNoticeRow
-                    icon={professionalProfileActive ? 'briefcase-outline' : 'person-add-outline'}
-                    title={professionalProfileActive ? 'Perfil de atendimento ativo' : 'Perfil de atendimento pendente'}
-                    text={professionalProfileActive ? 'Conta pronta para atuar como psicóloga.' : 'Ative o perfil para trabalhar em consultórios vinculados.'}
-                    tone={professionalProfileActive ? 'success' : 'info'}
-                  />
+                <View style={styles.ownerAlertBox}>
+                  <View style={styles.ownerAlertIcon}>
+                    <Ionicons name="alert-circle-outline" size={18} color={UI.warning} />
+                  </View>
+                  <View style={styles.ownerAlertCopy}>
+                    <Text style={styles.ownerAlertTitle}>{remoteError ? 'Consulta indisponível' : 'Painel em configuração'}</Text>
+                    <Text style={styles.ownerAlertText}>
+                      {remoteError ? 'Painel indisponível no momento. Tente novamente mais tarde.' : 'Complete o checklist antes de publicar.'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={UI.textMuted} />
                 </View>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.push('/notification-settings')}
+                  style={({ pressed }) => [styles.ownerTextAction, pressed && styles.pressed]}>
+                  <Text style={styles.ownerTextActionLabel}>Ver todos os avisos</Text>
+                </Pressable>
               </Animated.View>
 
               <Animated.View entering={FadeInUp.delay(220).duration(260)} layout={LinearTransition.duration(220)} style={styles.ownerSideCard}>
-                <View>
-                  <Text style={styles.ownerCardTitle}>Ajustes rápidos</Text>
-                  <Text style={styles.ownerCardText}>Regras que afetam a experiência de agendamento.</Text>
-                </View>
+                <Text style={styles.ownerCardTitle}>Ações rápidas</Text>
                 <View style={styles.ownerCompactActions}>
-                  <OwnerCompactAction icon="business-outline" label="Consultório" onPress={() => router.push('/space-settings')} />
-                  <OwnerCompactAction icon="time-outline" label="Horários" onPress={() => router.push('/space-opening-hours')} />
-                  <OwnerCompactAction icon="card-outline" label="Pagamento" onPress={() => router.push('/payment-settings')} />
-                  <OwnerCompactAction icon="notifications-outline" label="Notificações" onPress={() => router.push('/notification-settings')} />
+                  <OwnerCompactAction icon="calendar-outline" label="Nova consulta" onPress={() => router.push('/manage-services')} />
+                  <OwnerCompactAction icon="person-add-outline" label="Novo paciente" onPress={() => router.push('/owner-agenda')} />
+                  <OwnerCompactAction icon="checkbox-outline" label="Nova tarefa" onPress={() => router.push('/clinical-integration')} />
+                  <OwnerCompactAction icon="happy-outline" label="Novo check-in" onPress={() => router.push('/clinical-integration')} />
                 </View>
               </Animated.View>
             </View>
@@ -1024,10 +1113,12 @@ function getInitials(value: string) {
 
 function getDefaultOwnerChecklistPreview(created: boolean): OnboardingItem[] {
   return [
-    { id: 'basic', label: 'Dados do consultório', complete: created },
-    { id: 'services', label: 'Consultas publicáveis', complete: false },
-    { id: 'professionals', label: 'Equipe vinculada', complete: false },
-    { id: 'opening-hours', label: 'Horários e regras', complete: false },
+    { id: 'space-data', label: 'Criar consultório', complete: created },
+    { id: 'basic', label: 'Configurar perfil', complete: false },
+    { id: 'opening-hours', label: 'Definir horários de atendimento', complete: false },
+    { id: 'payment', label: 'Configurar valores', complete: false },
+    { id: 'services', label: 'Adicionar recursos', complete: false },
+    { id: 'professionals', label: 'Convidar equipe (opcional)', complete: false },
   ];
 }
 
@@ -1213,32 +1304,23 @@ function OwnerAppointmentRow({
   );
 }
 
-function OwnerQuickAction({
-  icon,
-  label,
-  value,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.ownerQuickAction, pressed && styles.pressed]}>
-      <View style={styles.ownerQuickIcon}>
-        <Ionicons name={icon} size={20} color={UI.primary} />
-      </View>
-      <View style={styles.ownerQuickCopy}>
-        <Text style={styles.ownerQuickLabel}>{label}</Text>
-        <Text style={styles.ownerQuickValue}>{value}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={17} color={UI.textMuted} />
-    </Pressable>
-  );
+function getChecklistItemDescription(itemId: string) {
+  switch (itemId) {
+    case 'space-data':
+      return 'Defina os dados do seu consultório';
+    case 'basic':
+      return 'Informe sua formação e abordagem';
+    case 'opening-hours':
+      return 'Configure sua disponibilidade';
+    case 'payment':
+      return 'Defina preços e formas de pagamento';
+    case 'services':
+      return 'Questionários, materiais e anotações';
+    case 'professionals':
+      return 'Adicione colaboradores ao consultório';
+    default:
+      return 'Complete esta etapa para publicar com segurança';
+  }
 }
 
 function OwnerChecklistItem({
@@ -1266,43 +1348,12 @@ function OwnerChecklistItem({
           color={item.complete ? UI.surface : UI.textMuted}
         />
       </View>
-      <Text numberOfLines={1} style={styles.ownerChecklistText}>{item.label}</Text>
+      <View style={styles.ownerChecklistCopy}>
+        <Text numberOfLines={1} style={styles.ownerChecklistText}>{item.label}</Text>
+        <Text numberOfLines={1} style={styles.ownerChecklistDescription}>{getChecklistItemDescription(item.id)}</Text>
+      </View>
       <Ionicons name="chevron-forward" size={16} color={UI.textMuted} />
     </Pressable>
-  );
-}
-
-function OwnerNoticeRow({
-  icon,
-  title,
-  text,
-  tone,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  text: string;
-  tone: 'success' | 'warning' | 'info';
-}) {
-  const noticeIconToneStyle = tone === 'success'
-    ? styles.ownerNoticeIcon_success
-    : tone === 'warning'
-      ? styles.ownerNoticeIcon_warning
-      : styles.ownerNoticeIcon_info;
-
-  return (
-    <View style={styles.ownerNoticeRow}>
-      <View style={[styles.ownerNoticeIcon, noticeIconToneStyle]}>
-        <Ionicons
-          name={icon}
-          size={17}
-          color={tone === 'success' ? UI.success : tone === 'warning' ? UI.warning : UI.primary}
-        />
-      </View>
-      <View style={styles.ownerNoticeCopy}>
-        <Text style={styles.ownerNoticeTitle}>{title}</Text>
-        <Text style={styles.ownerNoticeText}>{text}</Text>
-      </View>
-    </View>
   );
 }
 
@@ -1324,6 +1375,71 @@ function OwnerCompactAction({
         <Ionicons name={icon} size={18} color={UI.primary} />
       </View>
       <Text style={styles.ownerCompactLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function OwnerSuggestedAction({
+  icon,
+  title,
+  text,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  text: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.ownerSuggestedAction, pressed && styles.pressed]}>
+      <View style={styles.ownerSuggestedIcon}>
+        <Ionicons name={icon} size={22} color={UI.primary} />
+      </View>
+      <View style={styles.ownerSuggestedCopy}>
+        <Text numberOfLines={1} style={styles.ownerSuggestedTitle}>{title}</Text>
+        <Text numberOfLines={1} style={styles.ownerSuggestedText}>{text}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={UI.textMuted} />
+    </Pressable>
+  );
+}
+
+function OwnerMobileTabs({ onNavigate }: { onNavigate: (route: Href) => void }) {
+  return (
+    <View style={styles.ownerMobileTabs}>
+      <OwnerMobileTab icon="home-outline" label="Painel" selected onPress={() => undefined} />
+      <OwnerMobileTab icon="calendar-outline" label="Agenda" onPress={() => onNavigate('/owner-agenda')} />
+      <OwnerMobileTab icon="sparkles-outline" label="Consultas" onPress={() => onNavigate('/manage-services')} />
+      <OwnerMobileTab icon="people-outline" label="Pacientes" onPress={() => onNavigate('/owner-agenda')} />
+      <OwnerMobileTab icon="person-circle-outline" label="Perfil" onPress={() => onNavigate('/owner-dashboard')} />
+    </View>
+  );
+}
+
+function OwnerMobileTab({
+  icon,
+  label,
+  selected,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  selected?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: selected ?? false }}
+      onPress={onPress}
+      style={({ pressed }) => [styles.ownerMobileTab, pressed && styles.pressed]}>
+      <Ionicons name={icon} size={19} color={selected ? UI.primary : UI.textMuted} />
+      <Text numberOfLines={1} style={[styles.ownerMobileTabLabel, selected && styles.ownerMobileTabLabelSelected]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -1573,12 +1689,16 @@ function ChecklistRow({
 const styles = StyleSheet.create({
   ownerDashboardShell: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     alignItems: 'flex-start',
-    gap: 18,
+    gap: 16,
+  },
+  ownerDashboardShellMobile: {
+    flexDirection: 'column',
+    gap: 12,
   },
   ownerSidebar: {
-    width: 224,
+    width: 214,
+    minHeight: 760,
     gap: 14,
     padding: 14,
     borderRadius: 8,
@@ -1625,12 +1745,9 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   ownerNavList: {
+    flex: 1,
     gap: 4,
-    paddingTop: 4,
-    paddingBottom: 4,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: UI.border,
+    paddingTop: 18,
   },
   ownerNavItem: {
     minHeight: 42,
@@ -1665,87 +1782,139 @@ const styles = StyleSheet.create({
     color: UI.primary,
     fontWeight: '600',
   },
-  ownerSidebarFoot: {
+  ownerSidebarCollapse: {
+    minHeight: 42,
     flexDirection: 'row',
-    gap: 9,
-    padding: 10,
-    borderRadius: 8,
-    backgroundColor: '#F5FAF7',
-  },
-  ownerSidebarFootIcon: {
-    width: 30,
-    height: 30,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 9,
     borderRadius: 7,
-    backgroundColor: '#EAF6F0',
   },
-  ownerSidebarFootCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  ownerSidebarFootTitle: {
-    color: UI.text,
+  ownerSidebarCollapseText: {
+    color: UI.textMuted,
     fontSize: 13,
     lineHeight: 17,
-    fontWeight: '600',
-  },
-  ownerSidebarFootText: {
-    color: UI.textMuted,
-    fontSize: 12,
-    lineHeight: 16,
     fontWeight: '400',
   },
   ownerMain: {
     flex: 1,
     minWidth: 320,
-    gap: 14,
+    gap: 16,
+  },
+  ownerMainMobile: {
+    width: 'auto',
+    alignSelf: 'stretch',
+    minWidth: 0,
   },
   ownerTopBar: {
-    minHeight: 78,
+    minHeight: 64,
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    padding: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
-    ...cardShadow,
+  },
+  ownerTopBarMobile: {
+    width: 'auto',
+    alignSelf: 'stretch',
+    flexDirection: 'column',
+    minHeight: 92,
+    alignItems: 'stretch',
+    padding: 12,
   },
   ownerTopCopy: {
     flex: 1,
     minWidth: 250,
     gap: 3,
   },
-  ownerKicker: {
-    color: UI.primary,
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: '600',
-    letterSpacing: 0.66,
-    textTransform: 'uppercase',
+  ownerTopCopyMobile: {
+    flex: 0,
+    width: 'auto',
+    alignSelf: 'stretch',
+    minWidth: 0,
+  },
+  ownerMobileBrandLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 6,
   },
   ownerTitle: {
     color: UI.text,
-    fontSize: 24,
-    lineHeight: 29,
+    fontSize: 20,
+    lineHeight: 25,
     fontWeight: '600',
   },
   ownerSubtitle: {
+    flexShrink: 1,
     maxWidth: 690,
     color: UI.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: '400',
   },
   ownerTopActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
+  },
+  ownerTopActionsMobile: {
+    width: 'auto',
+    alignSelf: 'stretch',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+  },
+  ownerNotificationButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ownerNotificationBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 5,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    backgroundColor: UI.primary,
+  },
+  ownerNotificationBadgeText: {
+    color: UI.surface,
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '600',
+  },
+  ownerAvailabilityBadge: {
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: UI.border,
+    backgroundColor: UI.surface,
+  },
+  ownerAvailabilityDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 999,
+    backgroundColor: UI.success,
+  },
+  ownerAvailabilityText: {
+    color: UI.text,
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '500',
   },
   ownerProfileButton: {
     minHeight: 48,
@@ -1808,90 +1977,106 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'flex-start',
-    gap: 16,
+    gap: 12,
+  },
+  ownerDashboardGridMobile: {
+    width: 'auto',
+    alignSelf: 'stretch',
+    flexDirection: 'column',
+    gap: 12,
   },
   ownerPrimaryColumn: {
     flex: 1,
     minWidth: 320,
-    gap: 14,
+    gap: 12,
+  },
+  ownerPrimaryColumnMobile: {
+    width: 'auto',
+    alignSelf: 'stretch',
+    minWidth: 0,
+  },
+  ownerHeroRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 12,
+  },
+  ownerHeroRowMobile: {
+    width: 'auto',
+    alignSelf: 'stretch',
+    flexDirection: 'column',
   },
   ownerSideColumn: {
-    width: 336,
+    width: 324,
     minWidth: 300,
-    gap: 14,
+    gap: 12,
+  },
+  ownerSideColumnMobile: {
+    width: 'auto',
+    alignSelf: 'stretch',
+    minWidth: 0,
   },
   ownerActionPanel: {
-    gap: 14,
-    padding: 15,
+    flex: 1.08,
+    minWidth: 360,
+    gap: 12,
+    padding: 18,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: UI.border,
+    borderColor: 'rgba(6, 74, 138, 0.24)',
     backgroundColor: UI.surface,
     ...cardShadow,
   },
-  ownerActionHeader: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
+  ownerActionPanelMobile: {
+    width: 'auto',
+    alignSelf: 'stretch',
+    minWidth: 0,
+    padding: 16,
+  },
+  ownerActionIntroMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
     gap: 12,
   },
-  ownerActionIcon: {
-    width: 46,
-    height: 46,
+  ownerActionIntro: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 18,
+  },
+  ownerActionIconLarge: {
+    width: 78,
+    height: 78,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
-    backgroundColor: UI.primarySoft,
+    backgroundColor: UI.surface,
   },
   ownerActionCopy: {
     flex: 1,
-    minWidth: 230,
-    gap: 3,
-  },
-  ownerActionEyebrow: {
-    color: UI.primary,
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: '600',
-    letterSpacing: 0.66,
-    textTransform: 'uppercase',
+    minWidth: 0,
+    gap: 8,
   },
   ownerActionTitle: {
+    flexShrink: 1,
     color: UI.text,
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 21,
     fontWeight: '600',
   },
   ownerActionText: {
+    flexShrink: 1,
     color: UI.textMuted,
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: 20,
     fontWeight: '400',
   },
-  ownerStatusPill: {
-    minHeight: 30,
-    justifyContent: 'center',
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: '#FFF5E6',
+  ownerActionButtonWrap: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
   },
-  ownerStatusPillReady: {
-    backgroundColor: '#EAF6F0',
-  },
-  ownerStatusPillText: {
-    color: UI.warning,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '600',
-  },
-  ownerStatusPillTextReady: {
-    color: UI.success,
-  },
-  ownerProgressBlock: {
-    gap: 8,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: UI.surfaceMuted,
+  ownerProgressDivider: {
+    height: 1,
+    marginTop: 8,
+    backgroundColor: UI.border,
   },
   ownerProgressHeader: {
     flexDirection: 'row',
@@ -1899,17 +2084,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
   },
+  ownerProgressHeaderMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 4,
+  },
   ownerProgressTitle: {
+    flex: 1,
+    minWidth: 0,
     color: UI.text,
     fontSize: 14,
     lineHeight: 18,
     fontWeight: '600',
   },
   ownerProgressValue: {
-    color: UI.primary,
-    fontSize: 14,
+    color: UI.textMuted,
+    fontSize: 13,
     lineHeight: 18,
-    fontWeight: '600',
+    fontWeight: '400',
   },
   ownerProgressRail: {
     height: 7,
@@ -1922,27 +2114,18 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: UI.primary,
   },
-  ownerProgressText: {
-    color: UI.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '400',
-  },
-  ownerActionFooter: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 10,
-  },
   ownerMetricGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
   },
+  ownerMetricGridMobile: {
+    gap: 8,
+  },
   ownerMetricCard: {
     flex: 1,
-    minWidth: 170,
-    minHeight: 82,
+    minWidth: 174,
+    minHeight: 88,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -1984,13 +2167,22 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   ownerAgendaCard: {
+    flex: 1,
+    minWidth: 360,
+    minHeight: 300,
     gap: 12,
-    padding: 14,
+    padding: 16,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
+  },
+  ownerAgendaCardMobile: {
+    width: 'auto',
+    alignSelf: 'stretch',
+    minWidth: 0,
+    minHeight: 260,
   },
   ownerCardHeader: {
     flexDirection: 'row',
@@ -1998,6 +2190,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
+  },
+  ownerCardHeaderMobile: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
   },
   ownerCardTitle: {
     color: UI.text,
@@ -2010,6 +2206,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '400',
+  },
+  ownerAgendaControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  ownerAgendaControlsMobile: {
+    justifyContent: 'space-between',
   },
   ownerSegmented: {
     minHeight: 36,
@@ -2039,6 +2243,25 @@ const styles = StyleSheet.create({
   ownerModeChipTextSelected: {
     color: UI.primary,
     fontWeight: '600',
+  },
+  ownerAgendaBody: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  ownerAgendaEmpty: {
+    minHeight: 220,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+  },
+  ownerAgendaEmptyIcon: {
+    width: 62,
+    height: 62,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    backgroundColor: UI.primarySoft,
   },
   ownerAppointmentList: {
     overflow: 'hidden',
@@ -2128,80 +2351,110 @@ const styles = StyleSheet.create({
   ownerAppointmentStatusText_info: {
     color: UI.textMuted,
   },
-  ownerEmptyRow: {
-    minHeight: 92,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 13,
-  },
-  ownerEmptyIcon: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: UI.primarySoft,
-  },
-  ownerEmptyCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 3,
-  },
   ownerEmptyTitle: {
+    flexShrink: 1,
     color: UI.text,
     fontSize: 14,
     lineHeight: 18,
     fontWeight: '600',
+    textAlign: 'center',
   },
   ownerEmptyText: {
+    flexShrink: 1,
     color: UI.textMuted,
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '400',
+    textAlign: 'center',
   },
-  ownerQuickGrid: {
+  ownerLowerGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    alignItems: 'stretch',
+    gap: 12,
   },
-  ownerQuickAction: {
-    width: '48.7%',
-    minWidth: 220,
-    minHeight: 76,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 12,
+  ownerLowerGridMobile: {
+    flexDirection: 'column',
+  },
+  ownerWideCard: {
+    flex: 1.25,
+    minWidth: 380,
+    gap: 12,
+    padding: 16,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
+    ...cardShadow,
   },
-  ownerQuickIcon: {
-    width: 36,
-    height: 36,
+  ownerWideCardMobile: {
+    width: 'auto',
+    alignSelf: 'stretch',
+    minWidth: 0,
+  },
+  ownerSuggestedList: {
+    overflow: 'hidden',
+    borderRadius: 8,
+  },
+  ownerSuggestedAction: {
+    minHeight: 62,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: UI.border,
+  },
+  ownerSuggestedIcon: {
+    width: 38,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
-  ownerQuickCopy: {
+  ownerSuggestedCopy: {
     flex: 1,
     minWidth: 0,
     gap: 2,
   },
-  ownerQuickLabel: {
+  ownerSuggestedTitle: {
     color: UI.text,
     fontSize: 14,
     lineHeight: 18,
     fontWeight: '600',
   },
-  ownerQuickValue: {
+  ownerSuggestedText: {
     color: UI.textMuted,
     fontSize: 12.5,
     lineHeight: 17,
     fontWeight: '400',
+  },
+  ownerTaskCard: {
+    flex: 1,
+    minWidth: 300,
+    gap: 12,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
+    backgroundColor: UI.surface,
+    ...cardShadow,
+  },
+  ownerTaskEmpty: {
+    flex: 1,
+    minHeight: 220,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+  },
+  ownerTaskEmptyIcon: {
+    width: 62,
+    height: 62,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    backgroundColor: UI.primarySoft,
   },
   ownerSideCard: {
     gap: 12,
@@ -2211,6 +2464,11 @@ const styles = StyleSheet.create({
     borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
+  },
+  ownerSideCardTitleLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   ownerInlineAction: {
     width: 34,
@@ -2222,6 +2480,31 @@ const styles = StyleSheet.create({
     borderColor: UI.border,
     backgroundColor: UI.surface,
   },
+  ownerChecklistHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  ownerChecklistProgress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  ownerChecklistProgressRing: {
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    borderWidth: 3,
+    borderColor: UI.primary,
+    borderLeftColor: UI.border,
+  },
+  ownerChecklistProgressText: {
+    color: UI.text,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
   ownerChecklistPreview: {
     overflow: 'hidden',
     borderRadius: 8,
@@ -2229,7 +2512,7 @@ const styles = StyleSheet.create({
     borderColor: UI.border,
   },
   ownerChecklistItem: {
-    minHeight: 48,
+    minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
@@ -2255,52 +2538,69 @@ const styles = StyleSheet.create({
     borderColor: UI.success,
     backgroundColor: UI.success,
   },
-  ownerChecklistText: {
-    flex: 1,
-    color: UI.text,
-    fontSize: 13.5,
-    lineHeight: 18,
-    fontWeight: '500',
-  },
-  ownerNoticeList: {
-    gap: 10,
-  },
-  ownerNoticeRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  ownerNoticeIcon: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-  },
-  ownerNoticeIcon_success: {
-    backgroundColor: '#EAF6F0',
-  },
-  ownerNoticeIcon_warning: {
-    backgroundColor: '#FFF5E6',
-  },
-  ownerNoticeIcon_info: {
-    backgroundColor: UI.primarySoft,
-  },
-  ownerNoticeCopy: {
+  ownerChecklistCopy: {
     flex: 1,
     minWidth: 0,
-    gap: 2,
+    gap: 1,
   },
-  ownerNoticeTitle: {
+  ownerChecklistText: {
     color: UI.text,
     fontSize: 13.5,
     lineHeight: 18,
     fontWeight: '600',
   },
-  ownerNoticeText: {
+  ownerChecklistDescription: {
+    color: UI.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '400',
+  },
+  ownerAlertBox: {
+    minHeight: 78,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 11,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(199, 122, 27, 0.25)',
+    backgroundColor: '#FFF8ED',
+  },
+  ownerAlertIcon: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    backgroundColor: UI.surface,
+  },
+  ownerAlertCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  ownerAlertTitle: {
+    color: UI.warning,
+    fontSize: 13.5,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  ownerAlertText: {
     color: UI.textMuted,
     fontSize: 12.5,
     lineHeight: 17,
     fontWeight: '400',
+  },
+  ownerTextAction: {
+    minHeight: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ownerTextActionLabel: {
+    color: UI.primary,
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '600',
   },
   ownerCompactActions: {
     flexDirection: 'row',
@@ -2332,6 +2632,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 17,
     fontWeight: '500',
+  },
+  ownerMobileTabs: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 4,
+  },
+  ownerMobileTab: {
+    flex: 1,
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    borderRadius: 8,
+  },
+  ownerMobileTabLabel: {
+    color: UI.textMuted,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '500',
+  },
+  ownerMobileTabLabelSelected: {
+    color: UI.primary,
+    fontWeight: '600',
   },
   formCard: {
     gap: 13,

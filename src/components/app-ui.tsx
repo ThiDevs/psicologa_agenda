@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   type TextInputProps,
+  useWindowDimensions,
   type ViewStyle,
   View,
 } from 'react-native';
@@ -62,8 +63,10 @@ export function ScreenScaffold({
   appearance?: AppAppearance;
 }) {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const isDark = appearance === 'dark';
   const isWeb = Platform.OS === 'web';
+  const isCompactWeb = isWeb && width < 700;
 
   return (
     <View style={[styles.outer, isWeb && styles.outerWeb, isDark && styles.outerDark]}>
@@ -79,6 +82,7 @@ export function ScreenScaffold({
               contentContainerStyle={[
                 styles.scrollContent,
                 isWeb && styles.scrollContentWeb,
+                isCompactWeb && styles.scrollContentWebCompact,
                 { paddingBottom: footer && !isWeb ? Math.max(16, Math.min(24, bottomOffset - 92)) : insets.bottom + 24 },
               ]}>
               {children}
@@ -89,7 +93,7 @@ export function ScreenScaffold({
               )}
             </ScrollView>
           ) : (
-            <View style={[styles.fixedContent, isWeb && styles.fixedContentWeb]}>
+            <View style={[styles.fixedContent, isWeb && styles.fixedContentWeb, isCompactWeb && styles.fixedContentWebCompact]}>
               {children}
               {footer && isWeb && (
                 <View style={[styles.footerWeb, isDark && styles.footerDark]}>
@@ -412,6 +416,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingTop: 24,
   },
+  scrollContentWebCompact: {
+    width: 'auto',
+    maxWidth: '100%',
+    alignSelf: 'stretch',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
   fixedContent: {
     flex: 1,
     paddingHorizontal: 16,
@@ -423,6 +435,13 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: 32,
     paddingTop: 32,
+  },
+  fixedContentWebCompact: {
+    width: 'auto',
+    maxWidth: '100%',
+    alignSelf: 'stretch',
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   footer: {
     zIndex: 20,
