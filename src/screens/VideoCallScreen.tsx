@@ -2,9 +2,10 @@ import * as WebBrowser from 'expo-web-browser';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { NativeVideoCallRoom } from '@/components/native-video-call-room';
 import VideoCallRoom from '@/components/video-call-room';
 import { EmptyState, HeaderBar, ScreenScaffold, UI } from '@/components/app-ui';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,6 +30,7 @@ export function VideoCallScreen() {
   const room = session?.room ?? null;
   const fallbackUrl = fallbackParam ?? (room ? buildJitsiFallbackUrl(room) : null);
   const displayName = normalizeDisplayName(localNameParam ?? user?.name) ?? 'Participante';
+  const role = normalizeRole(roleParam);
   const signalingUrl = useMemo(
     () => (room ? buildSignalingUrl(room) : null),
     [room],
@@ -46,12 +48,11 @@ export function VideoCallScreen() {
 
   if (!room || !fallbackUrl || !signalingUrl) {
     return (
-      <ScreenScaffold appearance="dark">
-        <HeaderBar title="Chamada de video" onBack={() => router.back()} appearance="dark" />
+      <ScreenScaffold>
+        <HeaderBar title="Chamada de vídeo" onBack={() => router.back()} />
         <EmptyState
-          appearance="dark"
           icon="videocam-outline"
-          title="Sala nao encontrada"
+          title="Sala não encontrada"
           text="Abra a chamada a partir de um agendamento confirmado."
         />
       </ScreenScaffold>
@@ -60,25 +61,36 @@ export function VideoCallScreen() {
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
-        <VideoCallRoom
-          room={room}
-          signalingUrl={signalingUrl}
-          fallbackUrl={fallbackUrl}
-          displayName={displayName}
-          role={normalizeRole(roleParam)}
-          openFallback={openFallback}
-          leaveCall={leaveCall}
-          dom={{
-            scrollEnabled: false,
-            contentInsetAdjustmentBehavior: 'never',
-            allowsInlineMediaPlayback: true,
-            mediaPlaybackRequiresUserAction: false,
-            mediaCapturePermissionGrantType: 'grantIfSameHostElsePrompt',
-            style: styles.domContainer,
-          }}
-        />
+        {Platform.OS === 'web' ? (
+          <VideoCallRoom
+            room={room}
+            signalingUrl={signalingUrl}
+            fallbackUrl={fallbackUrl}
+            displayName={displayName}
+            role={role}
+            openFallback={openFallback}
+            leaveCall={leaveCall}
+            dom={{
+              scrollEnabled: false,
+              contentInsetAdjustmentBehavior: 'never',
+              allowsInlineMediaPlayback: true,
+              mediaPlaybackRequiresUserAction: false,
+              mediaCapturePermissionGrantType: 'grantIfSameHostElsePrompt',
+              style: styles.domContainer,
+            }}
+          />
+        ) : (
+          <NativeVideoCallRoom
+            room={room}
+            fallbackUrl={fallbackUrl}
+            displayName={displayName}
+            role={role}
+            openFallback={openFallback}
+            leaveCall={leaveCall}
+          />
+        )}
       </SafeAreaView>
     </View>
   );
@@ -87,15 +99,15 @@ export function VideoCallScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: UI.darkBackground,
+    backgroundColor: UI.background,
   },
   safeArea: {
     flex: 1,
-    backgroundColor: UI.darkBackground,
+    backgroundColor: UI.background,
   },
   domContainer: {
     flex: 1,
-    minHeight: 620,
+    minHeight: 700,
   },
 });
 

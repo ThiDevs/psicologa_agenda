@@ -720,10 +720,10 @@ export default function VideoCallRoom({
           <span className="headerDivider" />
           <div className="securePill">
             <Icon name="lock" />
-            <span>Sessao segura</span>
+            <span>Sessão segura</span>
           </div>
         </div>
-        <div className="shieldButton" aria-label="Sessao segura">
+        <div className="shieldButton" aria-label="Sessão segura">
           <Icon name="shield" />
         </div>
       </header>
@@ -731,7 +731,7 @@ export default function VideoCallRoom({
       {error ? (
         <main className="fallbackPanel">
           <div className="alertMark">!</div>
-          <h2>Chamada nativa indisponivel</h2>
+          <h2>Não foi possível iniciar a chamada</h2>
           <p>{error}</p>
           <div className="fallbackActions">
             <button className="controlButton primary" onClick={() => window.location.reload()}>
@@ -762,12 +762,12 @@ export default function VideoCallRoom({
                 <div className="elapsedPill">{elapsedLabel}</div>
                 {!remoteConnected && (
                   <div className="placeholder">
-                    <strong>{localReady ? 'Aguardando participante' : 'Preparando sua camera'}</strong>
+                    <strong>{localReady ? 'Aguardando participante' : 'Preparando sua câmera'}</strong>
                     <span>{statusText}</span>
                   </div>
                 )}
                 {remoteConnected && !remoteMedia.cameraEnabled && (
-                  <div className="mediaBadge">Camera pausada</div>
+                  <div className="mediaBadge">Câmera pausada</div>
                 )}
                 {remoteConnected && !remoteMedia.micEnabled && (
                   <div className="mediaBadge lower">Microfone mudo</div>
@@ -781,7 +781,7 @@ export default function VideoCallRoom({
 
                 <div className="localTile">
                   <video ref={setLocalVideoNode} autoPlay playsInline muted />
-                  {!cameraEnabled && <div className="localOff">Camera desligada</div>}
+                  {!cameraEnabled && <div className="localOff">Câmera desligada</div>}
                 </div>
               </div>
             </div>
@@ -794,7 +794,7 @@ export default function VideoCallRoom({
               </button>
               <button className={`callControl ${cameraEnabled ? '' : 'isDanger'}`} onClick={toggleCamera}>
                 <span className="controlIcon"><Icon name={cameraEnabled ? 'camera' : 'cameraOff'} /></span>
-                <span>Camera</span>
+                <span>Câmera</span>
                 <small>^</small>
               </button>
               <button className="callControl" disabled={!canFlipCamera || switchingCamera} onClick={switchCamera}>
@@ -812,7 +812,7 @@ export default function VideoCallRoom({
             </div>
           </section>
 
-          <aside className="sessionPanel" aria-label="Informacoes da teleconsulta">
+          <aside className="sessionPanel" aria-label="Informações da teleconsulta">
             <div className="panelTopIcon" aria-hidden="true">
               <Icon name="calendar" />
             </div>
@@ -832,14 +832,14 @@ export default function VideoCallRoom({
               <ParticipantRow
                 avatar="H"
                 name={clinicianName}
-                meta={isCareTeam ? 'Voce' : 'Psicologa'}
+                meta={isCareTeam ? 'Você' : 'Psicóloga'}
                 active={true}
                 muted={!clinicianMicEnabled}
               />
               <ParticipantRow
                 avatar="P"
                 name={patientName}
-                meta={isCareTeam ? sessionStatus : 'Voce'}
+                meta={isCareTeam ? sessionStatus : 'Você'}
                 active={remoteConnected || !isCareTeam}
                 muted={!patientMicEnabled}
               />
@@ -848,9 +848,9 @@ export default function VideoCallRoom({
             <div className="panelDivider" />
 
             <section className="notesPanel">
-              <label htmlFor="session-notes">Notas da sessao</label>
+              <label htmlFor="session-notes">Notas da sessão</label>
               <div className="notesBox">
-                <textarea id="session-notes" placeholder="Escreva suas anotacoes..." />
+                <textarea id="session-notes" placeholder="Escreva suas anotações..." />
                 <Icon name="edit" />
               </div>
             </section>
@@ -901,8 +901,8 @@ function ParticipantRow({
       <div className="avatar" aria-hidden="true">{avatar}</div>
       <div className="participantCopy">
         <strong>{name}</strong>
-        <span className={meta === 'Voce' ? 'youBadge' : ''}>
-          {meta === 'Voce' ? meta : (
+        <span className={meta === 'Você' ? 'youBadge' : ''}>
+          {meta === 'Você' ? meta : (
             <>
               <i className={active ? 'tinyDot online' : 'tinyDot'} />
               {meta}
@@ -1807,6 +1807,649 @@ const css = `
 
     .sessionPanel {
       min-height: 520px;
+    }
+  }
+
+  /* Clinical light redesign aligned with the patient home visual language. */
+  body {
+    color: #0f2340;
+    background: #faf8f5;
+    font-family: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  button,
+  textarea {
+    font-family: inherit;
+  }
+
+  .callShell {
+    min-height: 100%;
+    height: 100%;
+    gap: 12px;
+    padding: 18px;
+    color: #0f2340;
+    background: #faf8f5;
+    border: 0;
+    border-radius: 0;
+    font-family: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+    overflow: hidden;
+  }
+
+  .appHeader {
+    min-height: 56px;
+    padding: 0 2px 10px;
+    border-bottom: 1px solid rgba(15, 35, 64, 0.08);
+  }
+
+  .brandCluster {
+    gap: 10px;
+  }
+
+  .brandMark {
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(15, 35, 64, 0.10);
+    border-radius: 8px;
+    color: #064a8a;
+    background: #ffffff;
+    font-size: 22px;
+  }
+
+  .brandCluster h1 {
+    color: #0f2340;
+    font-size: 24px;
+    line-height: 1.2;
+    font-weight: 600;
+  }
+
+  .headerDivider {
+    height: 24px;
+    background: rgba(15, 35, 64, 0.10);
+  }
+
+  .securePill {
+    min-height: 30px;
+    gap: 7px;
+    padding: 0 10px;
+    border: 1px solid #bfe7d7;
+    border-radius: 999px;
+    color: #2b9a72;
+    background: #f3fbf7;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .securePill svg {
+    font-size: 17px;
+  }
+
+  .shieldButton {
+    width: 38px;
+    height: 38px;
+    border-color: rgba(15, 35, 64, 0.10);
+    border-radius: 8px;
+    color: #2b9a72;
+    background: #ffffff;
+    font-size: 20px;
+    box-shadow: 0 4px 14px rgba(15, 35, 64, 0.035);
+  }
+
+  .callLayout {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+    gap: 12px;
+  }
+
+  .callMain {
+    gap: 10px;
+  }
+
+  .stage {
+    min-height: 440px;
+  }
+
+  .remoteTile,
+  .localTile,
+  .controlDock,
+  .sessionPanel,
+  .fallbackPanel {
+    border-color: rgba(15, 35, 64, 0.10);
+    border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(15, 35, 64, 0.035);
+  }
+
+  .remoteTile {
+    background: #101824;
+  }
+
+  .localTile {
+    right: 14px;
+    bottom: 14px;
+    width: min(20vw, 210px);
+    min-width: 142px;
+    border: 2px solid #ffffff;
+    border-radius: 8px;
+    background: #172234;
+  }
+
+  video {
+    background: #101824;
+  }
+
+  .participantBadge,
+  .connectionBadge,
+  .elapsedPill {
+    border-color: rgba(255, 255, 255, 0.72);
+    color: #0f2340;
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 6px 18px rgba(15, 35, 64, 0.08);
+    backdrop-filter: blur(14px);
+  }
+
+  .participantBadge {
+    top: 14px;
+    left: 14px;
+    min-height: 38px;
+    padding: 0 11px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .connectionBadge {
+    top: 14px;
+    right: 14px;
+    min-height: 36px;
+    padding: 0 10px;
+    border-radius: 8px;
+    color: #2b9a72;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .connectionBadge svg {
+    color: #2b9a72;
+    font-size: 18px;
+  }
+
+  .elapsedPill {
+    left: 14px;
+    bottom: 14px;
+    min-height: 34px;
+    padding: 0 11px;
+    border-radius: 8px;
+    color: #0f2340;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .presenceDot,
+  .tinyDot.online,
+  .dot.online {
+    background: #2b9a72;
+  }
+
+  .placeholder,
+  .localOff {
+    color: #ffffff;
+    background: rgba(16, 24, 36, 0.88);
+  }
+
+  .placeholder strong {
+    font-size: clamp(19px, 2.4vw, 26px);
+    font-weight: 600;
+  }
+
+  .placeholder span {
+    max-width: 420px;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 14px;
+    font-weight: 400;
+  }
+
+  .localOff {
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+
+  .mediaBadge {
+    inset: 64px auto auto 14px;
+    min-width: 118px;
+    color: #0f2340;
+    background: rgba(255, 255, 255, 0.88);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .mediaBadge.lower {
+    top: 100px;
+  }
+
+  .captionOverlay {
+    left: 14px;
+    right: clamp(180px, 24vw, 268px);
+    bottom: 60px;
+    padding: 10px 12px;
+    border-color: rgba(255, 255, 255, 0.72);
+    border-radius: 8px;
+    color: #0f2340;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 8px 24px rgba(15, 35, 64, 0.10);
+  }
+
+  .captionOverlay span {
+    color: #607085;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+  }
+
+  .captionOverlay strong {
+    color: #0f2340;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .controlDock,
+  .fallbackActions {
+    min-height: 76px;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    border-color: rgba(15, 35, 64, 0.10);
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 4px 14px rgba(15, 35, 64, 0.035);
+  }
+
+  .callControl {
+    min-width: 76px;
+    gap: 5px;
+    color: #0f2340;
+  }
+
+  .controlIcon {
+    width: 42px;
+    height: 42px;
+    border-color: rgba(15, 35, 64, 0.10);
+    color: #064a8a;
+    background: #f5f9fc;
+    font-size: 20px;
+    box-shadow: none;
+  }
+
+  .callControl span:not(.controlIcon) {
+    color: #0f2340;
+    font-size: 12.5px;
+    font-weight: 500;
+  }
+
+  .callControl small {
+    display: none;
+  }
+
+  .callControl:hover:not(:disabled) .controlIcon,
+  .callControl.isSelected .controlIcon {
+    border-color: rgba(6, 74, 138, 0.24);
+    color: #064a8a;
+    background: #e7f0fa;
+  }
+
+  .callControl.isDanger .controlIcon {
+    color: #b42318;
+    background: #fff5f4;
+  }
+
+  .leaveControl .controlIcon {
+    color: #ffffff;
+    background: #b42318;
+  }
+
+  .sessionPanel {
+    gap: 14px;
+    padding: 14px;
+    background: #ffffff;
+  }
+
+  .panelTopIcon,
+  .summaryIcon {
+    color: #064a8a;
+    background: #e7f0fa;
+  }
+
+  .panelTopIcon {
+    top: 14px;
+    right: 14px;
+    width: 36px;
+    height: 36px;
+    font-size: 19px;
+  }
+
+  .sessionSummary {
+    gap: 10px;
+    padding-right: 44px;
+  }
+
+  .summaryIcon {
+    width: 44px;
+    height: 44px;
+    font-size: 21px;
+  }
+
+  .sessionSummary h2,
+  .notesPanel label {
+    color: #0f2340;
+    font-size: 15px;
+    line-height: 1.2;
+    font-weight: 600;
+  }
+
+  .sessionSummary p {
+    margin-top: 3px;
+    color: #607085;
+    font-size: 13px;
+    font-weight: 400;
+  }
+
+  .panelDivider {
+    background: rgba(15, 35, 64, 0.08);
+  }
+
+  .participantList {
+    gap: 12px;
+  }
+
+  .participantRow {
+    grid-template-columns: 38px minmax(0, 1fr) 30px;
+    gap: 10px;
+  }
+
+  .avatar {
+    width: 38px;
+    height: 38px;
+    border-color: rgba(6, 74, 138, 0.14);
+    color: #064a8a;
+    background: #e7f0fa;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .participantCopy {
+    gap: 4px;
+  }
+
+  .participantCopy strong {
+    color: #0f2340;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .participantCopy span {
+    color: #607085;
+    font-size: 12.5px;
+    font-weight: 400;
+  }
+
+  .youBadge {
+    color: #064a8a !important;
+    background: #e7f0fa;
+    font-weight: 600;
+  }
+
+  .participantMic {
+    color: #2b9a72;
+    font-size: 20px;
+  }
+
+  .participantMic.muted {
+    color: #a3afbe;
+  }
+
+  .notesPanel {
+    gap: 8px;
+  }
+
+  .notesBox {
+    min-height: 112px;
+    border-color: rgba(15, 35, 64, 0.10);
+    border-radius: 8px;
+    background: #f7f8fa;
+  }
+
+  .notesBox textarea {
+    min-height: 110px;
+    padding: 12px 40px 12px 12px;
+    color: #0f2340;
+    font-size: 13px;
+    font-weight: 400;
+  }
+
+  .notesBox textarea::placeholder {
+    color: #607085;
+  }
+
+  .notesBox svg {
+    top: 12px;
+    right: 12px;
+    color: #607085;
+    font-size: 18px;
+  }
+
+  .panelStatus {
+    color: #607085;
+    font-size: 12.5px;
+    font-weight: 400;
+  }
+
+  .panelStatus strong {
+    color: #0f2340;
+    font-weight: 600;
+  }
+
+  .jitsiButton {
+    min-height: 40px;
+    gap: 8px;
+    border-color: rgba(6, 74, 138, 0.22);
+    border-radius: 8px;
+    color: #064a8a;
+    background: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .jitsiButton:hover {
+    background: #e7f0fa;
+  }
+
+  .jitsiButton svg {
+    font-size: 18px;
+  }
+
+  .fallbackPanel {
+    min-height: 420px;
+    gap: 12px;
+    padding: 22px;
+    text-align: center;
+    background: #ffffff;
+  }
+
+  .fallbackPanel h2 {
+    color: #0f2340;
+    font-size: 20px;
+    line-height: 1.25;
+    font-weight: 600;
+  }
+
+  .fallbackPanel p {
+    max-width: 500px;
+    color: #607085;
+    font-size: 14px;
+    font-weight: 400;
+  }
+
+  .alertMark {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    color: #c77a1b;
+    background: #fff4df;
+    font-size: 24px;
+    font-weight: 600;
+  }
+
+  .controlButton {
+    min-height: 40px;
+    min-width: 116px;
+    border-color: rgba(15, 35, 64, 0.12);
+    border-radius: 8px;
+    color: #064a8a;
+    background: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .controlButton.primary {
+    border-color: #064a8a;
+    color: #ffffff;
+    background: #064a8a;
+  }
+
+  .controlButton.subtle {
+    color: #607085;
+    background: #ffffff;
+  }
+
+  @media (max-width: 860px) {
+    html,
+    body,
+    #root {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    .callShell {
+      min-height: 100%;
+      height: auto;
+      width: 100%;
+      max-width: 100%;
+      padding: 14px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .appHeader,
+    .brandCluster {
+      align-items: center;
+      flex-direction: row;
+      gap: 10px;
+    }
+
+    .brandCluster {
+      flex-wrap: wrap;
+    }
+
+    .brandCluster h1 {
+      font-size: 24px;
+    }
+
+    .headerDivider {
+      display: none;
+    }
+
+    .shieldButton {
+      display: grid;
+      margin-left: auto;
+    }
+
+    .callLayout {
+      display: flex;
+      flex-direction: column;
+      min-height: auto;
+      overflow: visible;
+    }
+
+    .callMain {
+      min-height: auto;
+    }
+
+    .stage,
+    .remoteTile {
+      width: 100%;
+      max-width: 100%;
+      min-height: 390px;
+    }
+
+    .participantBadge,
+    .connectionBadge {
+      max-width: calc(100% - 28px);
+    }
+
+    .connectionBadge {
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .localTile {
+      right: 10px;
+      bottom: 10px;
+      width: min(32vw, 132px);
+      min-width: 108px;
+      max-width: 132px;
+    }
+
+    .captionOverlay {
+      left: 10px;
+      right: 10px;
+      bottom: calc(34vw + 22px);
+    }
+
+    .controlDock {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      min-height: auto;
+      align-items: start;
+      justify-content: stretch;
+      padding: 10px 8px;
+      gap: 4px;
+    }
+
+    .callControl {
+      min-width: 0;
+      width: 100%;
+    }
+
+    .controlIcon {
+      width: 38px;
+      height: 38px;
+    }
+
+    .callControl span:not(.controlIcon) {
+      font-size: 12px;
+    }
+
+    .sessionPanel {
+      min-height: 0;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .securePill {
+      margin-left: auto;
+    }
+
+    .stage,
+    .remoteTile {
+      min-height: 390px;
+    }
+
+    .localTile {
+      width: 112px;
+      min-width: 112px;
+    }
+
+    .captionOverlay {
+      bottom: 132px;
     }
   }
 `;
