@@ -5,7 +5,7 @@ import type { OnboardingItem, User, UserRole } from '@/types/domain';
 
 const ACCESS_TOKEN_KEY = 'psi_agenda_online.access_token';
 const REFRESH_TOKEN_KEY = 'psi_agenda_online.refresh_token';
-const DEFAULT_API_BASE_URL = 'https://api.felicio.app/api';
+const DEFAULT_API_BASE_URL = 'https://api.felicio.app';
 
 export const API_BASE_URL = resolveApiBaseUrl();
 
@@ -1817,10 +1817,12 @@ function isUnauthorized(error: unknown) {
 
 function resolveApiBaseUrl() {
   const configuredUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+  const baseUrl = configuredUrl || DEFAULT_API_BASE_URL;
+  const normalizedUrl = baseUrl.replace(/\/+$/, '');
 
-  if (configuredUrl) {
-    return configuredUrl.replace(/\/$/, '');
+  if (normalizedUrl.endsWith('/api') || normalizedUrl.includes('/api/')) {
+    return normalizedUrl;
   }
 
-  return DEFAULT_API_BASE_URL;
+  return `${normalizedUrl}/api`;
 }
