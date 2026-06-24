@@ -211,6 +211,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             consents,
             consentHistory,
             consentTerms,
+            BuildRetentionPolicies(consents.Select(ToPolicySource), consentTerms),
             treatmentPlan,
             tasks.Select(ToDto).ToList(),
             materials.Select(ToDto).ToList(),
@@ -375,6 +376,70 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
     private static string BuildConsentTypeList(IReadOnlyList<string> consentTypes)
     {
         return string.Join(", ", consentTypes.Select(ConsentTypeLabel));
+    }
+
+    private static IReadOnlyList<ClinicalRetentionPolicyDto> BuildRetentionPolicies(
+        IEnumerable<ConsentPolicySource> consents,
+        IReadOnlyList<PatientConsentTermDto> terms)
+    {
+        var termByTypeAndVersion = terms.ToDictionary(
+            term => $"{term.ConsentType}:{term.Version}",
+            StringComparer.OrdinalIgnoreCase);
+        var activeTermByType = terms
+            .GroupBy(term => term.ConsentType, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.OrderByDescending(term => term.EffectiveAt).First(), StringComparer.OrdinalIgnoreCase);
+        var now = DateTimeOffset.UtcNow;
+
+        return consents
+            .OrderBy(consent => AllowedSensitiveConsentTypes.Contains(consent.ConsentType))
+            .ThenBy(consent => consent.ConsentType)
+            .Select(consent =>
+            {
+                var key = $"{consent.ConsentType}:{consent.TermsVersion}";
+                var term = termByTypeAndVersion.TryGetValue(key, out var versionedTerm)
+                    ? versionedTerm
+                    : activeTermByType.GetValueOrDefault(consent.ConsentType);
+                var sensitive = term?.Sensitive ?? AllowedSensitiveConsentTypes.Contains(consent.ConsentType);
+                var dataUseAllowed = consent.Status == "granted" && (consent.ExpiresAt is null || consent.ExpiresAt > now);
+
+                return new ClinicalRetentionPolicyDto(
+                    consent.ProfessionalId,
+                    consent.SpaceId,
+                    consent.ConsentType,
+                    consent.TermsVersion,
+                    consent.Status,
+                    sensitive,
+                    dataUseAllowed,
+                    consent.Status == "granted",
+                    consent.ExpiresAt,
+                    term?.RetentionPolicy ?? DefaultRetentionPolicy(consent.ConsentType),
+                    RevocationEffect(consent.ConsentType),
+                    "Ao expirar, este consentimento deixa de liberar novos usos automaticamente e gera evento técnico sem conteúdo clínico sensível.",
+                    term?.ReviewNotice ?? "Texto operacional pendente de revisão jurídica final.");
+            })
+            .ToList();
+    }
+
+    private static string DefaultRetentionPolicy(string consentType)
+    {
+        return AllowedSensitiveConsentTypes.Contains(consentType)
+            ? "Sem consentimento ativo, o recurso sensível permanece bloqueado; eventos técnicos permanecem para rastreabilidade e auditoria."
+            : "Pode ser revogado a qualquer momento; eventos técnicos permanecem para rastreabilidade e auditoria.";
+    }
+
+    private static string RevocationEffect(string consentType)
+    {
+        return consentType switch
+        {
+            "portal" => "Revogar bloqueia novos acessos ao portal do acompanhamento; registros clínicos e eventos técnicos já existentes permanecem preservados.",
+            "materials" => "Revogar bloqueia novos materiais compartilhados; materiais já recolhidos ou eventos técnicos permanecem rastreáveis.",
+            "checkins" => "Revogar bloqueia novos check-ins e respostas futuras; respostas já enviadas permanecem disponíveis para revisão clínica e auditoria.",
+            "notifications" => "Revogar bloqueia novos avisos operacionais do cuidado; registros técnicos de consentimento permanecem preservados.",
+            "ai_analysis" => "Revogar bloqueia qualquer apoio de IA em novos rascunhos ou briefings; a IA nunca aprova prontuário automaticamente.",
+            "recording" => "Revogar bloqueia qualquer gravação nova de sessão ou chamada; sem consentimento ativo, gravação permanece indisponível.",
+            "transcription" => "Revogar bloqueia qualquer transcrição nova de áudio; sem consentimento ativo, transcrição permanece indisponível.",
+            _ => "Revogar bloqueia próximos usos desse consentimento; eventos técnicos permanecem para rastreabilidade."
+        };
     }
 
     public async Task<int> ExpireDuePatientConsentsAsync(CancellationToken cancellationToken)
@@ -752,7 +817,10 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             consents,
             sensitiveConsents,
             consentHistory,
-            consentTerms);
+            consentTerms,
+            BuildRetentionPolicies(
+                consents.Select(ToPolicySource).Concat(sensitiveConsents.Select(ToPolicySource)),
+                consentTerms));
     }
 
     public async Task<PatientTaskDto> CompletePatientTaskAsync(
@@ -4067,6 +4135,28 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             consent.UpdatedAt);
     }
 
+    private static ConsentPolicySource ToPolicySource(PatientConsentDto consent)
+    {
+        return new ConsentPolicySource(
+            consent.ProfessionalId,
+            consent.SpaceId,
+            consent.ConsentType,
+            consent.Status,
+            consent.TermsVersion,
+            consent.ExpiresAt);
+    }
+
+    private static ConsentPolicySource ToPolicySource(PatientPortalConsentDto consent)
+    {
+        return new ConsentPolicySource(
+            consent.ProfessionalId,
+            consent.SpaceId,
+            consent.ConsentType,
+            consent.Status,
+            consent.TermsVersion,
+            consent.ExpiresAt);
+    }
+
     private static PatientConsentEventDto ToDto(PatientConsentEvent consentEvent)
     {
         return new PatientConsentEventDto(
@@ -4135,6 +4225,14 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
     private sealed record ProfessionalPatientRelationship(
         Guid ProfessionalId,
         Guid SpaceId);
+
+    private sealed record ConsentPolicySource(
+        Guid ProfessionalId,
+        Guid SpaceId,
+        string ConsentType,
+        string Status,
+        string TermsVersion,
+        DateTimeOffset? ExpiresAt);
 
     private sealed record TimelineSourceMetadata(
         string SourceLabel,

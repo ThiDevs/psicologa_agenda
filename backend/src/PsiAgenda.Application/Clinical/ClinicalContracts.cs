@@ -13,6 +13,7 @@ public sealed record ClinicalWorkspaceDto(
     IReadOnlyList<PatientConsentDto> Consents,
     IReadOnlyList<PatientConsentEventDto> ConsentHistory,
     IReadOnlyList<PatientConsentTermDto> ConsentTerms,
+    IReadOnlyList<ClinicalRetentionPolicyDto> RetentionPolicies,
     TreatmentPlanDto TreatmentPlan,
     IReadOnlyList<PatientTaskDto> Tasks,
     IReadOnlyList<SharedMaterialDto> Materials,
@@ -41,7 +42,8 @@ public sealed record PatientCarePortalDto(
     IReadOnlyList<PatientPortalConsentDto> Consents,
     IReadOnlyList<PatientPortalConsentDto> SensitiveConsents,
     IReadOnlyList<PatientConsentEventDto> ConsentHistory,
-    IReadOnlyList<PatientConsentTermDto> ConsentTerms);
+    IReadOnlyList<PatientConsentTermDto> ConsentTerms,
+    IReadOnlyList<ClinicalRetentionPolicyDto> RetentionPolicies);
 
 public sealed record ClinicalSessionDto(
     Guid Id,
@@ -226,6 +228,21 @@ public sealed record PatientConsentTermDto(
     bool IsActive,
     DateTimeOffset EffectiveAt,
     DateTimeOffset? RetiredAt);
+
+public sealed record ClinicalRetentionPolicyDto(
+    Guid ProfessionalId,
+    Guid SpaceId,
+    string ConsentType,
+    string TermsVersion,
+    string Status,
+    bool Sensitive,
+    bool DataUseAllowed,
+    bool PatientCanRevoke,
+    DateTimeOffset? ActiveUntil,
+    string RetentionPolicy,
+    string RevocationEffect,
+    string ExpirationEffect,
+    string ReviewNotice);
 
 public sealed record TreatmentPlanDto(
     Guid? Id,

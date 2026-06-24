@@ -19,6 +19,7 @@ import {
   respondPatientCheckIn,
   updatePatientPortalConsent,
   updatePatientSensitiveConsent,
+  type ApiClinicalRetentionPolicy,
   type ApiPatientConsentEvent,
   type ApiPatientConsentStatus,
   type ApiPatientConsentTerm,
@@ -184,6 +185,10 @@ export function PatientCarePortalScreen() {
   const sensitiveConsents = portal?.sensitiveConsents ?? [];
   const consentHistory = (portal?.consentHistory ?? []).slice(0, 8);
   const consentTermByKey = useMemo(() => buildConsentTermMap(portal?.consentTerms), [portal?.consentTerms]);
+  const retentionPolicyByKey = useMemo(
+    () => buildRetentionPolicyMap(portal?.retentionPolicies),
+    [portal?.retentionPolicies],
+  );
   const openTasks = tasks.filter((task) => task.status !== 'completed');
   const openCheckIns = checkIns.filter((checkIn) => checkIn.status !== 'answered');
   const grantedConsentCount = consents.filter((consent) => consent.status === 'granted').length;
@@ -337,6 +342,7 @@ export function PatientCarePortalScreen() {
                   key={consentKey(consent)}
                   consent={consent}
                   term={consentTermByKey.get(consentTermKey(consent.consentType, consent.termsVersion))}
+                  policy={retentionPolicyByKey.get(retentionPolicyKey(consent.professionalId, consent.consentType))}
                   isFirst={index === 0}
                   saving={savingConsentKey === consentKey(consent)}
                   disabled={savingConsentKey !== null}
@@ -364,6 +370,7 @@ export function PatientCarePortalScreen() {
                   key={consentKey(consent)}
                   consent={consent}
                   term={consentTermByKey.get(consentTermKey(consent.consentType, consent.termsVersion))}
+                  policy={retentionPolicyByKey.get(retentionPolicyKey(consent.professionalId, consent.consentType))}
                   isFirst={index === 0}
                   saving={savingConsentKey === consentKey(consent)}
                   disabled={savingConsentKey !== null}
@@ -667,6 +674,7 @@ function SharedMaterialRow({
 
 function PatientConsentRow({
   consent,
+  policy,
   term,
   isFirst,
   saving,
@@ -676,6 +684,7 @@ function PatientConsentRow({
   onRevoke,
 }: {
   consent: ApiPatientPortalConsent;
+  policy?: ApiClinicalRetentionPolicy;
   term?: ApiPatientConsentTerm;
   isFirst: boolean;
   saving: boolean;
@@ -714,10 +723,23 @@ function PatientConsentRow({
           {term?.title ? `${term.title} · ` : ''}Termos {consent.termsVersion}
         </Text>
         {term?.retentionPolicy ? (
-          <Text style={styles.rowMeta}>Política: {term.retentionPolicy}</Text>
+          <Text style={styles.rowMeta}>Política do termo: {term.retentionPolicy}</Text>
         ) : null}
         {term?.reviewNotice ? (
           <Text style={styles.rowMeta}>{term.reviewNotice}</Text>
+        ) : null}
+        {policy ? (
+          <View style={styles.retentionPolicyBox}>
+            <Text style={styles.retentionPolicyTitle}>Retenção e revogação</Text>
+            <Text style={styles.retentionPolicyText}>
+              Uso atual: {policy.dataUseAllowed ? 'liberado por consentimento ativo' : 'bloqueado para novos usos'}.
+            </Text>
+            <Text style={styles.retentionPolicyText}>{policy.revocationEffect}</Text>
+            <Text style={styles.retentionPolicyText}>{policy.expirationEffect}</Text>
+            {policy.activeUntil ? (
+              <Text style={styles.retentionPolicyText}>Validade: {formatDateLabel(policy.activeUntil)}</Text>
+            ) : null}
+          </View>
         ) : null}
         <View style={styles.consentActions}>
           <Pressable
@@ -824,8 +846,16 @@ function buildConsentTermMap(terms?: ApiPatientConsentTerm[]) {
   return new Map((terms ?? []).map((term) => [consentTermKey(term.consentType, term.version), term]));
 }
 
+function buildRetentionPolicyMap(policies?: ApiClinicalRetentionPolicy[]) {
+  return new Map((policies ?? []).map((policy) => [retentionPolicyKey(policy.professionalId, policy.consentType), policy]));
+}
+
 function consentTermKey(consentType: string, version: string) {
   return `${consentType}:${version}`;
+}
+
+function retentionPolicyKey(professionalId: string, consentType: string) {
+  return `${professionalId}:${consentType}`;
 }
 
 function consentTypeLabel(consentType: string) {
@@ -1142,6 +1172,27 @@ const styles = StyleSheet.create({
     color: CARE_COLORS.muted,
     fontSize: 12,
     lineHeight: 16,
+    fontWeight: '400',
+  },
+  retentionPolicyBox: {
+    gap: 5,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(6, 74, 138, 0.16)',
+    backgroundColor: CARE_COLORS.surfaceBlue,
+  },
+  retentionPolicyTitle: {
+    color: CARE_COLORS.primary,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  retentionPolicyText: {
+    color: CARE_COLORS.muted,
+    fontSize: 12.5,
+    lineHeight: 17,
     fontWeight: '400',
   },
   consentActions: {

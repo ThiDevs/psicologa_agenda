@@ -52,6 +52,7 @@ import {
   type ApiClinicalAlertSeverity,
   type ApiClinicalPermission,
   type ApiClinicalRecordExport,
+  type ApiClinicalRetentionPolicy,
   type ApiClinicalSession,
   type ApiClinicalTagInput,
   type ApiClinicalWorkspace,
@@ -428,9 +429,13 @@ export function ClinicalPatientWorkspaceScreen() {
   const accessPolicy = workspace?.accessPolicy ?? null;
   const grantedPermissionCount = accessPolicy?.permissions.filter((permission) => permission.granted).length ?? 0;
   const consentTermByKey = useMemo(() => buildConsentTermMap(workspace?.consentTerms), [workspace?.consentTerms]);
+  const retentionPolicyByKey = useMemo(
+    () => buildRetentionPolicyMap(workspace?.retentionPolicies),
+    [workspace?.retentionPolicies],
+  );
   const consentRows = useMemo(
-    () => buildConsentRows(workspace?.consents, consentTermByKey),
-    [workspace?.consents, consentTermByKey],
+    () => buildConsentRows(workspace?.consents, consentTermByKey, retentionPolicyByKey),
+    [workspace?.consents, consentTermByKey, retentionPolicyByKey],
   );
   const grantedConsentCount = consentRows.filter((consent) => consent.status === 'granted').length;
   const consentHistory = (workspace?.consentHistory ?? []).slice(0, 8);
@@ -2419,6 +2424,7 @@ type ConsentRowModel = ClinicalConsentItem & {
   status: ApiPatientConsentStatus;
   termsVersion: string;
   term?: ApiPatientConsentTerm;
+  retentionPolicy?: ApiClinicalRetentionPolicy;
   grantedAt?: string | null;
   revokedAt?: string | null;
   expiresAt?: string | null;
@@ -2499,10 +2505,25 @@ function ConsentRow({
             {sensitive ? ' · aceite pelo paciente no portal' : ''}
           </Text>
           {consent.term?.retentionPolicy ? (
-            <Text style={styles.consentMeta}>Política: {consent.term.retentionPolicy}</Text>
+            <Text style={styles.consentMeta}>Política do termo: {consent.term.retentionPolicy}</Text>
           ) : null}
           {consent.term?.reviewNotice ? (
             <Text style={styles.consentMeta}>{consent.term.reviewNotice}</Text>
+          ) : null}
+          {consent.retentionPolicy ? (
+            <View style={styles.retentionPolicyBox}>
+              <Text style={styles.retentionPolicyTitle}>Retenção e revogação</Text>
+              <Text style={styles.retentionPolicyText}>
+                Uso atual: {consent.retentionPolicy.dataUseAllowed ? 'liberado por consentimento ativo' : 'bloqueado para novos usos'}.
+              </Text>
+              <Text style={styles.retentionPolicyText}>{consent.retentionPolicy.revocationEffect}</Text>
+              <Text style={styles.retentionPolicyText}>{consent.retentionPolicy.expirationEffect}</Text>
+              {consent.retentionPolicy.activeUntil ? (
+                <Text style={styles.retentionPolicyText}>
+                  Validade: {formatDateTimeLabel(consent.retentionPolicy.activeUntil)}
+                </Text>
+              ) : null}
+            </View>
           ) : null}
         </View>
       </View>
@@ -3066,16 +3087,19 @@ function canCompleteSession(session: ApiClinicalSession) {
 function buildConsentRows(
   consents?: ApiPatientConsent[],
   termsByKey?: Map<string, ApiPatientConsentTerm>,
+  retentionPoliciesByKey?: Map<string, ApiClinicalRetentionPolicy>,
 ): ConsentRowModel[] {
   return clinicalConsentPreview.map((definition) => {
     const saved = consents?.find((consent) => consent.consentType === definition.id);
     const termsVersion = saved?.termsVersion ?? defaultConsentTermsVersion(definition.id);
+    const professionalId = saved?.professionalId ?? '';
 
     return {
       ...definition,
       status: saved?.status ?? 'pending',
       termsVersion,
       term: termsByKey?.get(consentTermKey(definition.id, termsVersion)),
+      retentionPolicy: retentionPoliciesByKey?.get(retentionPolicyKey(professionalId, definition.id)),
       grantedAt: saved?.grantedAt,
       revokedAt: saved?.revokedAt,
       expiresAt: saved?.expiresAt,
@@ -3087,8 +3111,16 @@ function buildConsentTermMap(terms?: ApiPatientConsentTerm[]) {
   return new Map((terms ?? []).map((term) => [consentTermKey(term.consentType, term.version), term]));
 }
 
+function buildRetentionPolicyMap(policies?: ApiClinicalRetentionPolicy[]) {
+  return new Map((policies ?? []).map((policy) => [retentionPolicyKey(policy.professionalId, policy.consentType), policy]));
+}
+
 function consentTermKey(consentType: string, version: string) {
   return `${consentType}:${version}`;
+}
+
+function retentionPolicyKey(professionalId: string, consentType: string) {
+  return `${professionalId}:${consentType}`;
 }
 
 function defaultConsentTermsVersion(consentType: string) {
@@ -4061,6 +4093,27 @@ const styles = StyleSheet.create({
     color: UI.darkTextMuted,
     fontSize: 11,
     fontWeight: '600',
+  },
+  retentionPolicyBox: {
+    gap: 5,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(6, 74, 138, 0.20)',
+    backgroundColor: 'rgba(6, 74, 138, 0.08)',
+  },
+  retentionPolicyTitle: {
+    color: UI.darkPrimary,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  retentionPolicyText: {
+    color: UI.darkTextMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '400',
   },
   consentActions: {
     flexDirection: 'row',

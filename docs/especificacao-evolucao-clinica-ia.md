@@ -1615,6 +1615,8 @@ Atualizacao da vigesima sexta entrega: a API agora registra `ClinicalConsentExpi
 
 Atualizacao da vigesima setima entrega: a UI/UX dos fluxos centrais foi refinada para seguir a linguagem visual atual da home do paciente, com paleta azul discreta, tipografia mais compacta, cards de 6-8px, menor sombra e separacao visual mais clara entre cuidado, agenda, gestor e workspace clinico. A home do paciente agora evita horario ficticio quando nao ha proxima consulta e usa estado de acao principal real para encontrar psicologa. Este ciclo nao adicionou IA, gravacao, transcricao ou novas permissoes sensiveis. Ainda faltam politica operacional completa de retencao/revogacao, revisao juridica final dos textos, criptografia de campos sensiveis, telas legadas fora deste escopo com pesos/radii antigos, IA real, gravacao e transcricao.
 
+Atualizacao da vigesima oitava entrega: workspace clinico e portal do paciente agora recebem `retentionPolicies`, uma politica operacional calculada por vinculo profissional/espaco, tipo de consentimento, status e versao de termo. A UI exibe uso atual liberado ou bloqueado, efeito da revogacao, efeito da expiracao automatica, validade e texto de retencao sem misturar essa politica com prontuario, rascunho, memoria clinica ou conteudo compartilhavel. A revogacao e a expiracao seguem bloqueando novos usos de portal, materiais, check-ins, IA, gravacao e transcricao, preservando apenas eventos tecnicos para rastreabilidade e auditoria sem conteudo clinico sensivel. Ainda faltam revisao juridica final dos textos, criptografia de campos sensiveis, politicas avancadas por papel/supervisao, IA real, gravacao e transcricao.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1763,6 +1765,8 @@ Feito agora:
 101. Expiracao cria evento tecnico, memoria na timeline e auditoria segura sem metadata clinica sensivel.
 102. `ClinicalConsentExpirationWorker` executa expiracao dedicada em segundo plano e ao subir a API.
 103. Consulta de expiracao ganhou indice por `status` e `expiresAt`.
+104. Workspace clinico e portal do paciente retornam politica operacional de retencao/revogacao por consentimento e vinculo.
+105. UI da psicologa e do paciente exibem efeito de revogacao/expiracao e bloqueio de novos usos sem expor conteudo clinico sensivel.
 
 Falta para virar produto clinico real:
 
@@ -1771,7 +1775,7 @@ Falta para virar produto clinico real:
 3. Evoluir a matriz de permissoes para supervisao clinica, revogacoes historicas e politicas avancadas por papel.
 4. Criar reabertura/edicao de tarefas, materiais completos e agenda recorrente de check-ins.
 5. Conectar IA somente depois de consentimento e minimizacao de dados.
-6. Formalizar politica de retencao/revogacao de consentimentos e revisar juridicamente as versoes dos termos.
+6. Revisar juridicamente a politica de retencao/revogacao exibida e formalizar procedimentos operacionais fora do app.
 7. Refinar alertas responsaveis com configuracao de regras, aprendizagem de falso positivo e tendencias longitudinais.
 8. Adicionar testes de contrato da API e testes de tela.
 9. Ajustar copy legal/clinica com revisao profissional.
@@ -1790,7 +1794,7 @@ Status por modulo:
 | Portal do paciente com cuidado | Parcial | Tarefas, materiais e check-ins privados no workspace; previa antes de compartilhar; share/unshare com consentimento; `/patient-care` para itens liberados, conclusao/resposta de tarefa, resposta de check-in e consentimento direto nao sensivel | Reabertura/edicao de tarefas, historico de visualizacao e refinamento de materiais |
 | Check-ins entre sessoes | Parcial | `PatientCheckIn` persistido, compartilhamento com consentimento e resposta pelo portal com escala/observacao | Agenda recorrente, templates editaveis, graficos e tendencias |
 | Alertas responsaveis | Parcial | `ClinicalAlert`, criacao manual por atendimento, motor inicial por tags `risk` e check-ins com escala 1 ou 2, painel no workspace, acoes de confirmar/acompanhar/descartar/resolver, timeline, auditoria sem mensagem automatica ao paciente e destaque de alerta alto no briefing | Configuracao de regras, aprendizado de falso positivo e tendencias longitudinais |
-| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, `PatientConsentEvent` com historico tecnico/versionado, `PatientConsentTerm` com catalogo versionado e validacao de versao ativa, expiracao materializada por `expiresAt`, job dedicado de expiracao, shareables com consentimento, consentimento direto nao sensivel no portal, solicitacao/decisao de consentimentos sensiveis, exportacao aprovada auditada, matriz efetiva de permissoes no workspace e auditoria sem conteudo clinico | Revisao juridica dos textos sensiveis, politica formal de retencao e revogacao, politicas avancadas por papel e criptografia de campos sensiveis |
+| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, `PatientConsentEvent` com historico tecnico/versionado, `PatientConsentTerm` com catalogo versionado e validacao de versao ativa, politica operacional de retencao/revogacao calculada no workspace e portal, expiracao materializada por `expiresAt`, job dedicado de expiracao, shareables com consentimento, consentimento direto nao sensivel no portal, solicitacao/decisao de consentimentos sensiveis, exportacao aprovada auditada, matriz efetiva de permissoes no workspace e auditoria sem conteudo clinico | Revisao juridica dos textos sensiveis, formalizacao operacional fora do app, politicas avancadas por papel e criptografia de campos sensiveis |
 
 ### Navegacao profissional sugerida
 
