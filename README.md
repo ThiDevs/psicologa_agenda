@@ -40,7 +40,7 @@ Em ambiente `Development`, as migrations são aplicadas automaticamente na inici
 
 ## Configurar URL da API no app
 
-Sem configuração extra, o app usa a API publicada em `https://felicio.app/api`.
+Sem configuração extra, o app usa a API publicada em `https://api.felicio.app/api`.
 
 Para desenvolvimento local, defina `EXPO_PUBLIC_API_URL` no bundle Expo. Reinicie o servidor Expo depois de mudar essa variável.
 

@@ -17,7 +17,7 @@ O sistema é dividido em:
 - Persistência PostgreSQL via Entity Framework Core.
 - Dados locais de demonstração em `src/data/initial-owner-config.ts`.
 
-Em produção, o app usa `https://felicio.app/api` como raiz da API. O prefixo `/api` faz parte da raiz e não deve ser removido. As páginas legais públicas do backend ficam fora de `/api`: `/privacy`, `/terms` e `/support`.
+Em produção, o frontend web usa `https://psi.felicio.app` e o app usa `https://api.felicio.app/api` como raiz da API. O prefixo `/api` faz parte da raiz e não deve ser removido. As páginas legais públicas do backend ficam em `https://api.felicio.app/privacy`, `/terms` e `/support`.
 
 ```mermaid
 flowchart LR

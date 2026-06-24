@@ -76,6 +76,6 @@ docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build api
 
 echo "==> Healthcheck"
 sleep 5
-curl -f https://felicio.app/api/health
+curl -f https://api.felicio.app/api/health
 
 echo "Deploy concluido."

@@ -3,7 +3,7 @@ namespace PsiAgenda.Infrastructure.Services;
 public sealed class MeetingRoomOptions
 {
     public const string SectionName = "MeetingRoom";
-    private const string DefaultAppBaseUrl = "https://felicio.app/video-call";
+    private const string DefaultAppBaseUrl = "https://psi.felicio.app/video-call";
     private const string DefaultFallbackBaseUrl = "https://meet.jit.si";
 
     public string? AppBaseUrl { get; init; } = DefaultAppBaseUrl;

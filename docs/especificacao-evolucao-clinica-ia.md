@@ -19,7 +19,7 @@ O sistema atual ja possui:
 - Banco PostgreSQL via Entity Framework Core.
 - Fluxos de autenticacao, agenda, consulta online, profissional, cliente, consultorio e paginas legais.
 
-Em producao, a raiz da API e `https://felicio.app/api`. O prefixo `/api` faz parte da raiz e nao deve ser removido.
+Em producao, o frontend web usa `https://psi.felicio.app` e a raiz da API e `https://api.felicio.app/api`. O prefixo `/api` faz parte da raiz e nao deve ser removido.
 
 ## Objetivo do produto
 

@@ -5,7 +5,7 @@ import type { OnboardingItem, User, UserRole } from '@/types/domain';
 
 const ACCESS_TOKEN_KEY = 'psi_agenda_online.access_token';
 const REFRESH_TOKEN_KEY = 'psi_agenda_online.refresh_token';
-const DEFAULT_API_BASE_URL = 'https://felicio.app/api';
+const DEFAULT_API_BASE_URL = 'https://api.felicio.app/api';
 
 export const API_BASE_URL = resolveApiBaseUrl();
 
