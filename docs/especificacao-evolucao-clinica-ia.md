@@ -1621,6 +1621,8 @@ Atualizacao da vigesima nona entrega: a matriz `ClinicalAccessPolicy` agora incl
 
 Atualizacao da trigesima entrega: os novos textos clinicos sensiveis passaram a ser protegidos em repouso por envelope `enc:v1` com AES-256-GCM no backend, mantendo leitura transparente de registros legados ainda em texto puro. `ClinicalDraft`, `ClinicalRecord`, notas de tags, formulacao de caso, tarefas, materiais, check-ins e alertas agora gravam os campos textuais protegidos, e uma migration amplia essas colunas para `text` para evitar estouro do envelope cifrado. Workspace clinico e portal do paciente recebem `dataProtection` e exibem um painel discreto animado de protecao dos dados, sem expor conteudo clinico, IA, gravacao ou transcricao. Ainda faltam configurar chave definitiva fora do fallback de desenvolvimento, definir rotacao de chaves, migrar legado ja armazenado e cobrir o contrato de protecao com testes automatizados.
 
+Atualizacao da trigesima primeira entrega: o painel web da psicologa foi redesenhado para seguir a linguagem visual atual da home do paciente, com shell operacional compacto, sidebar clara, cards baixos, agenda em lista, checklist de publicacao, avisos de sigilo e acoes rapidas. A tela agora separa indicadores administrativos de conteudo clinico privado, evita expor rascunho/prontuario/memoria no painel operacional e usa animacoes discretas de entrada/layout com Reanimated. Este ciclo nao adicionou IA, gravacao, transcricao, novas permissoes clinicas ou acesso do admin operacional a conteudo privado. Ainda faltam testes visuais automatizados, ajustes finos em telas legadas fora do painel e evoluir as pendencias clinicas ja listadas.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1631,6 +1633,7 @@ Arquivos criados ou alterados:
 - `src/app/clinical-patient.tsx`
 - `src/types/clinical.ts`
 - `src/data/clinical-integration.ts`
+- `src/screens/OwnerScreens.tsx`
 - `src/screens/ProfessionalScreens.tsx`
 - `src/services/api-client.ts`
 - `backend/src/PsiAgenda.Application/Clinical/ClinicalContracts.cs`
@@ -1780,6 +1783,9 @@ Feito agora:
 108. Novos campos textuais clinicos sensiveis sao protegidos em repouso por envelope `enc:v1` e continuam legiveis nos DTOs por descriptografia transparente.
 109. Workspace clinico e portal do paciente retornam `dataProtection`, informando algoritmo, origem da chave, campos protegidos e aviso de rotacao sem incluir conteudo clinico.
 110. UI da psicologa e do paciente exibe protecao de dados clinicos com linguagem discreta, icone de cadeado e animacao curta alinhada ao padrao visual atual.
+111. Painel web da psicologa foi reestruturado como mesa operacional compacta, com sidebar, acao principal, agenda, checklist, avisos e atalhos coerentes com a home do paciente.
+112. Indicadores administrativos do consultorio agora ficam separados de qualquer rascunho, prontuario, memoria clinica ou conteudo compartilhavel.
+113. Tela do painel da psicologa usa icones mais claros e animacoes discretas de entrada/layout para reduzir sensacao de prototipo cru no modo web.
 
 Falta para virar produto clinico real:
 
