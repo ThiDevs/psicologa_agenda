@@ -37,6 +37,13 @@ git fetch origin
 git checkout "$BRANCH"
 git pull --ff-only origin "$BRANCH"
 
+echo "==> Instalando dependencias do Frontend e fazendo build"
+npm install
+npx expo export
+
+echo "==> Reiniciando PM2 (Frontend Web)"
+pm2 reload ecosystem.config.js --update-env || pm2 start ecosystem.config.js
+
 echo "==> Garantindo PostgreSQL ativo"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d postgres
 
