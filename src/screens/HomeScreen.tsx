@@ -538,7 +538,12 @@ function MobileCareHome({
   const firstName = userName?.split(' ')[0] ?? 'Thiago';
   const nextAppointment = upcomingAppointments[0];
   const discoverySpaces = filteredSpaces.slice(0, 3);
-  const sessionTime = nextAppointment ? formatCareDateTime(nextAppointment.startDateTime) : 'Hoje, 15:00';
+  const hasNextAppointment = Boolean(nextAppointment);
+  const sessionTime = nextAppointment ? formatCareDateTime(nextAppointment.startDateTime) : null;
+  const sessionTitle = sessionTime ?? 'Encontrar psicóloga';
+  const sessionDescription = discoverySpaces.length
+    ? `${discoverySpaces.length} profissionais disponíveis para iniciar seu cuidado.`
+    : 'Crie sua conta para montar sua agenda de cuidado.';
 
   function handlePrimaryAction() {
     if (nextAppointment) {
@@ -584,25 +589,38 @@ function MobileCareHome({
 
       <View style={styles.mobileSessionCard}>
         <View style={styles.mobileSessionHeader}>
-          <View>
-            <Text style={styles.mobileEyebrow}>PRÓXIMA SESSÃO</Text>
-            <Text style={styles.mobileSessionTime}>{sessionTime}</Text>
+          <View style={styles.mobileSessionTitleCopy}>
+            <Text style={styles.mobileEyebrow}>{hasNextAppointment ? 'PRÓXIMA SESSÃO' : 'AÇÃO PRINCIPAL'}</Text>
+            <Text style={styles.mobileSessionTime}>{sessionTitle}</Text>
+            {!hasNextAppointment ? (
+              <Text style={styles.mobileSessionDescription}>{sessionDescription}</Text>
+            ) : null}
           </View>
-          <View style={styles.mobileConfirmedPill}>
-            <View style={styles.mobileConfirmedDot} />
-            <Text style={styles.mobileConfirmedText}>Confirmada</Text>
-          </View>
+          {hasNextAppointment ? (
+            <View style={styles.mobileConfirmedPill}>
+              <View style={styles.mobileConfirmedDot} />
+              <Text style={styles.mobileConfirmedText}>Confirmada</Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.mobileTherapistRow}>
           <View style={styles.mobileSessionIcon}>
-            <Ionicons name="calendar-outline" size={27} color={CARE_COLORS.primary} />
+            <Ionicons name={hasNextAppointment ? 'calendar-outline' : 'search-outline'} size={20} color={CARE_COLORS.primary} />
           </View>
           <View style={styles.mobileTherapistCopy}>
-            <Text style={styles.mobileTherapistName}>Dra. Helena Martins</Text>
+            <Text style={styles.mobileTherapistName}>
+              {hasNextAppointment ? 'Dra. Helena Martins' : 'Escolha seu próximo cuidado'}
+            </Text>
             <View style={styles.mobileTinyRow}>
-              <Ionicons name="videocam-outline" size={16} color={CARE_COLORS.primary} />
-              <Text style={styles.mobileTherapistMeta}>Terapia online</Text>
+              <Ionicons
+                name={hasNextAppointment ? 'videocam-outline' : 'shield-checkmark-outline'}
+                size={15}
+                color={CARE_COLORS.primary}
+              />
+              <Text style={styles.mobileTherapistMeta}>
+                {hasNextAppointment ? 'Terapia online' : 'Atendimento seguro e discreto'}
+              </Text>
             </View>
           </View>
         </View>
@@ -612,7 +630,7 @@ function MobileCareHome({
             accessibilityRole="button"
             onPress={handlePrimaryAction}
             style={({ pressed }) => [styles.mobilePrimaryAction, pressed && styles.pressed]}>
-            <Ionicons name={nextAppointment ? 'videocam' : 'search-outline'} size={20} color={CARE_COLORS.surface} />
+            <Ionicons name={nextAppointment ? 'videocam' : 'search-outline'} size={18} color={CARE_COLORS.surface} />
             <Text style={styles.mobilePrimaryActionText}>
               {nextAppointment ? 'Entrar na consulta' : 'Encontrar psicóloga'}
             </Text>
@@ -621,70 +639,106 @@ function MobileCareHome({
             accessibilityRole="button"
             onPress={onAppointments}
             style={({ pressed }) => [styles.mobileSecondaryAction, pressed && styles.pressed]}>
-            <Ionicons name="calendar-outline" size={18} color={CARE_COLORS.primary} />
-            <Text style={styles.mobileSecondaryActionText}>Remarcar</Text>
+            <Ionicons name="calendar-outline" size={17} color={CARE_COLORS.primary} />
+            <Text style={styles.mobileSecondaryActionText}>{hasNextAppointment ? 'Remarcar' : 'Agenda'}</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
             onPress={onCare}
             style={({ pressed }) => [styles.mobileSecondaryAction, pressed && styles.pressed]}>
-            <Ionicons name="checkbox-outline" size={18} color={CARE_COLORS.primary} />
-            <Text style={styles.mobileSecondaryActionText}>Preparar</Text>
+            <Ionicons name="checkbox-outline" size={17} color={CARE_COLORS.primary} />
+            <Text style={styles.mobileSecondaryActionText}>{hasNextAppointment ? 'Preparar' : 'Meu cuidado'}</Text>
           </Pressable>
         </View>
       </View>
 
       <View style={styles.mobileCareCard}>
         <View style={styles.mobileCardTitleRow}>
-          <View style={[styles.mobileCardIcon, styles.mobileCardIconSage]}>
-            <Ionicons name="checkbox-outline" size={22} color={CARE_COLORS.sage} />
+          <View style={[styles.mobileCardIcon, styles.mobileCardIconAmber]}>
+            <Ionicons name="clipboard-outline" size={18} color={CARE_COLORS.amber} />
           </View>
-          <Text style={styles.mobileCardTitle}>Prepare-se</Text>
+          <View style={styles.mobileCardTitleCopy}>
+            <Text style={styles.mobileCardTitle}>Tarefas abertas</Text>
+            <Text style={styles.mobileCardSubtitle}>Prioridades do seu acompanhamento</Text>
+          </View>
+          <View style={styles.mobileCountBadge}>
+            <Text style={styles.mobileCountText}>4</Text>
+          </View>
         </View>
-        <View style={styles.mobilePrepList}>
-          <MobilePrepRow checked title="Revisar anotações da última sessão" onPress={onCare} />
-          <MobilePrepRow checked title="Definir intenção para hoje" onPress={onCare} />
-          <MobilePrepRow title="Preencher check-in rápido" onPress={onCare} />
+        <View style={styles.mobileTaskList}>
+          <MobileTaskRow title="Prática de respiração" text="3x por semana" status="Hoje" onPress={onCare} />
+          <MobileTaskRow title="Diário de pensamentos" text="5 min diários" status="Aberta" onPress={onCare} />
+          <MobileTaskRow title="Leitura combinada" text="Até sexta-feira" status="Pendente" onPress={onCare} />
         </View>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onCare}
+          style={({ pressed }) => [styles.mobileInlineLink, pressed && styles.pressed]}>
+          <Text style={styles.mobileInlineLinkText}>Ver todas</Text>
+          <Ionicons name="chevron-forward" size={16} color={CARE_COLORS.primary} />
+        </Pressable>
       </View>
 
-      <View style={styles.mobileCareTwoColumns}>
-        <View style={[styles.mobileCareCard, styles.mobileHalfCard]}>
+      <View style={styles.mobileCareCard}>
+        <View style={styles.mobileCardTitleRow}>
           <View style={[styles.mobileCardIcon, styles.mobileCardIconSage]}>
-            <Ionicons name="heart-outline" size={22} color={CARE_COLORS.sage} />
+            <Ionicons name="heart-outline" size={18} color={CARE_COLORS.sage} />
           </View>
-          <Text style={[styles.mobileCardTitle, styles.mobileCompactCardTitle]}>Check-in rápido</Text>
-          <Text style={styles.mobileCompactText}>Como você está se sentindo hoje?</Text>
-          <View style={styles.mobileMoodRow}>
-            <MobileMoodDot icon="sad-outline" tone="coral" />
-            <MobileMoodDot icon="sad-outline" tone="amber" />
-            <MobileMoodDot icon="remove-outline" tone="neutral" />
-            <MobileMoodDot icon="happy-outline" tone="sage" />
-            <MobileMoodDot icon="happy" tone="sage" selected />
+          <View style={styles.mobileCardTitleCopy}>
+            <Text style={styles.mobileCardTitle}>Check-in emocional</Text>
+            <Text style={styles.mobileCardSubtitle}>Como você está se sentindo hoje?</Text>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onCare}
-            style={({ pressed }) => [styles.mobileCheckinButton, pressed && styles.pressed]}>
-            <Text style={styles.mobileCheckinButtonText}>Fazer check-in</Text>
-          </Pressable>
         </View>
+        <View style={styles.mobileMoodRow}>
+          <MobileMoodDot icon="sad-outline" tone="coral" />
+          <MobileMoodDot icon="sad-outline" tone="amber" />
+          <MobileMoodDot icon="remove-outline" tone="neutral" />
+          <MobileMoodDot icon="happy-outline" tone="sage" />
+          <MobileMoodDot icon="happy" tone="sage" selected />
+        </View>
+        <View style={styles.mobileCheckinNote}>
+          <Ionicons name="leaf-outline" size={15} color={CARE_COLORS.sage} />
+          <Text style={styles.mobileCheckinNoteText}>Um registro breve ajuda sua psicóloga a acompanhar seu momento.</Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onCare}
+          style={({ pressed }) => [styles.mobileCheckinButton, pressed && styles.pressed]}>
+          <Text style={styles.mobileCheckinButtonText}>Registrar agora</Text>
+        </Pressable>
+      </View>
 
-        <View style={[styles.mobileCareCard, styles.mobileHalfCard]}>
-          <View style={[styles.mobileCardIcon, styles.mobileCardIconAmber]}>
-            <Ionicons name="clipboard-outline" size={22} color={CARE_COLORS.amber} />
+      <View style={styles.mobileCareCard}>
+        <View style={styles.mobileCardTitleRow}>
+          <View style={[styles.mobileCardIcon, styles.mobileCardIconSage]}>
+            <Ionicons name="checkbox-outline" size={18} color={CARE_COLORS.sage} />
           </View>
-          <Text style={[styles.mobileCardTitle, styles.mobileCompactCardTitle]}>Tarefas abertas</Text>
-          <MobileTaskSummary color={CARE_COLORS.coral} label="Exercícios" value="2" />
-          <MobileTaskSummary color={CARE_COLORS.amber} label="Reflexões" value="1" />
-          <MobileTaskSummary color={CARE_COLORS.primary} label="Leituras" value="1" />
-          <Pressable
-            accessibilityRole="button"
+          <View style={styles.mobileCardTitleCopy}>
+            <Text style={styles.mobileCardTitle}>Prepare-se</Text>
+            <Text style={styles.mobileCardSubtitle}>Pequenas ações antes da sessão</Text>
+          </View>
+        </View>
+        <View style={styles.mobilePrepList}>
+          <MobilePrepRow
+            checked
+            description="Veja o que foi importante para você."
+            icon="reader-outline"
+            title="Revisar anotações"
             onPress={onCare}
-            style={({ pressed }) => [styles.mobileTaskLink, pressed && styles.pressed]}>
-            <Text style={styles.mobileTaskLinkText}>Ver todas</Text>
-            <Ionicons name="chevron-forward" size={18} color={CARE_COLORS.primary} />
-          </Pressable>
+          />
+          <MobilePrepRow
+            checked
+            description="Escolha um tema para levar à conversa."
+            icon="flag-outline"
+            title="Definir intenção"
+            onPress={onCare}
+          />
+          <MobilePrepRow
+            description="Registre rapidamente como você chega hoje."
+            icon="pulse-outline"
+            title="Preencher check-in rápido"
+            onPress={onCare}
+          />
         </View>
       </View>
 
@@ -703,6 +757,7 @@ function MobileCareHome({
           <View style={styles.mobileProgressFill} />
         </View>
         <View style={styles.mobileJourneyRow}>
+          <View pointerEvents="none" style={styles.mobileJourneyRail} />
           <MobileJourneyNode icon="leaf-outline" title="Começar" text="Concluído" active />
           <MobileJourneyNode icon="compass-outline" title="Entender" text="Concluído" active />
           <MobileJourneyNode icon="flower-outline" title="Praticar" text="Em andamento" current />
@@ -713,7 +768,7 @@ function MobileCareHome({
       <View style={styles.mobileCareCard}>
         <View style={styles.mobileCardTitleRow}>
           <View style={styles.mobileCardIcon}>
-            <Ionicons name="search-outline" size={22} color={CARE_COLORS.primary} />
+            <Ionicons name="search-outline" size={18} color={CARE_COLORS.primary} />
           </View>
           <View style={styles.mobileCardTitleCopy}>
             <Text style={styles.mobileCardTitle}>Encontrar psicóloga</Text>
@@ -767,23 +822,33 @@ function MobileModeSwitch() {
 
 function MobilePrepRow({
   checked,
+  description,
+  icon,
   title,
   onPress,
 }: {
   checked?: boolean;
+  description: string;
+  icon: keyof typeof Ionicons.glyphMap;
   title: string;
   onPress: () => void;
 }) {
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: Boolean(checked) }}
       onPress={onPress}
       style={({ pressed }) => [styles.mobilePrepRow, pressed && styles.pressed]}>
-      <View style={[styles.mobilePrepCheck, checked && styles.mobilePrepCheckSelected]}>
-        {checked && <Ionicons name="checkmark" size={15} color={CARE_COLORS.surface} />}
+      <View style={styles.mobilePrepIcon}>
+        <Ionicons name={icon} size={15} color={CARE_COLORS.primary} />
       </View>
-      <Text numberOfLines={1} style={styles.mobilePrepText}>{title}</Text>
-      <Ionicons name="chevron-forward" size={18} color={CARE_COLORS.muted} />
+      <View style={styles.mobilePrepCopy}>
+        <Text numberOfLines={1} style={styles.mobilePrepText}>{title}</Text>
+        <Text numberOfLines={1} style={styles.mobilePrepDescription}>{description}</Text>
+      </View>
+      <View style={[styles.mobilePrepCheck, checked && styles.mobilePrepCheckSelected]}>
+        {checked && <Ionicons name="checkmark" size={13} color={CARE_COLORS.surface} />}
+      </View>
     </Pressable>
   );
 }
@@ -807,29 +872,43 @@ function MobileMoodDot({
       : '#B8A36A';
 
   return (
-    <View style={[styles.mobileMoodDot, selected && styles.mobileMoodDotSelected, { backgroundColor: `${color}22` }]}>
-      <Ionicons name={icon} size={20} color={color} />
+    <View style={[
+      styles.mobileMoodDot,
+      selected && styles.mobileMoodDotSelected,
+      { backgroundColor: selected ? `${color}1F` : CARE_COLORS.surfaceBlue },
+    ]}>
+      <Ionicons name={icon} size={18} color={color} />
     </View>
   );
 }
 
-function MobileTaskSummary({
-  color,
-  label,
-  value,
+function MobileTaskRow({
+  status,
+  text,
+  title,
+  onPress,
 }: {
-  color: string;
-  label: string;
-  value: string;
+  status: string;
+  text: string;
+  title: string;
+  onPress: () => void;
 }) {
   return (
-    <View style={styles.mobileTaskSummaryRow}>
-      <View style={[styles.mobileTaskMarker, { backgroundColor: color }]} />
-      <Text numberOfLines={1} style={styles.mobileTaskSummaryLabel}>{label}</Text>
-      <View style={[styles.mobileTaskCount, { backgroundColor: `${color}18` }]}>
-        <Text style={[styles.mobileTaskCountText, { color }]}>{value}</Text>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.mobileTaskRow, pressed && styles.pressed]}>
+      <View style={styles.mobileTaskCheck}>
+        <Ionicons name="ellipse-outline" size={16} color={CARE_COLORS.muted} />
       </View>
-    </View>
+      <View style={styles.mobileTaskCopy}>
+        <Text numberOfLines={1} style={styles.mobileTaskTitle}>{title}</Text>
+        <Text numberOfLines={1} style={styles.mobileTaskText}>{text}</Text>
+      </View>
+      <View style={styles.mobileTaskStatus}>
+        <Text numberOfLines={1} style={styles.mobileTaskStatusText}>{status}</Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -846,6 +925,8 @@ function MobileJourneyNode({
   title: string;
   text: string;
 }) {
+  const iconColor = current ? CARE_COLORS.surface : active ? CARE_COLORS.sage : CARE_COLORS.muted;
+
   return (
     <View style={styles.mobileJourneyNode}>
       <View
@@ -856,12 +937,12 @@ function MobileJourneyNode({
         ]}>
         <Ionicons
           name={icon}
-          size={22}
-          color={active ? CARE_COLORS.surface : current ? CARE_COLORS.primary : CARE_COLORS.muted}
+          size={17}
+          color={iconColor}
         />
       </View>
-      <Text numberOfLines={1} style={styles.mobileJourneyTitle}>{title}</Text>
-      <Text numberOfLines={1} style={[styles.mobileJourneyText, (active || current) && styles.mobileJourneyTextActive]}>
+      <Text numberOfLines={1} style={[styles.mobileJourneyTitle, current && styles.mobileJourneyTitleCurrent]}>{title}</Text>
+      <Text numberOfLines={1} style={[styles.mobileJourneyText, current && styles.mobileJourneyTextActive]}>
         {text}
       </Text>
     </View>
@@ -974,7 +1055,12 @@ function WebHomeDashboard({
   const firstName = userName?.split(' ')[0] ?? 'Thiago';
   const nextAppointment = upcomingAppointments[0];
   const discoverySpaces = filteredSpaces.slice(0, 3);
-  const sessionTime = nextAppointment ? formatCareDateTime(nextAppointment.startDateTime) : 'Hoje, 15:00';
+  const hasNextAppointment = Boolean(nextAppointment);
+  const sessionTime = nextAppointment ? formatCareDateTime(nextAppointment.startDateTime) : null;
+  const sessionTitle = sessionTime ?? 'Encontrar psicóloga';
+  const sessionDescription = discoverySpaces.length
+    ? `${discoverySpaces.length} profissionais disponíveis para iniciar seu cuidado.`
+    : 'Crie sua conta para montar sua agenda de cuidado.';
   const primaryLabel = nextAppointment ? 'Entrar na consulta' : 'Encontrar psicóloga';
 
   return (
@@ -1073,17 +1159,32 @@ function WebHomeDashboard({
           <View style={styles.webCarePrimaryColumn}>
             <View style={styles.webCareSessionCard}>
               <View style={styles.webCareSessionLeft}>
-                <Text style={styles.webCareEyebrow}>PRÓXIMA SESSÃO</Text>
-                <Text style={styles.webCareSessionTime}>{sessionTime}</Text>
+                <Text style={styles.webCareEyebrow}>{hasNextAppointment ? 'PRÓXIMA SESSÃO' : 'AÇÃO PRINCIPAL'}</Text>
+                <Text style={styles.webCareSessionTime}>{sessionTitle}</Text>
+                {!hasNextAppointment ? (
+                  <Text style={styles.webCareSessionDescription}>{sessionDescription}</Text>
+                ) : null}
                 <View style={styles.webCareTherapistRow}>
                   <View style={styles.webCareTherapistAvatar}>
-                    <Text style={styles.webCareTherapistInitials}>HM</Text>
+                    {hasNextAppointment ? (
+                      <Text style={styles.webCareTherapistInitials}>HM</Text>
+                    ) : (
+                      <Ionicons name="search-outline" size={18} color={CARE_COLORS.primary} />
+                    )}
                   </View>
                   <View style={styles.webCareTherapistCopy}>
-                    <Text style={styles.webCareTherapistName}>Dra. Helena Martins</Text>
+                    <Text style={styles.webCareTherapistName}>
+                      {hasNextAppointment ? 'Dra. Helena Martins' : 'Escolha seu próximo cuidado'}
+                    </Text>
                     <View style={styles.webCareTinyRow}>
-                      <Ionicons name="videocam-outline" size={15} color={CARE_COLORS.primary} />
-                      <Text style={styles.webCareTherapistMeta}>Terapia online</Text>
+                      <Ionicons
+                        name={hasNextAppointment ? 'videocam-outline' : 'shield-checkmark-outline'}
+                        size={15}
+                        color={CARE_COLORS.primary}
+                      />
+                      <Text style={styles.webCareTherapistMeta}>
+                        {hasNextAppointment ? 'Terapia online' : 'Atendimento seguro e discreto'}
+                      </Text>
                     </View>
                   </View>
                 </View>
@@ -1109,8 +1210,16 @@ function WebHomeDashboard({
                 </Pressable>
 
                 <View style={styles.webCareSessionActions}>
-                  <WebActionButton icon="calendar-outline" label="Remarcar" onPress={onAppointments} />
-                  <WebActionButton icon="document-text-outline" label="Preparar sessão" onPress={onCare} />
+                  <WebActionButton
+                    icon="calendar-outline"
+                    label={hasNextAppointment ? 'Remarcar' : 'Agenda'}
+                    onPress={onAppointments}
+                  />
+                  <WebActionButton
+                    icon="document-text-outline"
+                    label={hasNextAppointment ? 'Preparar sessão' : 'Meu cuidado'}
+                    onPress={onCare}
+                  />
                 </View>
               </View>
 
@@ -1146,7 +1255,7 @@ function WebHomeDashboard({
                 <View pointerEvents="none" style={styles.webCareTimelineRail} />
                 <WebJourneyStep icon="checkmark" title="Agendado" text="Concluído" date="10/06" tone="done" />
                 <WebJourneyStep icon="clipboard-outline" title="Preparação" text="Em andamento" date="Hoje" tone="active" />
-                <WebJourneyStep icon="videocam-outline" title="Sessão" text={sessionTime} date="" tone="primary" />
+                <WebJourneyStep icon="videocam-outline" title="Sessão" text={sessionTime ?? 'A escolher'} date="" tone="primary" />
                 <WebJourneyStep icon="document-text-outline" title="Pós-consulta" text="Em breve" date="" />
                 <WebJourneyStep icon="flag-outline" title="Próxima meta" text="Em breve" date="" />
               </View>
@@ -1937,7 +2046,7 @@ function BottomNavigation({
               isWebVariant && selected && styles.webNavItemSelected,
               pressed && styles.pressed,
             ]}>
-            <Ionicons name={selected ? selectedIcon(tab.icon) : tab.icon} size={23} color={color} />
+            <Ionicons name={selected ? selectedIcon(tab.icon) : tab.icon} size={isWebVariant ? 19 : 20} color={color} />
             <Text style={[styles.bottomLabel, selected && styles.bottomLabelSelected]}>{tab.label}</Text>
           </Pressable>
         );
@@ -1998,17 +2107,18 @@ function formatDistance(distanceKm: number) {
 }
 
 function formatCareDateTime(dateTime: string) {
-  const time = dateTime.slice(11, 16);
   const today = new Date();
   const appointmentDate = new Date(dateTime);
+
+  if (Number.isNaN(appointmentDate.getTime())) {
+    return 'Horário a confirmar';
+  }
+
+  const time = `${String(appointmentDate.getHours()).padStart(2, '0')}:${String(appointmentDate.getMinutes()).padStart(2, '0')}`;
   const isToday =
     appointmentDate.getFullYear() === today.getFullYear() &&
     appointmentDate.getMonth() === today.getMonth() &&
     appointmentDate.getDate() === today.getDate();
-
-  if (Number.isNaN(appointmentDate.getTime())) {
-    return time ? `Hoje, ${time}` : 'Hoje, 15:00';
-  }
 
   if (isToday) {
     return `Hoje, ${time}`;
@@ -2043,7 +2153,7 @@ const styles = StyleSheet.create({
   greeting: {
     color: UI.text,
     fontSize: 25,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   subtitle: {
     color: UI.textMuted,
@@ -2051,24 +2161,23 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   notificationButton: {
-    width: 46,
-    height: 46,
+    width: 42,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
-    ...cardShadow,
   },
   mobileCareHome: {
-    gap: 16,
+    gap: 12,
   },
   mobileCareHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 14,
+    gap: 12,
     paddingTop: 4,
   },
   mobileCareHeaderCopy: {
@@ -2077,15 +2186,15 @@ const styles = StyleSheet.create({
   },
   mobileCareTitle: {
     color: CARE_COLORS.ink,
-    fontSize: 32,
-    lineHeight: 38,
-    fontWeight: '900',
+    fontSize: 24,
+    lineHeight: 29,
+    fontWeight: '600',
   },
   mobileCareSubtitle: {
     color: CARE_COLORS.muted,
-    fontSize: 15,
-    lineHeight: 21,
-    fontWeight: '700',
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '400',
   },
   mobileCareHeaderActions: {
     flexDirection: 'row',
@@ -2094,15 +2203,15 @@ const styles = StyleSheet.create({
   },
   mobileCareCircleButton: {
     position: 'relative',
-    width: 48,
-    height: 48,
+    width: 42,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 24,
+    borderRadius: 21,
     borderWidth: 1,
     borderColor: CARE_COLORS.border,
     backgroundColor: CARE_COLORS.surface,
-    boxShadow: '0 8px 18px rgba(15, 35, 64, 0.07)',
+    boxShadow: '0 4px 12px rgba(15, 35, 64, 0.04)',
   },
   mobileCareSmallDot: {
     position: 'absolute',
@@ -2114,42 +2223,42 @@ const styles = StyleSheet.create({
     backgroundColor: CARE_COLORS.coral,
   },
   mobileModeSwitch: {
-    minHeight: 58,
+    minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 5,
-    borderRadius: 29,
+    padding: 3,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: CARE_COLORS.border,
     backgroundColor: CARE_COLORS.surface,
   },
   mobileModeItem: {
     flex: 1,
-    minHeight: 48,
+    minHeight: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 24,
+    borderRadius: 6,
   },
   mobileModeItemSelected: {
     backgroundColor: CARE_COLORS.primary,
-    boxShadow: '0 10px 18px rgba(6, 74, 138, 0.20)',
   },
   mobileModeText: {
     color: CARE_COLORS.muted,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '500',
   },
   mobileModeTextSelected: {
     color: CARE_COLORS.surface,
+    fontWeight: '600',
   },
   mobileSessionCard: {
-    gap: 16,
-    padding: 18,
+    gap: 12,
+    padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(6, 74, 138, 0.18)',
+    borderColor: 'rgba(6, 74, 138, 0.16)',
     backgroundColor: CARE_COLORS.surface,
-    boxShadow: '0 12px 28px rgba(15, 35, 64, 0.07)',
+    boxShadow: '0 6px 18px rgba(15, 35, 64, 0.035)',
   },
   mobileSessionHeader: {
     flexDirection: 'row',
@@ -2157,25 +2266,36 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
+  mobileSessionTitleCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
   mobileEyebrow: {
     color: CARE_COLORS.primary,
-    fontSize: 12,
-    letterSpacing: 0.8,
-    fontWeight: '900',
+    fontSize: 11,
+    letterSpacing: 0.66,
+    fontWeight: '600',
   },
   mobileSessionTime: {
     color: CARE_COLORS.ink,
     fontSize: 28,
     lineHeight: 34,
-    fontWeight: '900',
+    fontWeight: '600',
+  },
+  mobileSessionDescription: {
+    color: CARE_COLORS.muted,
+    fontSize: 12.5,
+    lineHeight: 17,
+    fontWeight: '400',
   },
   mobileConfirmedPill: {
-    minHeight: 30,
+    minHeight: 26,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 10,
-    borderRadius: 15,
+    paddingHorizontal: 9,
+    borderRadius: 999,
     backgroundColor: CARE_COLORS.sageSoft,
   },
   mobileConfirmedDot: {
@@ -2187,19 +2307,19 @@ const styles = StyleSheet.create({
   mobileConfirmedText: {
     color: CARE_COLORS.sage,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   mobileTherapistRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 13,
+    gap: 10,
   },
   mobileSessionIcon: {
-    width: 62,
-    height: 62,
+    width: 42,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 31,
+    borderRadius: 8,
     backgroundColor: CARE_COLORS.primarySoft,
   },
   mobileTherapistCopy: {
@@ -2208,8 +2328,8 @@ const styles = StyleSheet.create({
   },
   mobileTherapistName: {
     color: CARE_COLORS.ink,
-    fontSize: 18,
-    fontWeight: '900',
+    fontSize: 15,
+    fontWeight: '600',
   },
   mobileTinyRow: {
     flexDirection: 'row',
@@ -2218,42 +2338,42 @@ const styles = StyleSheet.create({
   },
   mobileTherapistMeta: {
     color: CARE_COLORS.muted,
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 12.5,
+    fontWeight: '400',
   },
   mobileSessionActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
   },
   mobilePrimaryAction: {
     flexGrow: 1,
     minWidth: 210,
-    minHeight: 54,
+    minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 9,
+    gap: 8,
     paddingHorizontal: 14,
-    borderRadius: 8,
+    borderRadius: 6,
     backgroundColor: CARE_COLORS.primary,
-    boxShadow: '0 14px 26px rgba(6, 74, 138, 0.20)',
+    boxShadow: '0 8px 18px rgba(6, 74, 138, 0.16)',
   },
   mobilePrimaryActionText: {
     color: CARE_COLORS.surface,
-    fontSize: 15,
-    fontWeight: '900',
+    fontSize: 14,
+    fontWeight: '600',
   },
   mobileSecondaryAction: {
     flex: 1,
     minWidth: 120,
-    minHeight: 52,
+    minHeight: 38,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: CARE_COLORS.border,
     backgroundColor: CARE_COLORS.surface,
@@ -2261,28 +2381,28 @@ const styles = StyleSheet.create({
   mobileSecondaryActionText: {
     color: CARE_COLORS.primary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '500',
   },
   mobileCareCard: {
-    gap: 14,
+    gap: 12,
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: CARE_COLORS.border,
     backgroundColor: CARE_COLORS.surface,
-    boxShadow: '0 10px 24px rgba(15, 35, 64, 0.055)',
+    boxShadow: '0 4px 14px rgba(15, 35, 64, 0.03)',
   },
   mobileCardTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   mobileCardIcon: {
-    width: 46,
-    height: 46,
+    width: 34,
+    height: 34,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 23,
+    borderRadius: 8,
     backgroundColor: CARE_COLORS.primarySoft,
   },
   mobileCardIconSage: {
@@ -2294,13 +2414,13 @@ const styles = StyleSheet.create({
   mobileCardTitle: {
     flexShrink: 1,
     color: CARE_COLORS.ink,
-    fontSize: 21,
-    lineHeight: 25,
-    fontWeight: '900',
+    fontSize: 17,
+    lineHeight: 21,
+    fontWeight: '600',
   },
   mobileCompactCardTitle: {
-    fontSize: 18,
-    lineHeight: 23,
+    fontSize: 16,
+    lineHeight: 20,
   },
   mobileCardTitleCopy: {
     flex: 1,
@@ -2309,26 +2429,115 @@ const styles = StyleSheet.create({
   },
   mobileCardSubtitle: {
     color: CARE_COLORS.muted,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '700',
+    fontSize: 12.5,
+    lineHeight: 17,
+    fontWeight: '400',
   },
-  mobilePrepList: {
-    gap: 2,
+  mobileCountBadge: {
+    minWidth: 28,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    backgroundColor: CARE_COLORS.amberSoft,
   },
-  mobilePrepRow: {
-    minHeight: 42,
+  mobileCountText: {
+    color: CARE_COLORS.amber,
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  mobileTaskList: {
+    borderTopWidth: 1,
+    borderTopColor: CARE_COLORS.border,
+  },
+  mobileTaskRow: {
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: CARE_COLORS.border,
   },
-  mobilePrepCheck: {
-    width: 23,
-    height: 23,
+  mobileTaskCheck: {
+    width: 20,
+    alignItems: 'center',
+  },
+  mobileTaskCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  mobileTaskTitle: {
+    color: CARE_COLORS.ink,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  mobileTaskText: {
+    color: CARE_COLORS.muted,
+    fontSize: 12.5,
+    lineHeight: 16,
+    fontWeight: '400',
+  },
+  mobileTaskStatus: {
+    minWidth: 62,
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: CARE_COLORS.surfaceBlue,
+  },
+  mobileTaskStatusText: {
+    color: CARE_COLORS.primary,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  mobileInlineLink: {
+    minHeight: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+  },
+  mobileInlineLinkText: {
+    color: CARE_COLORS.primary,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  mobilePrepList: {
+    borderTopWidth: 1,
+    borderTopColor: CARE_COLORS.border,
+  },
+  mobilePrepRow: {
+    minHeight: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: CARE_COLORS.border,
+  },
+  mobilePrepIcon: {
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
-    borderWidth: 1.5,
+    borderRadius: 6,
+    backgroundColor: CARE_COLORS.primarySoft,
+  },
+  mobilePrepCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  mobilePrepCheck: {
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 5,
+    borderWidth: 1.3,
     borderColor: CARE_COLORS.border,
     backgroundColor: CARE_COLORS.surface,
   },
@@ -2337,104 +2546,72 @@ const styles = StyleSheet.create({
     backgroundColor: CARE_COLORS.sage,
   },
   mobilePrepText: {
-    flex: 1,
-    minWidth: 0,
     color: CARE_COLORS.ink,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
-  mobileCareTwoColumns: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  mobileHalfCard: {
-    flex: 1,
-    minWidth: 0,
-  },
-  mobileCompactText: {
+  mobilePrepDescription: {
     color: CARE_COLORS.muted,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '700',
+    fontSize: 12.5,
+    lineHeight: 16,
+    fontWeight: '400',
   },
   mobileMoodRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 5,
+    gap: 6,
   },
   mobileMoodDot: {
-    width: 34,
-    height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 17,
-  },
-  mobileMoodDotSelected: {
-    transform: [{ scale: 1.06 }],
-  },
-  mobileCheckinButton: {
-    minHeight: 46,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
-    backgroundColor: 'rgba(43, 154, 114, 0.72)',
+    borderWidth: 1,
+    borderColor: CARE_COLORS.border,
   },
-  mobileCheckinButtonText: {
-    color: CARE_COLORS.surface,
-    fontSize: 14,
-    fontWeight: '900',
+  mobileMoodDotSelected: {
+    borderColor: CARE_COLORS.sage,
   },
-  mobileTaskSummaryRow: {
-    minHeight: 31,
+  mobileCheckinNote: {
+    minHeight: 34,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 6,
+    backgroundColor: CARE_COLORS.surfaceSage,
   },
-  mobileTaskMarker: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  mobileTaskSummaryLabel: {
+  mobileCheckinNoteText: {
     flex: 1,
-    minWidth: 0,
-    color: CARE_COLORS.ink,
-    fontSize: 14,
-    fontWeight: '800',
+    color: CARE_COLORS.muted,
+    fontSize: 12.5,
+    lineHeight: 16,
+    fontWeight: '400',
   },
-  mobileTaskCount: {
-    minWidth: 30,
-    height: 30,
+  mobileCheckinButton: {
+    minHeight: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 15,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(6, 74, 138, 0.18)',
+    backgroundColor: CARE_COLORS.surface,
   },
-  mobileTaskCountText: {
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  mobileTaskLink: {
-    minHeight: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: CARE_COLORS.border,
-    paddingTop: 10,
-  },
-  mobileTaskLinkText: {
+  mobileCheckinButtonText: {
     color: CARE_COLORS.primary,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   mobileProgressPercent: {
     color: CARE_COLORS.primary,
-    fontSize: 17,
-    fontWeight: '900',
+    fontSize: 15,
+    fontWeight: '600',
   },
   mobileProgressTrack: {
-    height: 9,
+    height: 7,
     overflow: 'hidden',
     borderRadius: 999,
     backgroundColor: '#E6E8EC',
@@ -2446,42 +2623,54 @@ const styles = StyleSheet.create({
     backgroundColor: CARE_COLORS.primary,
   },
   mobileJourneyRow: {
+    position: 'relative',
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 8,
+  },
+  mobileJourneyRail: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    top: 16,
+    height: 1,
+    backgroundColor: CARE_COLORS.border,
   },
   mobileJourneyNode: {
     flex: 1,
     minWidth: 0,
     alignItems: 'center',
     gap: 6,
+    zIndex: 1,
   },
   mobileJourneyIcon: {
-    width: 48,
-    height: 48,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 24,
+    borderRadius: 16,
     backgroundColor: '#ECEEF1',
   },
   mobileJourneyIconActive: {
-    backgroundColor: CARE_COLORS.primary,
+    backgroundColor: CARE_COLORS.sageSoft,
   },
   mobileJourneyIconCurrent: {
-    borderWidth: 3,
-    borderColor: CARE_COLORS.primary,
-    backgroundColor: CARE_COLORS.primarySoft,
+    backgroundColor: CARE_COLORS.primary,
   },
   mobileJourneyTitle: {
     color: CARE_COLORS.ink,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '500',
     textAlign: 'center',
+  },
+  mobileJourneyTitleCurrent: {
+    color: CARE_COLORS.primary,
+    fontWeight: '600',
   },
   mobileJourneyText: {
     color: CARE_COLORS.muted,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '400',
     textAlign: 'center',
   },
   mobileJourneyTextActive: {
@@ -2492,8 +2681,8 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   mobileProfessionalCard: {
-    width: 150,
-    minHeight: 156,
+    width: 146,
+    minHeight: 148,
     position: 'relative',
     borderRadius: 8,
     borderWidth: 1,
@@ -2502,31 +2691,31 @@ const styles = StyleSheet.create({
   },
   mobileProfessionalMain: {
     flex: 1,
-    gap: 8,
+    gap: 7,
     padding: 12,
   },
   mobileProfessionalAvatar: {
-    width: 48,
-    height: 48,
+    width: 42,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 24,
+    borderRadius: 8,
     backgroundColor: CARE_COLORS.primarySoft,
   },
   mobileProfessionalInitials: {
     color: CARE_COLORS.primary,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   mobileProfessionalName: {
     color: CARE_COLORS.ink,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   mobileProfessionalLocation: {
     color: CARE_COLORS.muted,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   mobileProfessionalFooter: {
     gap: 5,
@@ -2534,12 +2723,12 @@ const styles = StyleSheet.create({
   mobileProfessionalRating: {
     color: CARE_COLORS.ink,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '500',
   },
   mobileProfessionalPrice: {
     color: CARE_COLORS.primary,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   mobileFavoriteMini: {
     position: 'absolute',
@@ -2919,6 +3108,13 @@ const styles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 34,
     fontWeight: '600',
+  },
+  webCareSessionDescription: {
+    maxWidth: 340,
+    color: CARE_COLORS.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '400',
   },
   webCareTherapistRow: {
     flexDirection: 'row',
@@ -3459,18 +3655,18 @@ const styles = StyleSheet.create({
     backgroundColor: CARE_COLORS.coral,
   },
   webTopBar: {
-    minHeight: 72,
+    minHeight: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 22,
-    paddingHorizontal: 22,
-    paddingVertical: 12,
-    borderRadius: 18,
+    gap: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
-    boxShadow: '0 12px 30px rgba(23, 33, 29, 0.06)',
+    boxShadow: '0 4px 14px rgba(15, 35, 64, 0.035)',
   },
   webBrand: {
     width: 260,
@@ -3484,20 +3680,20 @@ const styles = StyleSheet.create({
     height: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 10,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   webBrandGlyph: {
     color: UI.primaryDark,
     fontSize: 28,
     lineHeight: 32,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webBrandName: {
     flex: 1,
     color: UI.text,
     fontSize: 19,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webTopNav: {
     flex: 1,
@@ -3508,39 +3704,39 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   webTopNavItem: {
-    minHeight: 46,
+    minHeight: 40,
     minWidth: 112,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingHorizontal: 14,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: 'transparent',
   },
   webTopNavItemSelected: {
-    borderColor: 'rgba(31, 138, 112, 0.15)',
+    borderColor: 'rgba(6, 74, 138, 0.16)',
     backgroundColor: UI.primarySoft,
   },
   webTopNavLabel: {
     color: UI.textMuted,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   webTopNavLabelSelected: {
     color: UI.primary,
   },
   webAccountButton: {
     width: 220,
-    minHeight: 44,
+    minHeight: 40,
     minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingHorizontal: 14,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: UI.primary,
     backgroundColor: UI.surface,
@@ -3549,7 +3745,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     color: UI.primaryDark,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   homeTabContent: {
     gap: 16,
@@ -3584,12 +3780,12 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: 28,
-    padding: 30,
-    borderRadius: 18,
+    padding: 24,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(31, 138, 112, 0.14)',
-    backgroundColor: '#FBFEFC',
-    boxShadow: '0 16px 42px rgba(23, 33, 29, 0.07)',
+    borderColor: UI.border,
+    backgroundColor: UI.surface,
+    boxShadow: '0 4px 14px rgba(15, 35, 64, 0.035)',
   },
   webHeroInfo: {
     flex: 0.9,
@@ -3609,21 +3805,21 @@ const styles = StyleSheet.create({
   webBadgeText: {
     color: UI.primaryDark,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webHeroTitle: {
     maxWidth: 640,
     color: UI.text,
     fontSize: 34,
     lineHeight: 40,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webHeroText: {
     maxWidth: 600,
     color: UI.textMuted,
     fontSize: 17,
     lineHeight: 27,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   webHeroMetrics: {
     flexDirection: 'row',
@@ -3642,12 +3838,12 @@ const styles = StyleSheet.create({
   webHeroMetricValue: {
     color: UI.text,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webHeroMetricLabel: {
     color: UI.textMuted,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   webHeroActions: {
     flexDirection: 'row',
@@ -3655,25 +3851,25 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   webPrimaryAction: {
-    minHeight: 44,
+    minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    borderRadius: 6,
     backgroundColor: UI.primary,
   },
   webPrimaryActionText: {
     color: UI.surface,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webSecondaryAction: {
-    minHeight: 44,
+    minHeight: 40,
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
@@ -3681,7 +3877,7 @@ const styles = StyleSheet.create({
   webSecondaryActionText: {
     color: UI.primaryDark,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webHeroSearch: {
     flex: 1.15,
@@ -3698,11 +3894,11 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 690,
     overflow: 'hidden',
-    borderRadius: 18,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
-    boxShadow: '0 14px 34px rgba(23, 33, 29, 0.06)',
+    boxShadow: '0 4px 14px rgba(15, 35, 64, 0.035)',
   },
   webSideRail: {
     width: 420,
@@ -3712,11 +3908,11 @@ const styles = StyleSheet.create({
   webRailPanel: {
     gap: 14,
     padding: 18,
-    borderRadius: 18,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
-    boxShadow: '0 12px 30px rgba(23, 33, 29, 0.05)',
+    boxShadow: '0 4px 14px rgba(15, 35, 64, 0.035)',
   },
   webPanelHeader: {
     minHeight: 68,
@@ -3732,12 +3928,12 @@ const styles = StyleSheet.create({
     flex: 1,
     color: UI.text,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webPanelMeta: {
     color: UI.primary,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webRailHeader: {
     flexDirection: 'row',
@@ -3749,14 +3945,14 @@ const styles = StyleSheet.create({
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   webRailTitle: {
     flex: 1,
     color: UI.text,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webDirectoryTable: {
     position: 'relative',
@@ -3769,13 +3965,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: UI.border,
-    backgroundColor: '#FCFDFC',
+    backgroundColor: UI.surfaceRaised,
   },
   webDirectoryHeading: {
     width: 142,
     color: UI.textMuted,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webDirectoryHeadingMain: {
     flex: 1,
@@ -3785,15 +3981,15 @@ const styles = StyleSheet.create({
     width: 164,
     color: UI.textMuted,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     textAlign: 'center',
   },
   heroCard: {
     gap: 16,
-    padding: 18,
-    borderRadius: 24,
+    padding: 16,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(31, 138, 112, 0.14)',
+    borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
   },
@@ -3808,13 +4004,13 @@ const styles = StyleSheet.create({
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 18,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   heroBrandText: {
     color: UI.primaryDark,
     fontSize: 30,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   heroBadge: {
     minHeight: 34,
@@ -3828,7 +4024,7 @@ const styles = StyleSheet.create({
   heroBadgeText: {
     color: UI.primaryDark,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   heroCopy: {
     gap: 8,
@@ -3837,13 +4033,13 @@ const styles = StyleSheet.create({
     color: UI.text,
     fontSize: 27,
     lineHeight: 33,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   heroText: {
     color: UI.textMuted,
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   heroStats: {
     flexDirection: 'row',
@@ -3854,18 +4050,18 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: 5,
     padding: 11,
-    borderRadius: 16,
+    borderRadius: 6,
     backgroundColor: UI.surfaceMuted,
   },
   heroStatValue: {
     color: UI.text,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   heroStatLabel: {
     color: UI.textMuted,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   heroActions: {
     flexDirection: 'row',
@@ -3879,14 +4075,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingHorizontal: 9,
-    borderRadius: 15,
+    borderRadius: 6,
     backgroundColor: UI.primarySoft,
   },
   heroActionText: {
     minWidth: 0,
     color: UI.primaryDark,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   careModeGrid: {
     gap: 10,
@@ -3900,7 +4096,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 13,
-    borderRadius: 20,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
@@ -3909,7 +4105,7 @@ const styles = StyleSheet.create({
   webCareModeCard: {
     minHeight: 58,
     padding: 10,
-    borderRadius: 14,
+    borderRadius: 6,
     borderWidth: 0,
     boxShadow: 'none',
   },
@@ -3918,12 +4114,12 @@ const styles = StyleSheet.create({
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 17,
+    borderRadius: 8,
   },
   webCareModeIcon: {
     width: 38,
     height: 38,
-    borderRadius: 12,
+    borderRadius: 8,
   },
   careModeCopy: {
     flex: 1,
@@ -3932,32 +4128,31 @@ const styles = StyleSheet.create({
   careModeTitle: {
     color: UI.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   careModeText: {
     color: UI.textMuted,
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   noticeCard: {
-    minHeight: 82,
+    minHeight: 66,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 13,
-    borderRadius: 20,
+    padding: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
-    ...cardShadow,
   },
   noticeIcon: {
-    width: 48,
-    height: 48,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
+    borderRadius: 8,
   },
   noticeCopy: {
     flex: 1,
@@ -3965,14 +4160,14 @@ const styles = StyleSheet.create({
   },
   noticeTitle: {
     color: UI.text,
-    fontSize: 15,
-    fontWeight: '900',
+    fontSize: 14,
+    fontWeight: '600',
   },
   noticeText: {
     color: UI.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '700',
+    fontSize: 12.5,
+    lineHeight: 17,
+    fontWeight: '400',
   },
   locationBanner: {
     minHeight: 82,
@@ -3980,16 +4175,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 13,
-    borderRadius: 18,
+    borderRadius: 8,
     backgroundColor: UI.surface,
     ...cardShadow,
   },
   webLocationBanner: {
-    padding: 18,
-    borderRadius: 18,
+    padding: 16,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
-    boxShadow: '0 12px 30px rgba(23, 33, 29, 0.05)',
+    boxShadow: '0 4px 14px rgba(15, 35, 64, 0.035)',
   },
   locationIcon: {
     width: 44,
@@ -4006,25 +4201,25 @@ const styles = StyleSheet.create({
   locationTitle: {
     color: UI.text,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   locationText: {
     color: UI.textMuted,
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   locationRetry: {
     minHeight: 36,
     justifyContent: 'center',
     paddingHorizontal: 12,
-    borderRadius: 13,
+    borderRadius: 6,
     backgroundColor: UI.primarySoft,
   },
   locationRetryText: {
     color: UI.primary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   searchControls: {
     gap: 12,
@@ -4038,7 +4233,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 14,
-    borderRadius: 18,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
@@ -4047,14 +4242,14 @@ const styles = StyleSheet.create({
   webSearchBar: {
     minHeight: 68,
     paddingHorizontal: 20,
-    borderRadius: 18,
-    boxShadow: '0 16px 38px rgba(23, 33, 29, 0.08)',
+    borderRadius: 8,
+    boxShadow: '0 4px 14px rgba(15, 35, 64, 0.035)',
   },
   searchInput: {
     flex: 1,
     color: UI.text,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   webSearchInput: {
     fontSize: 16,
@@ -4084,7 +4279,7 @@ const styles = StyleSheet.create({
   categoryText: {
     color: UI.primary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   categoryTextSelected: {
     color: UI.surface,
@@ -4095,7 +4290,7 @@ const styles = StyleSheet.create({
   spaceCard: {
     minHeight: 118,
     overflow: 'hidden',
-    borderRadius: 20,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
@@ -4125,7 +4320,7 @@ const styles = StyleSheet.create({
   spaceName: {
     color: UI.text,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   row: {
     flexDirection: 'row',
@@ -4136,12 +4331,12 @@ const styles = StyleSheet.create({
     flex: 1,
     color: UI.textMuted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   priceText: {
     color: UI.primary,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   favoriteButton: {
     position: 'absolute',
@@ -4170,7 +4365,7 @@ const styles = StyleSheet.create({
     width: 148,
     height: 86,
     minHeight: 86,
-    borderRadius: 10,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   webSpaceIdentity: {
@@ -4181,7 +4376,7 @@ const styles = StyleSheet.create({
   webSpaceName: {
     color: UI.text,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webLocationPill: {
     alignSelf: 'flex-start',
@@ -4197,7 +4392,7 @@ const styles = StyleSheet.create({
   webLocationPillText: {
     color: UI.primaryDark,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webSpaceCell: {
     width: 142,
@@ -4206,24 +4401,24 @@ const styles = StyleSheet.create({
   webRatingText: {
     color: UI.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webMutedCellText: {
     color: UI.textMuted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   webPriceText: {
     color: UI.primary,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webFavoriteButton: {
     width: 42,
     height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
+    borderRadius: 8,
   },
   webProfileButton: {
     minWidth: 104,
@@ -4231,7 +4426,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 14,
-    borderRadius: 10,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: UI.primary,
     backgroundColor: UI.surface,
@@ -4239,7 +4434,7 @@ const styles = StyleSheet.create({
   webProfileButtonText: {
     color: UI.primaryDark,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webMoreButton: {
     alignSelf: 'center',
@@ -4250,7 +4445,7 @@ const styles = StyleSheet.create({
     gap: 6,
     marginVertical: 16,
     paddingHorizontal: 20,
-    borderRadius: 12,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
@@ -4258,7 +4453,7 @@ const styles = StyleSheet.create({
   webMoreButtonText: {
     color: UI.primary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webTrustStrip: {
     minHeight: 96,
@@ -4268,7 +4463,7 @@ const styles = StyleSheet.create({
     padding: 18,
     borderTopWidth: 1,
     borderTopColor: UI.border,
-    backgroundColor: '#FCFDFC',
+    backgroundColor: UI.surfaceRaised,
   },
   webTrustItem: {
     flex: 1,
@@ -4282,7 +4477,7 @@ const styles = StyleSheet.create({
     height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   webTrustCopy: {
@@ -4292,13 +4487,13 @@ const styles = StyleSheet.create({
   webTrustTitle: {
     color: UI.text,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webTrustText: {
     color: UI.textMuted,
     fontSize: 11,
     lineHeight: 15,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   webGuestCallout: {
     gap: 16,
@@ -4313,7 +4508,7 @@ const styles = StyleSheet.create({
     height: 46,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   webGuestCopy: {
@@ -4323,38 +4518,38 @@ const styles = StyleSheet.create({
   webGuestTitle: {
     color: UI.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webGuestText: {
     color: UI.textMuted,
     fontSize: 13,
     lineHeight: 19,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   webGuestActions: {
     gap: 9,
   },
   webGuestPrimaryButton: {
-    minHeight: 48,
+    minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    borderRadius: 12,
+    borderRadius: 6,
     backgroundColor: UI.primary,
   },
   webGuestPrimaryText: {
     color: UI.surface,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   webGuestSecondaryButton: {
-    minHeight: 46,
+    minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    borderRadius: 12,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
@@ -4362,23 +4557,22 @@ const styles = StyleSheet.create({
   webGuestSecondaryText: {
     color: UI.primary,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   appointmentCard: {
-    minHeight: 72,
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 13,
-    borderRadius: 20,
+    padding: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
-    ...cardShadow,
   },
   webAppointmentCard: {
     minHeight: 96,
-    borderRadius: 14,
+    borderRadius: 8,
     boxShadow: 'none',
   },
   appointmentList: {
@@ -4387,18 +4581,17 @@ const styles = StyleSheet.create({
   guestCard: {
     gap: 12,
     padding: 14,
-    borderRadius: 20,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
-    ...cardShadow,
   },
   guestIcon: {
-    width: 52,
-    height: 52,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 26,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   guestCopy: {
@@ -4407,13 +4600,13 @@ const styles = StyleSheet.create({
   guestTitle: {
     color: UI.text,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   guestText: {
     color: UI.textMuted,
     fontSize: 13,
     lineHeight: 19,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   guestActions: {
     gap: 9,
@@ -4425,12 +4618,12 @@ const styles = StyleSheet.create({
   appointmentTitle: {
     color: UI.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   appointmentText: {
     color: UI.textMuted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   appointmentStatus: {
     alignSelf: 'flex-start',
@@ -4441,24 +4634,25 @@ const styles = StyleSheet.create({
     color: UI.primary,
     backgroundColor: UI.primarySoft,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   profileCard: {
-    minHeight: 86,
+    minHeight: 70,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 14,
-    borderRadius: 18,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
     backgroundColor: UI.surface,
-    ...cardShadow,
   },
   profileIcon: {
-    width: 52,
-    height: 52,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 26,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   profileCopy: {
@@ -4468,7 +4662,7 @@ const styles = StyleSheet.create({
   profileName: {
     color: UI.text,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   profileEmail: {
     color: UI.textMuted,
@@ -4481,33 +4675,33 @@ const styles = StyleSheet.create({
   profileStat: {
     flex: 1,
     gap: 5,
-    padding: 13,
-    borderRadius: 18,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
     backgroundColor: UI.surface,
-    ...cardShadow,
   },
   statLabel: {
     color: UI.textMuted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   statValue: {
     color: UI.text,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   professionalCard: {
     gap: 12,
     padding: 14,
-    borderRadius: 18,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: UI.border,
     backgroundColor: UI.surface,
-    ...cardShadow,
   },
   professionalCardActive: {
-    borderColor: 'rgba(22, 163, 74, 0.22)',
-    backgroundColor: '#F7FEFA',
+    borderColor: 'rgba(6, 74, 138, 0.16)',
+    backgroundColor: UI.primarySoft,
   },
   professionalHeader: {
     flexDirection: 'row',
@@ -4515,15 +4709,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   professionalIcon: {
-    width: 52,
-    height: 52,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 26,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   professionalIconActive: {
-    backgroundColor: UI.success,
+    backgroundColor: UI.primary,
   },
   professionalCopy: {
     flex: 1,
@@ -4532,16 +4726,16 @@ const styles = StyleSheet.create({
   professionalTitle: {
     color: UI.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   professionalTitleActive: {
-    color: UI.success,
+    color: UI.primaryDark,
   },
   professionalText: {
     color: UI.textMuted,
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   professionalStatus: {
     minHeight: 38,
@@ -4550,15 +4744,15 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    borderRadius: 13,
-    backgroundColor: '#ECFDF3',
+    borderRadius: 6,
+    backgroundColor: UI.surface,
   },
   professionalStatusText: {
     flex: 1,
-    color: UI.success,
+    color: UI.primary,
     fontSize: 13,
     lineHeight: 17,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   professionalActions: {
     gap: 9,
@@ -4567,54 +4761,55 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   profileLink: {
-    minHeight: 62,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 13,
-    borderRadius: 18,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
     backgroundColor: UI.surface,
-    ...cardShadow,
   },
   profileLinkLabel: {
     color: UI.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   profileLinkValue: {
     color: UI.textMuted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   bottomNav: {
-    minHeight: 60,
+    minHeight: 52,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 4,
+    gap: 5,
   },
   webNav: {
     alignSelf: 'stretch',
     justifyContent: 'flex-start',
     gap: 8,
     padding: 8,
-    borderRadius: 24,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
-    boxShadow: '0 14px 34px rgba(23, 33, 29, 0.08)',
+    boxShadow: '0 8px 20px rgba(15, 35, 64, 0.055)',
   },
   bottomItem: {
     flex: 1,
-    minHeight: 50,
+    minHeight: 42,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    borderRadius: 18,
+    borderRadius: 8,
   },
   webNavItem: {
     flex: 0,
     minWidth: 126,
-    minHeight: 46,
+    minHeight: 42,
     flexDirection: 'row',
     paddingHorizontal: 16,
     gap: 8,
@@ -4628,10 +4823,11 @@ const styles = StyleSheet.create({
   bottomLabel: {
     color: UI.textMuted,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '500',
   },
   bottomLabelSelected: {
     color: CARE_COLORS.primary,
+    fontWeight: '600',
   },
   pressed: {
     opacity: 0.72,

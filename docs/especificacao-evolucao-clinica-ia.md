@@ -1,6 +1,6 @@
 # Especificacao: evolucao clinica, anotacoes e IA para psicologas
 
-Atualizado em 2026-06-23.
+Atualizado em 2026-06-24.
 
 Este documento especifica um conjunto de funcionalidades para apoiar o trabalho clinico da psicologa no Psi Agenda Online, com foco em anotacoes, evolucao do paciente, organizacao de sessoes, preparacao de atendimentos, check-ins, portal do paciente, alertas responsaveis e privacidade.
 
@@ -1612,6 +1612,8 @@ Atualizacao da vigesima quarta entrega: o backend agora possui `PatientConsentTe
 Atualizacao da vigesima quinta entrega: consentimentos concedidos com `expiresAt` vencido agora sao materializados como `expired` quando o workspace clinico ou o portal do paciente carregam o relacionamento. Essa transicao cria `PatientConsentEvent`, memoria na timeline e auditoria segura `clinical.consent.expired`, mantendo permissao, portal, materiais, check-ins, IA, gravacao e transcricao bloqueados apos o prazo. Ainda faltam jobs agendados dedicados, politica operacional completa de retencao/revogacao, revisao juridica final dos textos, criptografia de campos sensiveis, IA real, gravacao e transcricao.
 
 Atualizacao da vigesima sexta entrega: a API agora registra `ClinicalConsentExpirationWorker`, um job dedicado que expira consentimentos vencidos em segundo plano e tambem roda ao subir a aplicacao. O job reutiliza a trilha `PatientConsentEvent`, cria memoria na timeline, audita `clinical.consent.expired` com `UserId` nulo para indicar execucao de sistema e usa indice por `status`/`expiresAt` para varrer apenas consentimentos candidatos. Ainda faltam politica operacional completa de retencao/revogacao, revisao juridica final dos textos, criptografia de campos sensiveis, IA real, gravacao e transcricao.
+
+Atualizacao da vigesima setima entrega: a UI/UX dos fluxos centrais foi refinada para seguir a linguagem visual atual da home do paciente, com paleta azul discreta, tipografia mais compacta, cards de 6-8px, menor sombra e separacao visual mais clara entre cuidado, agenda, gestor e workspace clinico. A home do paciente agora evita horario ficticio quando nao ha proxima consulta e usa estado de acao principal real para encontrar psicologa. Este ciclo nao adicionou IA, gravacao, transcricao ou novas permissoes sensiveis. Ainda faltam politica operacional completa de retencao/revogacao, revisao juridica final dos textos, criptografia de campos sensiveis, telas legadas fora deste escopo com pesos/radii antigos, IA real, gravacao e transcricao.
 
 Arquivos criados ou alterados:
 

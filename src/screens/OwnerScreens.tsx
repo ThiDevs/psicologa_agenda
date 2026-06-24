@@ -1049,7 +1049,9 @@ const styles = StyleSheet.create({
   formCard: {
     gap: 13,
     padding: 14,
-    borderRadius: 18,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
   },
@@ -1074,7 +1076,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 7,
     paddingHorizontal: 12,
-    borderRadius: 14,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
@@ -1086,7 +1088,7 @@ const styles = StyleSheet.create({
   categoryText: {
     color: UI.primary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   categoryTextSelected: {
     color: UI.surface,
@@ -1097,7 +1099,9 @@ const styles = StyleSheet.create({
   spaceSwitcher: {
     gap: 12,
     padding: 13,
-    borderRadius: 18,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
   },
@@ -1116,20 +1120,20 @@ const styles = StyleSheet.create({
   spaceSwitcherTitle: {
     color: UI.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   spaceSwitcherSubtitle: {
     color: UI.textMuted,
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   spaceSwitcherAdd: {
     width: 38,
     height: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 19,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
@@ -1145,7 +1149,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     padding: 10,
-    borderRadius: 16,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
@@ -1159,7 +1163,7 @@ const styles = StyleSheet.create({
     height: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 19,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   spaceSwitchIconSelected: {
@@ -1173,7 +1177,7 @@ const styles = StyleSheet.create({
   spaceSwitchName: {
     color: UI.text,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   spaceSwitchNameSelected: {
     color: UI.primaryDark,
@@ -1182,14 +1186,14 @@ const styles = StyleSheet.create({
     color: UI.textMuted,
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   profileMenu: {
     gap: 12,
     padding: 14,
-    borderRadius: 18,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
   },
@@ -1208,7 +1212,7 @@ const styles = StyleSheet.create({
     height: 46,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 23,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   profileMenuIconProfessional: {
@@ -1222,12 +1226,12 @@ const styles = StyleSheet.create({
   profileMenuName: {
     color: UI.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   profileMenuEmail: {
     color: UI.textMuted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   professionalModeStrip: {
     minHeight: 62,
@@ -1235,7 +1239,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     padding: 11,
-    borderRadius: 14,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   professionalModeStripActive: {
@@ -1249,7 +1253,7 @@ const styles = StyleSheet.create({
   professionalModeTitle: {
     color: UI.primary,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   professionalModeTitleActive: {
     color: UI.success,
@@ -1258,7 +1262,7 @@ const styles = StyleSheet.create({
     color: UI.textMuted,
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   profileMenuDivider: {
     height: 1,
@@ -1267,7 +1271,7 @@ const styles = StyleSheet.create({
   profileMenuSection: {
     color: UI.text,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   profileSpaceList: {
     gap: 8,
@@ -1278,7 +1282,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     padding: 10,
-    borderRadius: 14,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
@@ -1295,18 +1299,18 @@ const styles = StyleSheet.create({
   profileSpaceName: {
     color: UI.text,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   profileSpaceMeta: {
     color: UI.textMuted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   profileMenuEmpty: {
     color: UI.textMuted,
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   profileMenuActions: {
     gap: 9,
@@ -1320,7 +1324,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 13,
-    borderRadius: 18,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
   },
@@ -1329,7 +1335,7 @@ const styles = StyleSheet.create({
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 26,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   spaceCopy: {
@@ -1340,7 +1346,7 @@ const styles = StyleSheet.create({
   spaceName: {
     color: UI.text,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   spaceAddress: {
     color: UI.textMuted,
@@ -1358,7 +1364,7 @@ const styles = StyleSheet.create({
   publishText: {
     color: UI.warning,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   publishTextLive: {
     color: UI.success,
@@ -1366,7 +1372,9 @@ const styles = StyleSheet.create({
   checklistCard: {
     gap: 1,
     overflow: 'hidden',
-    borderRadius: 18,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
   },
@@ -1386,14 +1394,16 @@ const styles = StyleSheet.create({
     flex: 1,
     color: UI.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   logoutButton: {
     width: 44,
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 22,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
   },
@@ -1408,7 +1418,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     padding: 14,
-    borderRadius: 18,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
   },
@@ -1417,7 +1429,7 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 22,
+    borderRadius: 8,
     backgroundColor: '#FEF3C7',
   },
   statusIconDone: {
@@ -1430,7 +1442,7 @@ const styles = StyleSheet.create({
   statusTitle: {
     color: UI.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   statusText: {
     color: UI.textMuted,
@@ -1448,20 +1460,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 7,
     padding: 13,
-    borderRadius: 18,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
   },
   shortcutLabel: {
     color: UI.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   shortcutValue: {
     color: UI.textMuted,
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   pressed: {
     opacity: 0.72,

@@ -3223,7 +3223,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 5,
     padding: 12,
-    borderRadius: 18,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(237, 247, 242, 0.10)',
     backgroundColor: UI.darkSurface,
@@ -3231,19 +3231,19 @@ const styles = StyleSheet.create({
   metricValue: {
     color: UI.darkText,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   metricLabel: {
     color: UI.darkTextMuted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     textAlign: 'center',
   },
   card: {
     gap: 12,
     padding: 14,
-    borderRadius: 20,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(237, 247, 242, 0.10)',
     backgroundColor: UI.darkSurface,
@@ -3251,7 +3251,7 @@ const styles = StyleSheet.create({
   moduleCard: {
     gap: 14,
     padding: 14,
-    borderRadius: 20,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(237, 247, 242, 0.10)',
     backgroundColor: UI.darkSurface,
@@ -3265,7 +3265,7 @@ const styles = StyleSheet.create({
     height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 15,
+    borderRadius: 8,
     backgroundColor: UI.darkSurfaceRaised,
   },
   moduleCopy: {
@@ -3276,14 +3276,14 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: UI.darkText,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   cardText: {
     flex: 1,
     color: UI.darkTextMuted,
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   compactText: {
     fontSize: 12,
@@ -3292,7 +3292,7 @@ const styles = StyleSheet.create({
   mutedText: {
     color: UI.darkTextMuted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   statusPill: {
     alignSelf: 'flex-start',
@@ -3305,8 +3305,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   statusConnected: {
-    borderColor: 'rgba(109, 214, 180, 0.36)',
-    backgroundColor: 'rgba(109, 214, 180, 0.10)',
+    borderColor: 'rgba(6, 74, 138, 0.36)',
+    backgroundColor: 'rgba(6, 74, 138, 0.10)',
   },
   statusPartial: {
     borderColor: 'rgba(243, 201, 105, 0.36)',
@@ -3318,7 +3318,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   splitList: {
     gap: 12,
@@ -3329,7 +3329,7 @@ const styles = StyleSheet.create({
   kicker: {
     color: UI.darkPrimary,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     textTransform: 'uppercase',
   },
   list: {
@@ -3363,13 +3363,13 @@ const styles = StyleSheet.create({
   detailLabel: {
     color: UI.darkTextMuted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   detailValue: {
     color: UI.darkText,
     fontSize: 14,
     lineHeight: 19,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   tagWrap: {
     flexDirection: 'row',
@@ -3396,34 +3396,34 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(200, 100, 122, 0.10)',
   },
   tagSelected: {
-    borderColor: 'rgba(109, 214, 180, 0.70)',
-    backgroundColor: 'rgba(109, 214, 180, 0.18)',
+    borderColor: 'rgba(6, 74, 138, 0.70)',
+    backgroundColor: 'rgba(6, 74, 138, 0.18)',
   },
   tagText: {
     color: UI.darkTextMuted,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   tagTextSelected: {
     color: UI.darkText,
   },
   draftBox: {
     padding: 12,
-    borderRadius: 16,
+    borderRadius: 8,
     backgroundColor: UI.darkSurfaceRaised,
   },
   draftText: {
     color: UI.darkText,
     fontSize: 13,
     lineHeight: 19,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   exportNotice: {
     marginBottom: 10,
     color: UI.darkTextMuted,
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   sessionActions: {
     gap: 8,
@@ -3437,19 +3437,19 @@ const styles = StyleSheet.create({
     minHeight: 34,
     justifyContent: 'center',
     paddingHorizontal: 11,
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(237, 247, 242, 0.12)',
     backgroundColor: UI.darkSurfaceRaised,
   },
   planStatusButtonSelected: {
-    borderColor: 'rgba(109, 214, 180, 0.58)',
-    backgroundColor: 'rgba(109, 214, 180, 0.16)',
+    borderColor: 'rgba(6, 74, 138, 0.58)',
+    backgroundColor: 'rgba(6, 74, 138, 0.16)',
   },
   planStatusText: {
     color: UI.darkTextMuted,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   planStatusTextSelected: {
     color: UI.darkText,
@@ -3507,8 +3507,8 @@ const styles = StyleSheet.create({
     backgroundColor: UI.darkSurfaceRaised,
   },
   timelineChipSelected: {
-    borderColor: 'rgba(109, 214, 180, 0.50)',
-    backgroundColor: 'rgba(109, 214, 180, 0.12)',
+    borderColor: 'rgba(6, 74, 138, 0.50)',
+    backgroundColor: 'rgba(6, 74, 138, 0.12)',
   },
   timelineChipText: {
     color: UI.darkTextMuted,
@@ -3532,45 +3532,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 11,
-    borderRadius: 13,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(237, 247, 242, 0.12)',
     backgroundColor: UI.darkSurfaceRaised,
   },
   shareableToggleSelected: {
-    borderColor: 'rgba(109, 214, 180, 0.46)',
-    backgroundColor: 'rgba(109, 214, 180, 0.12)',
+    borderColor: 'rgba(6, 74, 138, 0.46)',
+    backgroundColor: 'rgba(6, 74, 138, 0.12)',
   },
   shareableToggleText: {
     color: UI.darkText,
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   shareablePreview: {
     gap: 6,
     padding: 12,
-    borderRadius: 16,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(109, 214, 180, 0.18)',
-    backgroundColor: 'rgba(109, 214, 180, 0.08)',
+    borderColor: 'rgba(6, 74, 138, 0.18)',
+    backgroundColor: 'rgba(6, 74, 138, 0.08)',
   },
   shareablePreviewLabel: {
     color: UI.darkPrimary,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     textTransform: 'uppercase',
   },
   shareablePreviewTitle: {
     color: UI.darkText,
     fontSize: 14,
     lineHeight: 18,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   shareableResponseBox: {
     gap: 6,
     padding: 10,
-    borderRadius: 14,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(243, 201, 105, 0.24)',
     backgroundColor: 'rgba(243, 201, 105, 0.08)',
@@ -3589,19 +3589,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 10,
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(237, 247, 242, 0.12)',
     backgroundColor: UI.darkSurfaceRaised,
   },
   shareableSegmentButtonSelected: {
-    borderColor: 'rgba(109, 214, 180, 0.58)',
-    backgroundColor: 'rgba(109, 214, 180, 0.16)',
+    borderColor: 'rgba(6, 74, 138, 0.58)',
+    backgroundColor: 'rgba(6, 74, 138, 0.16)',
   },
   shareableSegmentText: {
     color: UI.darkTextMuted,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   shareableSegmentTextSelected: {
     color: UI.darkText,
@@ -3637,8 +3637,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(169, 184, 177, 0.08)',
   },
   shareablePillShared: {
-    borderColor: 'rgba(109, 214, 180, 0.36)',
-    backgroundColor: 'rgba(109, 214, 180, 0.10)',
+    borderColor: 'rgba(6, 74, 138, 0.36)',
+    backgroundColor: 'rgba(6, 74, 138, 0.10)',
   },
   shareablePillCompleted: {
     borderColor: 'rgba(243, 201, 105, 0.36)',
@@ -3650,7 +3650,7 @@ const styles = StyleSheet.create({
   },
   shareablePillText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   shareableActions: {
     flexDirection: 'row',
@@ -3664,19 +3664,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingHorizontal: 11,
-    borderRadius: 11,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(237, 247, 242, 0.12)',
     backgroundColor: UI.darkSurfaceRaised,
   },
   shareableActionButtonPrimary: {
-    borderColor: 'rgba(109, 214, 180, 0.50)',
-    backgroundColor: 'rgba(109, 214, 180, 0.16)',
+    borderColor: 'rgba(6, 74, 138, 0.50)',
+    backgroundColor: 'rgba(6, 74, 138, 0.16)',
   },
   shareableActionText: {
     color: UI.darkTextMuted,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   shareableActionTextPrimary: {
     color: UI.darkText,
@@ -3697,14 +3697,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 7,
     paddingHorizontal: 11,
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(237, 247, 242, 0.12)',
     backgroundColor: UI.darkSurfaceRaised,
   },
   alertSeverityButtonSelected: {
-    borderColor: 'rgba(109, 214, 180, 0.50)',
-    backgroundColor: 'rgba(109, 214, 180, 0.12)',
+    borderColor: 'rgba(6, 74, 138, 0.50)',
+    backgroundColor: 'rgba(6, 74, 138, 0.12)',
   },
   alertSeverityDot: {
     width: 7,
@@ -3738,8 +3738,8 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(109, 214, 180, 0.16)',
-    backgroundColor: 'rgba(109, 214, 180, 0.08)',
+    borderColor: 'rgba(6, 74, 138, 0.16)',
+    backgroundColor: 'rgba(6, 74, 138, 0.08)',
   },
   alertSafetyText: {
     color: UI.darkTextMuted,
@@ -3795,7 +3795,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
-    backgroundColor: 'rgba(109, 214, 180, 0.10)',
+    backgroundColor: 'rgba(6, 74, 138, 0.10)',
   },
   briefingIconAlert: {
     backgroundColor: 'rgba(234, 160, 160, 0.10)',
@@ -3826,7 +3826,7 @@ const styles = StyleSheet.create({
     backgroundColor: UI.darkSurface,
   },
   timelineCardInteractive: {
-    borderColor: 'rgba(109, 214, 180, 0.22)',
+    borderColor: 'rgba(6, 74, 138, 0.22)',
   },
   timelineHeader: {
     flexDirection: 'row',
@@ -3884,7 +3884,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(109, 214, 180, 0.22)',
+    borderColor: 'rgba(6, 74, 138, 0.22)',
     backgroundColor: UI.darkSurface,
   },
   timelineDetailHeader: {
@@ -3927,8 +3927,8 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(109, 214, 180, 0.16)',
-    backgroundColor: 'rgba(109, 214, 180, 0.08)',
+    borderColor: 'rgba(6, 74, 138, 0.16)',
+    backgroundColor: 'rgba(6, 74, 138, 0.08)',
   },
   timelineAccessText: {
     flex: 1,
@@ -3965,8 +3965,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(109, 214, 180, 0.22)',
-    backgroundColor: 'rgba(109, 214, 180, 0.08)',
+    borderColor: 'rgba(6, 74, 138, 0.22)',
+    backgroundColor: 'rgba(6, 74, 138, 0.08)',
   },
   layerText: {
     color: UI.darkPrimary,
@@ -4023,11 +4023,11 @@ const styles = StyleSheet.create({
     height: 34,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
+    borderRadius: 8,
     backgroundColor: UI.darkSurfaceRaised,
   },
   consentIconGranted: {
-    backgroundColor: 'rgba(109, 214, 180, 0.12)',
+    backgroundColor: 'rgba(6, 74, 138, 0.12)',
   },
   consentCopy: {
     flex: 1,
@@ -4049,18 +4049,18 @@ const styles = StyleSheet.create({
   },
   consentStatusText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   consentDescription: {
     color: UI.darkTextMuted,
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   consentMeta: {
     color: UI.darkTextMuted,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   consentActions: {
     flexDirection: 'row',
@@ -4110,12 +4110,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
   },
   consentButtonPrimary: {
-    borderColor: 'rgba(109, 214, 180, 0.58)',
-    backgroundColor: 'rgba(109, 214, 180, 0.16)',
+    borderColor: 'rgba(6, 74, 138, 0.58)',
+    backgroundColor: 'rgba(6, 74, 138, 0.16)',
   },
   consentButtonMuted: {
     borderColor: 'rgba(237, 247, 242, 0.12)',
@@ -4127,12 +4127,12 @@ const styles = StyleSheet.create({
   consentButtonText: {
     color: UI.darkTextMuted,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   consentButtonTextPrimary: {
     color: UI.darkText,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   pressed: {
     opacity: 0.72,

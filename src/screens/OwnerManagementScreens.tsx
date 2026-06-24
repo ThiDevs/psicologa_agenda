@@ -2336,7 +2336,9 @@ const styles = StyleSheet.create({
   formCard: {
     gap: 12,
     padding: 14,
-    borderRadius: 18,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
   },
@@ -2356,21 +2358,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 12,
-    borderRadius: 18,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
   },
   appointmentManagerCard: {
     gap: 10,
     padding: 12,
-    borderRadius: 18,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
   },
   calendarCard: {
     gap: 12,
     padding: 12,
-    borderRadius: 18,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
   },
@@ -2387,19 +2395,19 @@ const styles = StyleSheet.create({
   calendarTitle: {
     color: UI.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   calendarSubtitle: {
     color: UI.textMuted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   calendarIconButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 20,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   calendarToolbar: {
@@ -2412,7 +2420,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
     flexDirection: 'row',
     padding: 3,
-    borderRadius: 14,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   calendarSegmentItem: {
@@ -2420,7 +2428,7 @@ const styles = StyleSheet.create({
     minHeight: 34,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 11,
+    borderRadius: 6,
   },
   calendarSegmentItemSelected: {
     backgroundColor: UI.primary,
@@ -2428,7 +2436,7 @@ const styles = StyleSheet.create({
   calendarSegmentText: {
     color: UI.primary,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   calendarSegmentTextSelected: {
     color: UI.surface,
@@ -2437,7 +2445,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
     justifyContent: 'center',
     paddingHorizontal: 14,
-    borderRadius: 14,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
@@ -2445,7 +2453,7 @@ const styles = StyleSheet.create({
   todayButtonText: {
     color: UI.primary,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   calendarWeekHeader: {
     flexDirection: 'row',
@@ -2455,7 +2463,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: UI.textMuted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     textAlign: 'center',
   },
   calendarGrid: {
@@ -2492,7 +2500,7 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 6,
     padding: 9,
-    borderRadius: 14,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
@@ -2525,7 +2533,7 @@ const styles = StyleSheet.create({
   calendarDayNumber: {
     color: UI.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   calendarDayNumberSelected: {
     color: UI.surface,
@@ -2538,7 +2546,7 @@ const styles = StyleSheet.create({
     height: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 11,
+    borderRadius: 6,
     backgroundColor: UI.primarySoft,
   },
   calendarCountBadgeSelected: {
@@ -2547,7 +2555,7 @@ const styles = StyleSheet.create({
   calendarCountText: {
     color: UI.primary,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   calendarCountTextSelected: {
     color: UI.surface,
@@ -2555,7 +2563,7 @@ const styles = StyleSheet.create({
   calendarDayLabel: {
     color: UI.textMuted,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   calendarDayLabelSelected: {
     color: UI.surface,
@@ -2564,7 +2572,7 @@ const styles = StyleSheet.create({
     minHeight: 22,
     justifyContent: 'center',
     paddingHorizontal: 7,
-    borderRadius: 11,
+    borderRadius: 6,
     backgroundColor: UI.primarySoft,
   },
   calendarAppointmentPillSelected: {
@@ -2573,7 +2581,7 @@ const styles = StyleSheet.create({
   calendarAppointmentText: {
     color: UI.text,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   calendarAppointmentTextSelected: {
     color: UI.surface,
@@ -2581,7 +2589,7 @@ const styles = StyleSheet.create({
   calendarMoreText: {
     color: UI.primary,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   itemCardFlat: {
     minHeight: 58,
@@ -2599,14 +2607,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 12,
-    borderRadius: 18,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
   },
   photoPreview: {
     width: 66,
     height: 66,
-    borderRadius: 14,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   iconCircle: {
@@ -2614,7 +2624,7 @@ const styles = StyleSheet.create({
     height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 21,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   itemCopy: {
@@ -2624,12 +2634,12 @@ const styles = StyleSheet.create({
   itemTitle: {
     color: UI.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   itemText: {
     color: UI.textMuted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   textArea: {
     minHeight: 100,
@@ -2644,7 +2654,7 @@ const styles = StyleSheet.create({
     minHeight: 38,
     justifyContent: 'center',
     paddingHorizontal: 12,
-    borderRadius: 14,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
@@ -2656,7 +2666,7 @@ const styles = StyleSheet.create({
   chipText: {
     color: UI.primary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   chipTextSelected: {
     color: UI.surface,
@@ -2675,26 +2685,28 @@ const styles = StyleSheet.create({
     height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 21,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   metric: {
     flex: 1,
     gap: 5,
     padding: 13,
-    borderRadius: 18,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
     backgroundColor: UI.surface,
     ...cardShadow,
   },
   metricLabel: {
     color: UI.textMuted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   metricValue: {
     color: UI.text,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   pressed: {
     opacity: 0.72,

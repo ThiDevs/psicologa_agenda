@@ -16,34 +16,34 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export const UI = {
-  background: '#F8FAF7',
+  background: '#FAF8F5',
   surface: '#FFFFFF',
-  surfaceMuted: '#EEF5F0',
-  surfaceRaised: '#F3F8F5',
-  primary: '#1F8A70',
-  primaryDark: '#0B5F56',
-  primarySoft: '#DDF3EC',
+  surfaceMuted: '#F5F9FC',
+  surfaceRaised: '#F7F8FA',
+  primary: '#064A8A',
+  primaryDark: '#03366C',
+  primarySoft: '#E7F0FA',
   lavender: '#7166D9',
   lavenderSoft: '#ECEAFE',
   rose: '#C8647A',
   roseSoft: '#FBE8ED',
-  text: '#17211D',
-  textMuted: '#5F6F68',
-  border: 'rgba(23, 33, 29, 0.11)',
-  success: '#178A4C',
-  warning: '#B7791F',
-  danger: '#C2413B',
+  text: '#0F2340',
+  textMuted: '#607085',
+  border: 'rgba(15, 35, 64, 0.10)',
+  success: '#2B9A72',
+  warning: '#C77A1B',
+  danger: '#B42318',
   star: '#F59E0B',
-  darkBackground: '#0D1412',
-  darkSurface: '#18231F',
-  darkSurfaceRaised: '#1E2B26',
-  darkText: '#EDF7F2',
-  darkTextMuted: '#A9B8B1',
-  darkPrimary: '#6DD6B4',
+  darkBackground: '#FAF8F5',
+  darkSurface: '#FFFFFF',
+  darkSurfaceRaised: '#F5F9FC',
+  darkText: '#0F2340',
+  darkTextMuted: '#607085',
+  darkPrimary: '#064A8A',
 };
 
 export const cardShadow = {
-  boxShadow: '0 14px 34px rgba(23, 33, 29, 0.08)',
+  boxShadow: '0 4px 14px rgba(15, 35, 64, 0.035)',
 } as ViewStyle;
 
 type AppAppearance = 'light' | 'dark';
@@ -67,9 +67,11 @@ export function ScreenScaffold({
 
   return (
     <View style={[styles.outer, isWeb && styles.outerWeb, isDark && styles.outerDark]}>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <StatusBar style="dark" />
       <View style={[styles.phoneFrame, isWeb && styles.webFrame, isDark && styles.phoneFrameDark]}>
-        <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <SafeAreaView
+          edges={['top']}
+          style={styles.safeArea}>
           {scroll ? (
             <ScrollView
               showsVerticalScrollIndicator={false}
@@ -77,7 +79,7 @@ export function ScreenScaffold({
               contentContainerStyle={[
                 styles.scrollContent,
                 isWeb && styles.scrollContentWeb,
-                { paddingBottom: footer && !isWeb ? insets.bottom + bottomOffset : insets.bottom + 24 },
+                { paddingBottom: footer && !isWeb ? Math.max(16, Math.min(24, bottomOffset - 92)) : insets.bottom + 24 },
               ]}>
               {children}
               {footer && isWeb && (
@@ -398,7 +400,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    gap: 16,
+    gap: 12,
     paddingHorizontal: 16,
     paddingTop: 8,
   },
@@ -406,9 +408,9 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 1480,
     alignSelf: 'center',
-    gap: 24,
+    gap: 20,
     paddingHorizontal: 32,
-    paddingTop: 32,
+    paddingTop: 24,
   },
   fixedContent: {
     flex: 1,
@@ -423,30 +425,29 @@ const styles = StyleSheet.create({
     paddingTop: 32,
   },
   footer: {
-    position: 'absolute',
-    left: 12,
-    right: 12,
-    bottom: 10,
+    zIndex: 20,
+    elevation: 20,
+    marginHorizontal: 0,
+    marginBottom: 0,
     paddingHorizontal: 16,
-    paddingTop: 10,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(31, 138, 112, 0.13)',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderColor: 'rgba(15, 35, 64, 0.10)',
     backgroundColor: UI.surface,
-    boxShadow: '0 18px 44px rgba(23, 33, 29, 0.16)',
+    boxShadow: '0 -4px 16px rgba(15, 35, 64, 0.04)',
   },
   footerDark: {
-    borderColor: 'rgba(109, 214, 180, 0.14)',
-    backgroundColor: UI.darkSurface,
-    boxShadow: '0 18px 44px rgba(0, 0, 0, 0.36)',
+    borderColor: UI.border,
+    backgroundColor: UI.surface,
+    boxShadow: '0 6px 18px rgba(15, 35, 64, 0.055)',
   },
   footerWeb: {
     padding: 12,
-    borderRadius: 24,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(31, 138, 112, 0.13)',
+    borderColor: UI.border,
     backgroundColor: UI.surface,
-    boxShadow: '0 18px 44px rgba(23, 33, 29, 0.12)',
+    boxShadow: '0 4px 14px rgba(15, 35, 64, 0.035)',
   },
   header: {
     gap: 10,
@@ -462,7 +463,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: UI.text,
     fontSize: 20,
-    fontWeight: '800',
+    fontWeight: '600',
     textAlign: 'center',
   },
   headerTitleDark: {
@@ -481,17 +482,18 @@ const styles = StyleSheet.create({
     height: 44,
   },
   iconButton: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
     backgroundColor: UI.surface,
-    ...cardShadow,
   },
   iconButtonDark: {
     borderWidth: 1,
-    borderColor: 'rgba(237, 247, 242, 0.10)',
+    borderColor: UI.border,
     backgroundColor: UI.darkSurface,
     boxShadow: 'none',
   },
@@ -499,21 +501,21 @@ const styles = StyleSheet.create({
     backgroundColor: UI.primarySoft,
   },
   primaryButton: {
-    minHeight: 50,
+    minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingHorizontal: 18,
-    borderRadius: 14,
+    paddingHorizontal: 14,
+    borderRadius: 6,
     backgroundColor: UI.primary,
-    boxShadow: '0 14px 28px rgba(31, 138, 112, 0.25)',
+    boxShadow: '0 6px 16px rgba(6, 74, 138, 0.12)',
   },
   secondaryButton: {
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
-    boxShadow: '0 10px 24px rgba(23, 33, 29, 0.06)',
+    boxShadow: 'none',
   },
   ghostButton: {
     backgroundColor: UI.primarySoft,
@@ -525,8 +527,8 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: UI.surface,
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '600',
   },
   secondaryButtonText: {
     color: UI.primary,
@@ -543,28 +545,28 @@ const styles = StyleSheet.create({
   sectionTitle: {
     flex: 1,
     color: UI.text,
-    fontSize: 19,
-    fontWeight: '800',
+    fontSize: 17,
+    fontWeight: '600',
   },
   sectionTitleDark: {
     color: UI.darkText,
   },
   sectionAction: {
     color: UI.primary,
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '500',
   },
   sectionActionDark: {
     color: UI.darkPrimary,
   },
   metricPill: {
     flex: 1,
-    minHeight: 62,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
     paddingHorizontal: 12,
-    borderRadius: 18,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
@@ -577,43 +579,36 @@ const styles = StyleSheet.create({
   metricLabel: {
     color: UI.textMuted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   metricValue: {
     color: UI.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   emptyState: {
     alignItems: 'center',
     gap: 9,
-    padding: 18,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: UI.border,
-    backgroundColor: UI.surface,
-    ...cardShadow,
+    padding: 14,
   },
   emptyStateDark: {
-    borderColor: 'rgba(237, 247, 242, 0.10)',
-    backgroundColor: UI.darkSurface,
-    boxShadow: 'none',
+    backgroundColor: 'transparent',
   },
   emptyIcon: {
-    width: 46,
-    height: 46,
+    width: 38,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
+    borderRadius: 8,
     backgroundColor: UI.primarySoft,
   },
   emptyIconDark: {
-    backgroundColor: 'rgba(109, 214, 180, 0.14)',
+    backgroundColor: UI.primarySoft,
   },
   emptyTitle: {
     color: UI.text,
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '600',
     textAlign: 'center',
   },
   emptyTitleDark: {
@@ -634,24 +629,24 @@ const styles = StyleSheet.create({
   fieldLabel: {
     color: UI.text,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '500',
   },
   fieldLabelDark: {
     color: UI.darkText,
   },
   input: {
-    minHeight: 50,
-    paddingHorizontal: 14,
-    borderRadius: 14,
+    minHeight: 40,
+    paddingHorizontal: 12,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: UI.border,
     backgroundColor: UI.surface,
     color: UI.text,
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '400',
   },
   inputDark: {
-    borderColor: 'rgba(237, 247, 242, 0.12)',
+    borderColor: UI.border,
     backgroundColor: UI.darkSurfaceRaised,
     color: UI.darkText,
   },
@@ -697,9 +692,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     padding: 13,
-    borderRadius: 18,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(31, 138, 112, 0.12)',
+    borderColor: 'rgba(6, 74, 138, 0.12)',
     backgroundColor: UI.primarySoft,
   },
   infoStripSuccess: {
@@ -711,7 +706,7 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   infoText: {
     color: UI.textMuted,
