@@ -27,9 +27,12 @@ public static class DependencyInjection
             configuration.GetSection(BusinessClockOptions.SectionName));
         services.Configure<MeetingRoomOptions>(
             configuration.GetSection(MeetingRoomOptions.SectionName));
+        services.Configure<ClinicalDataProtectionOptions>(
+            configuration.GetSection(ClinicalDataProtectionOptions.SectionName));
 
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IClinicalService, ClinicalService>();
+        services.AddSingleton<IClinicalTextProtector, ClinicalTextProtector>();
         services.AddScoped<ISpaceService, SpaceService>();
         services.AddScoped<ITokenService, JwtTokenService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();

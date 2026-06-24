@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInUp, LinearTransition } from 'react-native-reanimated';
 
 import {
   EmptyState,
@@ -19,6 +20,7 @@ import {
   respondPatientCheckIn,
   updatePatientPortalConsent,
   updatePatientSensitiveConsent,
+  type ApiClinicalDataProtectionPolicy,
   type ApiClinicalRetentionPolicy,
   type ApiPatientConsentEvent,
   type ApiPatientConsentStatus,
@@ -184,6 +186,7 @@ export function PatientCarePortalScreen() {
   const consents = portal?.consents ?? [];
   const sensitiveConsents = portal?.sensitiveConsents ?? [];
   const consentHistory = (portal?.consentHistory ?? []).slice(0, 8);
+  const dataProtection = portal?.dataProtection ?? null;
   const consentTermByKey = useMemo(() => buildConsentTermMap(portal?.consentTerms), [portal?.consentTerms]);
   const retentionPolicyByKey = useMemo(
     () => buildRetentionPolicyMap(portal?.retentionPolicies),
@@ -248,6 +251,10 @@ export function PatientCarePortalScreen() {
             <SummaryTile icon="pulse-outline" label="Check-ins" value={String(openCheckIns.length)} />
             <SummaryTile icon="library-outline" label="Materiais" value={String(materials.length)} />
           </View>
+
+          {dataProtection ? (
+            <PatientDataProtectionPanel policy={dataProtection} />
+          ) : null}
 
           <SectionTitle title="Tarefas combinadas" actionLabel={`${tasks.length} itens`} />
           <View style={styles.card}>
@@ -445,6 +452,37 @@ function SummaryTile({
       <Text style={styles.summaryValue}>{value}</Text>
       <Text style={styles.summaryLabel}>{label}</Text>
     </View>
+  );
+}
+
+function PatientDataProtectionPanel({ policy }: { policy: ApiClinicalDataProtectionPolicy }) {
+  const isConfigured = policy.keySource === 'configured';
+
+  return (
+    <Animated.View
+      entering={FadeInUp.duration(240)}
+      layout={LinearTransition.duration(180)}
+      style={styles.protectionCard}>
+      <View style={styles.protectionIcon}>
+        <Ionicons name="lock-closed-outline" size={18} color={CARE_COLORS.primary} />
+      </View>
+      <View style={styles.protectionCopy}>
+        <View style={styles.rowHeader}>
+          <Text style={styles.protectionTitle}>Proteção dos dados clínicos</Text>
+          <View style={[styles.statusPill, isConfigured ? styles.completedPill : styles.warningPill]}>
+            <Text style={[styles.statusText, isConfigured ? styles.completedStatusText : styles.warningStatusText]}>
+              {isConfigured ? 'Ativa' : 'Dev'}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.rowText}>
+          Novos textos do acompanhamento são protegidos em repouso. O portal mostra apenas itens liberados pela sua psicóloga.
+        </Text>
+        <Text style={styles.rowMeta}>
+          {policy.legacyPlainTextReadable ? 'Registros antigos continuam legíveis durante a transição.' : 'Somente envelopes protegidos são aceitos.'}
+        </Text>
+      </View>
+    </Animated.View>
   );
 }
 
@@ -1023,6 +1061,38 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: '400',
   },
+  protectionCard: {
+    minHeight: 78,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(6, 74, 138, 0.16)',
+    backgroundColor: CARE_COLORS.surfaceBlue,
+  },
+  protectionIcon: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: CARE_COLORS.primarySoft,
+  },
+  protectionCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 5,
+  },
+  protectionTitle: {
+    flex: 1,
+    minWidth: 150,
+    color: CARE_COLORS.ink,
+    fontSize: 15,
+    lineHeight: 19,
+    fontWeight: '600',
+  },
   listRow: {
     flexDirection: 'row',
     gap: 10,
@@ -1093,6 +1163,12 @@ const styles = StyleSheet.create({
   },
   completedStatusText: {
     color: CARE_COLORS.primary,
+  },
+  warningPill: {
+    backgroundColor: CARE_COLORS.amberSoft,
+  },
+  warningStatusText: {
+    color: CARE_COLORS.amber,
   },
   responseInput: {
     minHeight: 74,

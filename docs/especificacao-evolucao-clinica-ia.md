@@ -1619,6 +1619,8 @@ Atualizacao da vigesima oitava entrega: workspace clinico e portal do paciente a
 
 Atualizacao da vigesima nona entrega: a matriz `ClinicalAccessPolicy` agora inclui limites calculados por papel (`roleBoundaries`) e guardrails de governanca (`guardrails`) derivados do vinculo profissional-paciente, consentimentos atuais e historico tecnico de revogacoes/expiracoes. A UI do workspace clinico foi refinada como painel de governanca animado, separando papel da psicologa vinculada, bloqueio do admin operacional, supervisao clinica ainda pendente de designacao formal, escopo do paciente e sistema de IA limitado a consentimento/minimizacao. Esse incremento nao libera novo acesso clinico: ele documenta e exibe bloqueios antes de IA, gravacao, transcricao ou supervisao real. Ainda faltam revisao juridica final dos textos, criptografia de campos sensiveis, papel real de supervisao clinica com escopo/auditoria propria, IA real, gravacao e transcricao.
 
+Atualizacao da trigesima entrega: os novos textos clinicos sensiveis passaram a ser protegidos em repouso por envelope `enc:v1` com AES-256-GCM no backend, mantendo leitura transparente de registros legados ainda em texto puro. `ClinicalDraft`, `ClinicalRecord`, notas de tags, formulacao de caso, tarefas, materiais, check-ins e alertas agora gravam os campos textuais protegidos, e uma migration amplia essas colunas para `text` para evitar estouro do envelope cifrado. Workspace clinico e portal do paciente recebem `dataProtection` e exibem um painel discreto animado de protecao dos dados, sem expor conteudo clinico, IA, gravacao ou transcricao. Ainda faltam configurar chave definitiva fora do fallback de desenvolvimento, definir rotacao de chaves, migrar legado ja armazenado e cobrir o contrato de protecao com testes automatizados.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1645,6 +1647,9 @@ Arquivos criados ou alterados:
 - `backend/src/PsiAgenda.Domain/Entities/ClinicalAlert.cs`
 - `backend/src/PsiAgenda.Infrastructure/Services/ClinicalService.cs`
 - `backend/src/PsiAgenda.Infrastructure/Services/ClinicalConsentExpirationWorker.cs`
+- `backend/src/PsiAgenda.Infrastructure/Services/IClinicalTextProtector.cs`
+- `backend/src/PsiAgenda.Infrastructure/Services/ClinicalTextProtector.cs`
+- `backend/src/PsiAgenda.Infrastructure/Services/ClinicalDataProtectionOptions.cs`
 - `backend/src/PsiAgenda.Api/Endpoints/ClinicalEndpoints.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623013000_AddClinicalWorkspaceTables.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623020000_AddClinicalRecords.cs`
@@ -1658,6 +1663,7 @@ Arquivos criados ou alterados:
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623070000_AddTimelineItemArchiving.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623073000_AddClinicalAlerts.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623085000_AddPatientConsentExpirationIndex.cs`
+- `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260624042000_WidenClinicalProtectedTextFields.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/PsiAgendaDbContext.cs`
 - `backend/src/PsiAgenda.Infrastructure/DependencyInjection.cs`
 - `backend/src/PsiAgenda.Api/Program.cs`
@@ -1771,6 +1777,9 @@ Feito agora:
 105. UI da psicologa e do paciente exibem efeito de revogacao/expiracao e bloqueio de novos usos sem expor conteudo clinico sensivel.
 106. Workspace clinico retorna limites por papel e guardrails de governanca sem liberar acesso novo para admin operacional ou supervisao.
 107. UI da psicologa exibe governanca de acesso com separacao entre papeis, guardrails e permissoes efetivas, com animacoes discretas.
+108. Novos campos textuais clinicos sensiveis sao protegidos em repouso por envelope `enc:v1` e continuam legiveis nos DTOs por descriptografia transparente.
+109. Workspace clinico e portal do paciente retornam `dataProtection`, informando algoritmo, origem da chave, campos protegidos e aviso de rotacao sem incluir conteudo clinico.
+110. UI da psicologa e do paciente exibe protecao de dados clinicos com linguagem discreta, icone de cadeado e animacao curta alinhada ao padrao visual atual.
 
 Falta para virar produto clinico real:
 
@@ -1783,7 +1792,7 @@ Falta para virar produto clinico real:
 7. Refinar alertas responsaveis com configuracao de regras, aprendizagem de falso positivo e tendencias longitudinais.
 8. Adicionar testes de contrato da API e testes de tela.
 9. Ajustar copy legal/clinica com revisao profissional.
-10. Definir politica de retencao, exportacao e retificacao.
+10. Configurar chave produtiva de `ClinicalDataProtection`, definir rotacao, migrar registros legados e testar o envelope cifrado.
 
 Status por modulo:
 
@@ -1798,7 +1807,7 @@ Status por modulo:
 | Portal do paciente com cuidado | Parcial | Tarefas, materiais e check-ins privados no workspace; previa antes de compartilhar; share/unshare com consentimento; `/patient-care` para itens liberados, conclusao/resposta de tarefa, resposta de check-in e consentimento direto nao sensivel | Reabertura/edicao de tarefas, historico de visualizacao e refinamento de materiais |
 | Check-ins entre sessoes | Parcial | `PatientCheckIn` persistido, compartilhamento com consentimento e resposta pelo portal com escala/observacao | Agenda recorrente, templates editaveis, graficos e tendencias |
 | Alertas responsaveis | Parcial | `ClinicalAlert`, criacao manual por atendimento, motor inicial por tags `risk` e check-ins com escala 1 ou 2, painel no workspace, acoes de confirmar/acompanhar/descartar/resolver, timeline, auditoria sem mensagem automatica ao paciente e destaque de alerta alto no briefing | Configuracao de regras, aprendizado de falso positivo e tendencias longitudinais |
-| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, `PatientConsentEvent` com historico tecnico/versionado, `PatientConsentTerm` com catalogo versionado e validacao de versao ativa, politica operacional de retencao/revogacao calculada no workspace e portal, expiracao materializada por `expiresAt`, job dedicado de expiracao, shareables com consentimento, consentimento direto nao sensivel no portal, solicitacao/decisao de consentimentos sensiveis, exportacao aprovada auditada, matriz efetiva de permissoes com limites por papel/guardrails no workspace e auditoria sem conteudo clinico | Revisao juridica dos textos sensiveis, formalizacao operacional fora do app, papel real de supervisao clinica e criptografia de campos sensiveis |
+| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, `PatientConsentEvent` com historico tecnico/versionado, `PatientConsentTerm` com catalogo versionado e validacao de versao ativa, politica operacional de retencao/revogacao calculada no workspace e portal, expiracao materializada por `expiresAt`, job dedicado de expiracao, shareables com consentimento, consentimento direto nao sensivel no portal, solicitacao/decisao de consentimentos sensiveis, exportacao aprovada auditada, matriz efetiva de permissoes com limites por papel/guardrails, protecao em repouso dos novos textos clinicos sensiveis com envelope `enc:v1` e auditoria sem conteudo clinico | Revisao juridica dos textos sensiveis, formalizacao operacional fora do app, papel real de supervisao clinica, chave produtiva/rotacao e migracao dos registros legados |
 
 ### Navegacao profissional sugerida
 
@@ -2015,9 +2024,10 @@ Motivo:
 8. Plano terapeutico.
 9. Portal do paciente.
 10. Check-ins.
-11. IA para rascunho e briefing.
+11. Protecao em repouso, chave produtiva, rotacao e migracao de legado.
 12. Alertas.
-13. Gravacao e transcricao.
+13. IA para rascunho e briefing.
+14. Gravacao e transcricao.
 
 ## Questoes em aberto
 
@@ -2046,6 +2056,7 @@ Motivo:
 - Check-ins funcionam entre sessoes.
 - Alertas mostram fonte, motivo e status revisavel.
 - Consentimentos sao granulares e revogaveis.
+- Novos textos clinicos sensiveis sao protegidos em repouso e registros legados permanecem legiveis durante migracao controlada.
 - Acesso clinico e auditado.
 - Admin operacional nao acessa conteudo clinico privado por padrao.
 - Gravacao e transcricao so funcionam com consentimento especifico.

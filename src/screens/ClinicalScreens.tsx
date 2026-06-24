@@ -51,6 +51,7 @@ import {
   type ApiAppointmentDetails,
   type ApiClinicalAlert,
   type ApiClinicalAlertSeverity,
+  type ApiClinicalDataProtectionPolicy,
   type ApiClinicalPolicyGuardrail,
   type ApiClinicalPermission,
   type ApiClinicalRecordExport,
@@ -430,6 +431,7 @@ export function ClinicalPatientWorkspaceScreen() {
     sharedMaterials.filter(isPatientVisibleStatus).length +
     patientCheckIns.filter(isPatientVisibleStatus).length;
   const accessPolicy = workspace?.accessPolicy ?? null;
+  const dataProtection = workspace?.dataProtection ?? null;
   const grantedPermissionCount = accessPolicy?.permissions.filter((permission) => permission.granted).length ?? 0;
   const activeGuardrailCount = accessPolicy?.guardrails.filter((guardrail) => (
     guardrail.status === 'blocked' || guardrail.status === 'attention'
@@ -2011,6 +2013,10 @@ export function ClinicalPatientWorkspaceScreen() {
               </View>
             </View>
 
+            {dataProtection ? (
+              <ClinicalDataProtectionPanel policy={dataProtection} />
+            ) : null}
+
             <View style={styles.policyBlock}>
               <View style={styles.policyBlockHeader}>
                 <View style={styles.policyBlockIcon}>
@@ -2489,6 +2495,53 @@ type ConsentRowModel = ClinicalConsentItem & {
   revokedAt?: string | null;
   expiresAt?: string | null;
 };
+
+function ClinicalDataProtectionPanel({ policy }: { policy: ApiClinicalDataProtectionPolicy }) {
+  const isConfigured = policy.keySource === 'configured';
+  const color = isConfigured ? UI.darkPrimary : '#F3C969';
+  const visibleFields = policy.protectedFields.slice(0, 4);
+  const extraCount = Math.max(0, policy.protectedFields.length - visibleFields.length);
+
+  return (
+    <Animated.View
+      entering={FadeInUp.duration(240)}
+      layout={LinearTransition.duration(180)}
+      style={styles.dataProtectionPanel}>
+      <View style={styles.policyBlockHeader}>
+        <View style={[styles.policyBlockIcon, styles.dataProtectionIcon]}>
+          <Ionicons name="lock-closed-outline" size={17} color={UI.darkPrimary} />
+        </View>
+        <View style={styles.policyBlockTitleWrap}>
+          <View style={styles.consentTitleRow}>
+            <Text style={styles.policyBlockTitle}>Proteção dos dados clínicos</Text>
+            <View style={[styles.consentStatusPill, { borderColor: color }]}>
+              <Text style={[styles.consentStatusText, { color }]}>
+                {isConfigured ? 'Chave configurada' : 'Chave de desenvolvimento'}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.policyBlockText}>
+            Novos textos sensíveis usam {policy.algorithm}; registros legados sem envelope continuam legíveis.
+          </Text>
+        </View>
+      </View>
+      <View style={styles.protectedFieldList}>
+        {visibleFields.map((field) => (
+          <View key={field} style={styles.protectedFieldPill}>
+            <Ionicons name="shield-checkmark-outline" size={13} color={UI.darkPrimary} />
+            <Text style={styles.protectedFieldText}>{protectedFieldLabel(field)}</Text>
+          </View>
+        ))}
+        {extraCount > 0 ? (
+          <View style={styles.protectedFieldPill}>
+            <Text style={styles.protectedFieldText}>+{extraCount} campos</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={styles.consentMeta}>{policy.rotationNotice}</Text>
+    </Animated.View>
+  );
+}
 
 function ClinicalRoleBoundaryRow({
   boundary,
@@ -3397,6 +3450,29 @@ function guardrailStatusColor(status: string) {
   }
 }
 
+function protectedFieldLabel(field: string) {
+  const labels: Record<string, string> = {
+    'clinical_drafts.session_note': 'Anotação do rascunho',
+    'clinical_drafts.content_text': 'Texto do rascunho',
+    'clinical_records.content_text': 'Prontuário aprovado',
+    'applied_clinical_tags.note': 'Nota de tag',
+    'treatment_plans.case_formulation': 'Formulação do caso',
+    'patient_tasks.title': 'Título de tarefa',
+    'patient_tasks.description': 'Descrição de tarefa',
+    'patient_tasks.response_text': 'Resposta de tarefa',
+    'shared_materials.title': 'Título de material',
+    'shared_materials.description': 'Material compartilhável',
+    'patient_check_ins.prompt': 'Pergunta de check-in',
+    'patient_check_ins.context_note': 'Contexto de check-in',
+    'patient_check_ins.response_text': 'Resposta de check-in',
+    'clinical_alerts.title': 'Título de alerta',
+    'clinical_alerts.description': 'Motivo de alerta',
+    'clinical_alerts.review_note': 'Revisão de alerta',
+  };
+
+  return labels[field] ?? field;
+}
+
 function statusColor(status: ClinicalIntegrationStatus) {
   switch (status) {
     case 'connected':
@@ -4252,6 +4328,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     fontWeight: '400',
+  },
+  dataProtectionPanel: {
+    gap: 10,
+    paddingTop: 14,
+    marginTop: 2,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(237, 247, 242, 0.08)',
+  },
+  dataProtectionIcon: {
+    borderColor: 'rgba(68, 139, 116, 0.22)',
+    backgroundColor: 'rgba(68, 139, 116, 0.10)',
+  },
+  protectedFieldList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+  },
+  protectedFieldPill: {
+    minHeight: 27,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(68, 139, 116, 0.20)',
+    backgroundColor: 'rgba(68, 139, 116, 0.08)',
+  },
+  protectedFieldText: {
+    color: UI.darkTextMuted,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '500',
   },
   policyRow: {
     flexDirection: 'row',

@@ -498,6 +498,16 @@ export type ApiClinicalPolicyGuardrail = {
   relatedConsentType?: string | null;
 };
 
+export type ApiClinicalDataProtectionPolicy = {
+  enabled: boolean;
+  algorithm: string;
+  keySource: 'configured' | 'development_fallback' | string;
+  legacyPlainTextReadable: boolean;
+  protectedFields: string[];
+  status: 'active' | 'active_with_development_key' | string;
+  rotationNotice: string;
+};
+
 export type ApiClinicalAccessPolicy = {
   actorRole: string;
   hasProfessionalPatientRelationship: boolean;
@@ -600,6 +610,7 @@ export type ApiClinicalWorkspace = {
   professionalId: string;
   spaceId: string;
   accessPolicy: ApiClinicalAccessPolicy;
+  dataProtection: ApiClinicalDataProtectionPolicy;
   session: ApiClinicalSession;
   drafts: ApiClinicalDraft[];
   records: ApiClinicalRecord[];
@@ -626,6 +637,7 @@ export type ApiPatientCarePortal = {
   consentHistory: ApiPatientConsentEvent[];
   consentTerms: ApiPatientConsentTerm[];
   retentionPolicies: ApiClinicalRetentionPolicy[];
+  dataProtection: ApiClinicalDataProtectionPolicy;
 };
 
 export type ApiStarterSetupResponse = {

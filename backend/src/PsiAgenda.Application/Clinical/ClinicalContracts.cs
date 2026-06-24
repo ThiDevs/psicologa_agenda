@@ -6,6 +6,7 @@ public sealed record ClinicalWorkspaceDto(
     Guid ProfessionalId,
     Guid SpaceId,
     ClinicalAccessPolicyDto AccessPolicy,
+    ClinicalDataProtectionPolicyDto DataProtection,
     ClinicalSessionDto Session,
     IReadOnlyList<ClinicalDraftDto> Drafts,
     IReadOnlyList<ClinicalRecordDto> Records,
@@ -52,6 +53,15 @@ public sealed record ClinicalPolicyGuardrailDto(
     string Detail,
     string? RelatedConsentType);
 
+public sealed record ClinicalDataProtectionPolicyDto(
+    bool Enabled,
+    string Algorithm,
+    string KeySource,
+    bool LegacyPlainTextReadable,
+    IReadOnlyList<string> ProtectedFields,
+    string Status,
+    string RotationNotice);
+
 public sealed record PatientCarePortalDto(
     Guid PatientId,
     IReadOnlyList<PatientTaskDto> Tasks,
@@ -61,7 +71,8 @@ public sealed record PatientCarePortalDto(
     IReadOnlyList<PatientPortalConsentDto> SensitiveConsents,
     IReadOnlyList<PatientConsentEventDto> ConsentHistory,
     IReadOnlyList<PatientConsentTermDto> ConsentTerms,
-    IReadOnlyList<ClinicalRetentionPolicyDto> RetentionPolicies);
+    IReadOnlyList<ClinicalRetentionPolicyDto> RetentionPolicies,
+    ClinicalDataProtectionPolicyDto DataProtection);
 
 public sealed record ClinicalSessionDto(
     Guid Id,

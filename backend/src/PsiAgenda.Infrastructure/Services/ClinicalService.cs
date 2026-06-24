@@ -8,7 +8,7 @@ using PsiAgenda.Infrastructure.Persistence;
 
 namespace PsiAgenda.Infrastructure.Services;
 
-public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalService
+public sealed class ClinicalService(PsiAgendaDbContext dbContext, IClinicalTextProtector textProtector) : IClinicalService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private const string DefaultConsentTermsVersion = "clinical-consent-v1";
@@ -204,6 +204,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             appointment.ProfessionalId,
             appointment.SpaceId,
             BuildClinicalAccessPolicy(consents, consentHistory),
+            textProtector.BuildPolicy(),
             ToDto(session),
             drafts.Select(ToDto).ToList(),
             records.Select(ToDto).ToList(),
@@ -963,7 +964,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             consentTerms,
             BuildRetentionPolicies(
                 consents.Select(ToPolicySource).Concat(sensitiveConsents.Select(ToPolicySource)),
-                consentTerms));
+                consentTerms),
+            textProtector.BuildPolicy());
     }
 
     public async Task<PatientTaskDto> CompletePatientTaskAsync(
@@ -1001,7 +1003,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
 
         var now = DateTimeOffset.UtcNow;
         task.Status = "completed";
-        task.ResponseText = responseText;
+        task.ResponseText = textProtector.ProtectOptional(responseText);
         task.ResponseSubmittedAt = responseText is null ? null : now;
         task.CompletedAt = now;
         task.UpdatedAt = now;
@@ -1078,7 +1080,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         var now = DateTimeOffset.UtcNow;
         checkIn.Status = "answered";
         checkIn.MoodScore = request.MoodScore;
-        checkIn.ResponseText = responseText;
+        checkIn.ResponseText = textProtector.ProtectOptional(responseText);
         checkIn.RespondedAt = now;
         checkIn.UpdatedAt = now;
 
@@ -1339,8 +1341,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             Status = "draft",
             Source = "manual",
             RecordType = "session_evolution",
-            SessionNote = sessionNote,
-            ContentText = contentText,
+            SessionNote = textProtector.ProtectOptional(sessionNote),
+            ContentText = textProtector.ProtectRequired(contentText),
             TagsJson = JsonSerializer.Serialize(tags, JsonOptions),
             AiGenerated = false,
             CreatedAt = now
@@ -1421,8 +1423,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             Source = "rectification",
             RecordType = "rectification",
             PreviousRecordId = record.Id,
-            SessionNote = $"Retificação da evolução v{record.Version}.",
-            ContentText = BuildRectificationDraftText(record),
+            SessionNote = textProtector.ProtectRequired($"Retificação da evolução v{record.Version}."),
+            ContentText = textProtector.ProtectRequired(BuildRectificationDraftText(record)),
             TagsJson = record.TagsJson,
             AiGenerated = false,
             CreatedAt = now
@@ -1482,7 +1484,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             AppliedByUserId = professionalUserId,
             Label = tag.Label,
             Tone = tag.Tone,
-            Note = note,
+            Note = textProtector.ProtectOptional(note),
             AppliedAt = now
         }).ToList();
 
@@ -1554,7 +1556,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         }
 
         var contentText = string.IsNullOrWhiteSpace(request.ContentText)
-            ? draft.ContentText
+            ? textProtector.UnprotectRequired(draft.ContentText)
             : ValidateText(request.ContentText, "Prontuário", 3, 8000);
         var recordType = NormalizeRecordType(draft.RecordType);
         var now = DateTimeOffset.UtcNow;
@@ -1601,7 +1603,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             ApprovedByUserId = professionalUserId,
             RecordType = recordType,
             Status = "approved",
-            ContentText = contentText,
+            ContentText = textProtector.ProtectRequired(contentText),
             TagsJson = draft.TagsJson,
             Version = version,
             PreviousRecordId = previousRecord?.Id,
@@ -1610,7 +1612,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         };
 
         draft.Status = "converted_to_record";
-        draft.ContentText = contentText;
+        draft.ContentText = textProtector.ProtectRequired(contentText);
         draft.UpdatedAt = now;
 
         dbContext.ClinicalRecords.Add(record);
@@ -1865,7 +1867,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         plan.SpaceId = appointment.SpaceId;
         plan.UpdatedByUserId = professionalUserId;
         plan.Status = status;
-        plan.CaseFormulation = caseFormulation;
+        plan.CaseFormulation = textProtector.ProtectOptional(caseFormulation);
         plan.GoalsJson = JsonSerializer.Serialize(goals, JsonOptions);
         plan.StrategiesJson = JsonSerializer.Serialize(strategies, JsonOptions);
         plan.ObstaclesJson = JsonSerializer.Serialize(obstacles, JsonOptions);
@@ -1915,8 +1917,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             ProfessionalId = appointment.ProfessionalId,
             SpaceId = appointment.SpaceId,
             CreatedByUserId = professionalUserId,
-            Title = ValidateText(request.Title, "Título da tarefa", 3, 160),
-            Description = NormalizeOptionalText(request.Description, 1000, "Descrição da tarefa"),
+            Title = textProtector.ProtectRequired(ValidateText(request.Title, "Título da tarefa", 3, 160)),
+            Description = textProtector.ProtectOptional(NormalizeOptionalText(request.Description, 1000, "Descrição da tarefa")),
             DueAt = NormalizeFutureDate(request.DueAt, "Prazo da tarefa"),
             Status = "private",
             AcceptsResponse = request.AcceptsResponse,
@@ -2075,8 +2077,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             SpaceId = appointment.SpaceId,
             CreatedByUserId = professionalUserId,
             MaterialType = materialType,
-            Title = ValidateText(request.Title, "Título do material", 3, 160),
-            Description = description,
+            Title = textProtector.ProtectRequired(ValidateText(request.Title, "Título do material", 3, 160)),
+            Description = textProtector.ProtectOptional(description),
             Url = url,
             Status = "private",
             CreatedAt = now,
@@ -2226,8 +2228,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             ProfessionalId = appointment.ProfessionalId,
             SpaceId = appointment.SpaceId,
             CreatedByUserId = professionalUserId,
-            Prompt = ValidateText(request.Prompt, "Pergunta do check-in", 3, 220),
-            ContextNote = NormalizeOptionalText(request.ContextNote, 1000, "Contexto do check-in"),
+            Prompt = textProtector.ProtectRequired(ValidateText(request.Prompt, "Pergunta do check-in", 3, 220)),
+            ContextNote = textProtector.ProtectOptional(NormalizeOptionalText(request.ContextNote, 1000, "Contexto do check-in")),
             DueAt = NormalizeFutureDate(request.DueAt, "Prazo do check-in"),
             Status = "private",
             CreatedAt = now,
@@ -2379,8 +2381,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             SpaceId = appointment.SpaceId,
             CreatedByUserId = professionalUserId,
             SourceType = "manual",
-            Title = ValidateText(request.Title, "Título do alerta", 5, 160),
-            Description = ValidateText(request.Description, "Motivo do alerta", 5, 1200),
+            Title = textProtector.ProtectRequired(ValidateText(request.Title, "Título do alerta", 5, 160)),
+            Description = textProtector.ProtectRequired(ValidateText(request.Description, "Motivo do alerta", 5, 1200)),
             Severity = severity,
             Status = "pending",
             CreatedAt = now,
@@ -2455,8 +2457,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             CreatedByUserId = actorUserId,
             SourceType = sourceType,
             SourceId = sourceId,
-            Title = title,
-            Description = description,
+            Title = textProtector.ProtectRequired(title),
+            Description = textProtector.ProtectRequired(description),
             Severity = normalizedSeverity,
             Status = "pending",
             CreatedAt = now,
@@ -2520,7 +2522,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         alert.ReviewedByUserId = professionalUserId;
         alert.ReviewedAt = now;
         alert.ResolvedAt = normalizedStatus == "resolved" ? now : null;
-        alert.ReviewNote = NormalizeOptionalText(request.ReviewNote, 500, "Nota de revisão do alerta");
+        alert.ReviewNote = textProtector.ProtectOptional(NormalizeOptionalText(request.ReviewNote, 500, "Nota de revisão do alerta"));
         alert.UpdatedAt = now;
 
         dbContext.PatientTimelineItems.Add(new PatientTimelineItem
@@ -3945,17 +3947,18 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         };
     }
 
-    private static string BuildRectificationDraftText(ClinicalRecord record)
+    private string BuildRectificationDraftText(ClinicalRecord record)
     {
         const int MaxDraftLength = 8000;
         const string OriginalLabel = "Texto original para referencia:";
+        var originalContent = textProtector.UnprotectRequired(record.ContentText);
         var header = $"""
             Retificação da evolução v{record.Version}
 
             Descreva abaixo apenas o ajuste necessário, preservando o histórico já aprovado. Esta retificação ainda é rascunho e precisa de aprovação manual antes de entrar no prontuário.
 
             """;
-        var fullText = $"{header}{OriginalLabel}\n{record.ContentText}";
+        var fullText = $"{header}{OriginalLabel}\n{originalContent}";
 
         if (fullText.Length <= MaxDraftLength)
         {
@@ -3963,10 +3966,10 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         }
 
         var availableOriginalLength = Math.Max(0, MaxDraftLength - header.Length - OriginalLabel.Length - 4);
-        return $"{header}{OriginalLabel}\n{record.ContentText[..availableOriginalLength]}...";
+        return $"{header}{OriginalLabel}\n{originalContent[..availableOriginalLength]}...";
     }
 
-    private static string BuildClinicalRecordExportText(
+    private string BuildClinicalRecordExportText(
         Guid patientId,
         ProfessionalPatientRelationship relationship,
         IReadOnlyList<ClinicalRecord> records,
@@ -4007,7 +4010,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             }
 
             builder.AppendLine("Conteúdo aprovado:");
-            builder.AppendLine(record.ContentText);
+            builder.AppendLine(textProtector.UnprotectRequired(record.ContentText));
             builder.AppendLine();
             builder.AppendLine("---");
             builder.AppendLine();
@@ -4028,7 +4031,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         };
     }
 
-    private static ClinicalDraftDto ToDto(ClinicalDraft draft)
+    private ClinicalDraftDto ToDto(ClinicalDraft draft)
     {
         var tags = DeserializeClinicalTags(draft.TagsJson);
 
@@ -4042,8 +4045,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             draft.Source,
             draft.RecordType,
             draft.PreviousRecordId,
-            draft.SessionNote,
-            draft.ContentText,
+            textProtector.UnprotectOptional(draft.SessionNote),
+            textProtector.UnprotectRequired(draft.ContentText),
             tags,
             draft.AiGenerated,
             draft.CreatedAt,
@@ -4066,7 +4069,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             session.UpdatedAt);
     }
 
-    private static AppliedClinicalTagDto ToDto(AppliedClinicalTag tag)
+    private AppliedClinicalTagDto ToDto(AppliedClinicalTag tag)
     {
         return new AppliedClinicalTagDto(
             tag.Id,
@@ -4076,11 +4079,11 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             tag.SpaceId,
             tag.Label,
             tag.Tone,
-            tag.Note,
+            textProtector.UnprotectOptional(tag.Note),
             tag.AppliedAt);
     }
 
-    private static ClinicalRecordDto ToDto(ClinicalRecord record)
+    private ClinicalRecordDto ToDto(ClinicalRecord record)
     {
         var tags = DeserializeClinicalTags(record.TagsJson);
 
@@ -4093,7 +4096,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             record.SpaceId,
             record.RecordType,
             record.Status,
-            record.ContentText,
+            textProtector.UnprotectRequired(record.ContentText),
             tags,
             record.Version,
             record.PreviousRecordId,
@@ -4120,7 +4123,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             : JsonSerializer.Deserialize<List<ClinicalTagInput>>(tagsJson, JsonOptions) ?? [];
     }
 
-    private static TreatmentPlanDto ToDto(TreatmentPlan plan)
+    private TreatmentPlanDto ToDto(TreatmentPlan plan)
     {
         return new TreatmentPlanDto(
             plan.Id,
@@ -4128,7 +4131,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             plan.ProfessionalId,
             plan.SpaceId,
             plan.Status,
-            plan.CaseFormulation,
+            textProtector.UnprotectOptional(plan.CaseFormulation),
             DeserializeStringList(plan.GoalsJson),
             DeserializeStringList(plan.StrategiesJson),
             DeserializeStringList(plan.ObstaclesJson),
@@ -4137,7 +4140,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             plan.UpdatedAt);
     }
 
-    private static PatientTaskDto ToDto(PatientTask task)
+    private PatientTaskDto ToDto(PatientTask task)
     {
         return new PatientTaskDto(
             task.Id,
@@ -4145,12 +4148,12 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             task.PatientId,
             task.ProfessionalId,
             task.SpaceId,
-            task.Title,
-            task.Description,
+            textProtector.UnprotectRequired(task.Title),
+            textProtector.UnprotectOptional(task.Description),
             task.DueAt,
             task.Status,
             task.AcceptsResponse,
-            task.ResponseText,
+            textProtector.UnprotectOptional(task.ResponseText),
             task.ResponseSubmittedAt,
             task.SharedAt,
             task.CompletedAt,
@@ -4158,7 +4161,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             task.UpdatedAt);
     }
 
-    private static SharedMaterialDto ToDto(SharedMaterial material)
+    private SharedMaterialDto ToDto(SharedMaterial material)
     {
         return new SharedMaterialDto(
             material.Id,
@@ -4167,8 +4170,8 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             material.ProfessionalId,
             material.SpaceId,
             material.MaterialType,
-            material.Title,
-            material.Description,
+            textProtector.UnprotectRequired(material.Title),
+            textProtector.UnprotectOptional(material.Description),
             material.Url,
             material.Status,
             material.SharedAt,
@@ -4176,7 +4179,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             material.UpdatedAt);
     }
 
-    private static PatientCheckInDto ToDto(PatientCheckIn checkIn)
+    private PatientCheckInDto ToDto(PatientCheckIn checkIn)
     {
         return new PatientCheckInDto(
             checkIn.Id,
@@ -4184,19 +4187,19 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             checkIn.PatientId,
             checkIn.ProfessionalId,
             checkIn.SpaceId,
-            checkIn.Prompt,
-            checkIn.ContextNote,
+            textProtector.UnprotectRequired(checkIn.Prompt),
+            textProtector.UnprotectOptional(checkIn.ContextNote),
             checkIn.DueAt,
             checkIn.Status,
             checkIn.MoodScore,
-            checkIn.ResponseText,
+            textProtector.UnprotectOptional(checkIn.ResponseText),
             checkIn.RespondedAt,
             checkIn.SharedAt,
             checkIn.CreatedAt,
             checkIn.UpdatedAt);
     }
 
-    private static ClinicalAlertDto ToDto(ClinicalAlert alert)
+    private ClinicalAlertDto ToDto(ClinicalAlert alert)
     {
         return new ClinicalAlertDto(
             alert.Id,
@@ -4206,11 +4209,11 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             alert.SpaceId,
             alert.SourceType,
             alert.SourceId,
-            alert.Title,
-            alert.Description,
+            textProtector.UnprotectRequired(alert.Title),
+            textProtector.UnprotectRequired(alert.Description),
             alert.Severity,
             alert.Status,
-            alert.ReviewNote,
+            textProtector.UnprotectOptional(alert.ReviewNote),
             alert.ReviewedAt,
             alert.ResolvedAt,
             alert.CreatedAt,
