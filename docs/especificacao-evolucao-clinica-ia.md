@@ -1625,6 +1625,8 @@ Atualizacao da trigesima primeira entrega: o painel web da psicologa foi redesen
 
 Atualizacao da trigesima segunda entrega: `GET /clinical/patients/{patientId}/alerts` agora aceita filtros de severidade, status, origem, somente ativos e limite. O workspace clinico ganhou painel compacto de triagem de alertas responsaveis, com chips e animacao discreta, para priorizar revisao humana sem diagnostico automatico, sem envio de mensagem ao paciente e sem metadata sensivel na auditoria. Ainda faltam configuracao visual das regras, aprendizado de falso positivo, tendencias longitudinais, politica especifica de retencao/exportacao para alertas, IA, gravacao e transcricao.
 
+Atualizacao da trigesima terceira entrega: a teleconsulta web e nativa foi refinada para seguir a linguagem visual clara e compacta do app, com controles mais explicitos, animacoes discretas e copy clinica responsavel. A area de anotacao da chamada agora se identifica como rascunho local, sem virar prontuario e sem compartilhamento automatico. Este ciclo nao adicionou gravacao, transcricao, IA ou novo acesso a conteudo clinico sensivel.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1788,6 +1790,9 @@ Feito agora:
 111. Painel web da psicologa foi reestruturado como mesa operacional compacta, com sidebar, acao principal, agenda, checklist, avisos e atalhos coerentes com a home do paciente.
 112. Indicadores administrativos do consultorio agora ficam separados de qualquer rascunho, prontuario, memoria clinica ou conteudo compartilhavel.
 113. Tela do painel da psicologa usa icones mais claros e animacoes discretas de entrada/layout para reduzir sensacao de prototipo cru no modo web.
+114. Teleconsulta web usa controle explicito de legendas, botoes acessiveis e nota local separada de prontuario.
+115. Teleconsulta nativa usa WebView/Jitsi como sala funcional em mobile, com estados de loading/erro e entrada animada discreta.
+116. Copy da teleconsulta reforca que o app nao grava conteudo clinico e que anotacoes locais nao sao compartilhadas automaticamente.
 
 Falta para virar produto clinico real:
 

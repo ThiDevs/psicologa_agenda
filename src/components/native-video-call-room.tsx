@@ -8,6 +8,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import Animated, { FadeInUp, LinearTransition } from 'react-native-reanimated';
 import { WebView } from 'react-native-webview';
 
 import { UI, cardShadow } from '@/components/app-ui';
@@ -59,7 +60,10 @@ export function NativeVideoCallRoom({
 
   return (
     <View style={styles.shell}>
-      <View style={styles.header}>
+      <Animated.View
+        entering={FadeInUp.duration(220)}
+        layout={LinearTransition.duration(180)}
+        style={styles.header}>
         <View style={styles.brandMark} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <Ionicons name="videocam-outline" size={22} color={UI.primary} />
         </View>
@@ -76,9 +80,12 @@ export function NativeVideoCallRoom({
           style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
           <Ionicons name="close" size={21} color={UI.text} />
         </Pressable>
-      </View>
+      </Animated.View>
 
-      <View style={[styles.safetyCard, compactStage && styles.safetyCardCompact]}>
+      <Animated.View
+        entering={FadeInUp.delay(40).duration(220)}
+        layout={LinearTransition.duration(180)}
+        style={[styles.safetyCard, compactStage && styles.safetyCardCompact]}>
         <View style={styles.safetyIcon}>
           <Ionicons name="shield-checkmark-outline" size={19} color={UI.success} />
         </View>
@@ -92,9 +99,12 @@ export function NativeVideoCallRoom({
           <View style={styles.liveDot} />
           <Text style={styles.liveText}>Seguro</Text>
         </View>
-      </View>
+      </Animated.View>
 
-      <View style={styles.callCard}>
+      <Animated.View
+        entering={FadeInUp.delay(80).duration(240)}
+        layout={LinearTransition.duration(200)}
+        style={styles.callCard}>
         <View style={styles.callHeader}>
           <View>
             <Text style={styles.callEyebrow}>Sala da teleconsulta</Text>
@@ -166,9 +176,12 @@ export function NativeVideoCallRoom({
             </View>
           ) : null}
         </View>
-      </View>
+      </Animated.View>
 
-      <View style={styles.footer}>
+      <Animated.View
+        entering={FadeInUp.delay(120).duration(220)}
+        layout={LinearTransition.duration(180)}
+        style={styles.footer}>
         <View style={styles.participantRow}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
@@ -185,7 +198,7 @@ export function NativeVideoCallRoom({
           <ActionButton icon="open-outline" label="Abrir Jitsi" onPress={handleOpenFallback} />
           <ActionButton icon="call-outline" label="Sair" danger onPress={handleLeave} />
         </View>
-      </View>
+      </Animated.View>
     </View>
   );
 }

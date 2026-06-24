@@ -191,6 +191,7 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Consentimentos vencidos por prazo são materializados como expirados antes de liberar permissões ou conteúdo.',
       'Job dedicado expira consentimentos vencidos em segundo plano com auditoria de sistema.',
       'API de produção usa a raiz https://api.felicio.app sem acrescentar /api.',
+      'Teleconsulta identifica rascunho local como separado de prontuário e reforça que o app não grava conteúdo clínico.',
     ],
     missing: [
       'Auditoria clínica completa.',

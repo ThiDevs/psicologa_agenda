@@ -787,25 +787,45 @@ export default function VideoCallRoom({
             </div>
 
             <div className="controlDock">
-              <button className={`callControl ${micEnabled ? '' : 'isDanger'}`} onClick={toggleMic}>
+              <button
+                className={`callControl ${micEnabled ? '' : 'isDanger'}`}
+                type="button"
+                aria-pressed={!micEnabled}
+                aria-label={micEnabled ? 'Mutar microfone' : 'Ativar microfone'}
+                onClick={toggleMic}>
                 <span className="controlIcon"><Icon name={micEnabled ? 'mic' : 'micOff'} /></span>
                 <span>Microfone</span>
                 <small>^</small>
               </button>
-              <button className={`callControl ${cameraEnabled ? '' : 'isDanger'}`} onClick={toggleCamera}>
+              <button
+                className={`callControl ${cameraEnabled ? '' : 'isDanger'}`}
+                type="button"
+                aria-pressed={!cameraEnabled}
+                aria-label={cameraEnabled ? 'Desligar camera' : 'Ativar camera'}
+                onClick={toggleCamera}>
                 <span className="controlIcon"><Icon name={cameraEnabled ? 'camera' : 'cameraOff'} /></span>
                 <span>Câmera</span>
                 <small>^</small>
               </button>
-              <button className="callControl" disabled={!canFlipCamera || switchingCamera} onClick={switchCamera}>
+              <button
+                className="callControl"
+                type="button"
+                disabled={!canFlipCamera || switchingCamera}
+                aria-label="Trocar câmera"
+                onClick={switchCamera}>
                 <span className="controlIcon"><Icon name="switch" /></span>
                 <span>{switchingCamera ? 'Trocando' : 'Trocar'}</span>
               </button>
-              <button className={`callControl ${captionsEnabled ? 'isSelected' : ''}`} onClick={toggleCaptions}>
-                <span className="controlIcon"><Icon name="more" /></span>
-                <span>Mais</span>
+              <button
+                className={`callControl ${captionsEnabled ? 'isSelected' : ''}`}
+                type="button"
+                aria-pressed={captionsEnabled}
+                aria-label={captionsEnabled ? 'Pausar legendas ao vivo' : 'Ativar legendas ao vivo'}
+                onClick={toggleCaptions}>
+                <span className="controlIcon"><Icon name="caption" /></span>
+                <span>Legendas</span>
               </button>
-              <button className="callControl leaveControl" onClick={handleLeave}>
+              <button className="callControl leaveControl" type="button" aria-label="Sair da teleconsulta" onClick={handleLeave}>
                 <span className="controlIcon"><Icon name="phone" /></span>
                 <span>Sair</span>
               </button>
@@ -848,11 +868,18 @@ export default function VideoCallRoom({
             <div className="panelDivider" />
 
             <section className="notesPanel">
-              <label htmlFor="session-notes">Notas da sessão</label>
+              <label htmlFor="session-notes">Rascunho local da sessão</label>
               <div className="notesBox">
-                <textarea id="session-notes" placeholder="Escreva suas anotações..." />
+                <textarea
+                  id="session-notes"
+                  aria-describedby="session-notes-hint"
+                  placeholder="Anotação privada para organizar ideias durante a chamada..."
+                />
                 <Icon name="edit" />
               </div>
+              <p id="session-notes-hint" className="notesHint">
+                Não vira prontuário nem é compartilhado automaticamente.
+              </p>
             </section>
 
             <div className="panelStatus">
@@ -927,7 +954,7 @@ type IconName =
   | 'camera'
   | 'cameraOff'
   | 'switch'
-  | 'more'
+  | 'caption'
   | 'phone'
   | 'calendar'
   | 'edit'
@@ -1006,11 +1033,10 @@ function Icon({ name }: { name: IconName }) {
           <path {...common} d="M5 15a7 7 0 0 0 12 4l2-2" />
         </>
       )}
-      {name === 'more' && (
+      {name === 'caption' && (
         <>
-          <circle cx="6" cy="12" r="1.5" fill="currentColor" />
-          <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-          <circle cx="18" cy="12" r="1.5" fill="currentColor" />
+          <rect {...common} x="4" y="6" width="16" height="12" rx="2" />
+          <path {...common} d="M8 11h3M13 11h3M8 14h5" />
         </>
       )}
       {name === 'phone' && (
@@ -1099,6 +1125,18 @@ const css = `
     border: 1px solid rgba(237, 247, 242, 0.08);
     border-radius: 22px;
     overflow: hidden;
+    animation: callShellIn 220ms ease-out both;
+  }
+
+  @keyframes callShellIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .appHeader {
@@ -1636,6 +1674,13 @@ const css = `
     right: 16px;
     color: #d6dfdb;
     font-size: 20px;
+  }
+
+  .notesHint {
+    margin: -5px 0 0;
+    color: #b8c3bf;
+    font-size: 12px;
+    line-height: 1.35;
   }
 
   .panelStatus {
@@ -2233,6 +2278,13 @@ const css = `
     right: 12px;
     color: #607085;
     font-size: 18px;
+  }
+
+  .notesHint {
+    margin: -3px 0 0;
+    color: #607085;
+    font-size: 12px;
+    font-weight: 400;
   }
 
   .panelStatus {
