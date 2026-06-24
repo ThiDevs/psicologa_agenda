@@ -37,6 +37,135 @@ import { useOwnerSetupFinish } from '@/hooks/use-owner-setup-finish';
 import type { Appointment, OnboardingItem, Professional, Service, Space } from '@/types/domain';
 import { formatCurrency } from '@/utils/format';
 
+type OwnerWorkspacePageId =
+  | 'dashboard'
+  | 'agenda'
+  | 'services'
+  | 'patients'
+  | 'tasks'
+  | 'checkins'
+  | 'treatment'
+  | 'resources'
+  | 'finance'
+  | 'messages'
+  | 'reports'
+  | 'settings';
+
+type OwnerWorkspaceNavItem = {
+  id: OwnerWorkspacePageId;
+  label: string;
+  title: string;
+  subtitle: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  route: Href;
+};
+
+type OwnerWorkspaceMetrics = {
+  appointmentsCount: number;
+  revenue: number;
+  servicesCount: number;
+  professionalsCount: number;
+};
+
+const OWNER_WORKSPACE_NAV_ITEMS: OwnerWorkspaceNavItem[] = [
+  {
+    id: 'dashboard',
+    label: 'Painel',
+    title: 'Painel da psicóloga',
+    subtitle: 'Acompanhe agenda, equipe e configuração sem misturar prontuário ou memória clínica.',
+    icon: 'home-outline',
+    route: '/owner-dashboard',
+  },
+  {
+    id: 'agenda',
+    label: 'Agenda',
+    title: 'Agenda clínica',
+    subtitle: 'Consultas, confirmações e horários do consultório em uma visão contínua.',
+    icon: 'calendar-outline',
+    route: '/owner-agenda',
+  },
+  {
+    id: 'services',
+    label: 'Consultas',
+    title: 'Consultas e serviços',
+    subtitle: 'Pacotes, valores, duração e disponibilidade pública das consultas.',
+    icon: 'sparkles-outline',
+    route: '/manage-services',
+  },
+  {
+    id: 'patients',
+    label: 'Pacientes',
+    title: 'Pacientes',
+    subtitle: 'Acompanhamento administrativo dos pacientes vinculados às consultas.',
+    icon: 'people-outline',
+    route: '/owner-agenda',
+  },
+  {
+    id: 'tasks',
+    label: 'Tarefas clínicas',
+    title: 'Tarefas clínicas',
+    subtitle: 'Pendências clínicas separadas de prontuário, memória e conteúdo compartilhável.',
+    icon: 'list-outline',
+    route: '/clinical-integration',
+  },
+  {
+    id: 'checkins',
+    label: 'Check-ins',
+    title: 'Check-ins',
+    subtitle: 'Sinais de acompanhamento usados apenas com consentimento válido.',
+    icon: 'shield-checkmark-outline',
+    route: '/clinical-integration',
+  },
+  {
+    id: 'treatment',
+    label: 'Plano terapêutico',
+    title: 'Plano terapêutico',
+    subtitle: 'Objetivos, intervenções e evolução revisados manualmente pela psicóloga.',
+    icon: 'document-lock-outline',
+    route: '/clinical-integration',
+  },
+  {
+    id: 'resources',
+    label: 'Recursos',
+    title: 'Recursos clínicos',
+    subtitle: 'Materiais, escalas e questionários vinculados ao cuidado.',
+    icon: 'file-tray-full-outline',
+    route: '/clinical-integration',
+  },
+  {
+    id: 'finance',
+    label: 'Financeiro',
+    title: 'Financeiro',
+    subtitle: 'Receita estimada, políticas de cobrança e meios de pagamento.',
+    icon: 'cash-outline',
+    route: '/payment-settings',
+  },
+  {
+    id: 'messages',
+    label: 'Mensagens',
+    title: 'Mensagens',
+    subtitle: 'Avisos operacionais e notificações sem conteúdo clínico sensível.',
+    icon: 'mail-outline',
+    route: '/notification-settings',
+  },
+  {
+    id: 'reports',
+    label: 'Relatórios',
+    title: 'Relatórios',
+    subtitle: 'Indicadores administrativos do consultório, sem exposição de conteúdo privado.',
+    icon: 'bar-chart-outline',
+    route: '/owner-dashboard',
+  },
+  {
+    id: 'settings',
+    label: 'Configurações',
+    title: 'Configurações',
+    subtitle: 'Dados do consultório, agenda, pagamentos e publicação.',
+    icon: 'settings-outline',
+    route: '/space-settings',
+  },
+];
+
 export function CreateSpaceScreen() {
   const router = useRouter();
   const { categories, createSpace } = useOwnerConfig();
@@ -546,6 +675,8 @@ export function OwnerDashboardScreen() {
     syncSpacesFromApi,
   } = useOwnerConfig();
   const ownerSpace = selectedOwnerSpace;
+  const shellNavigation = isWeb && !compactLayout;
+  const [activeOwnerPageId, setActiveOwnerPageId] = useState<OwnerWorkspacePageId>('dashboard');
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [deleteAccountArmed, setDeleteAccountArmed] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -593,6 +724,8 @@ export function OwnerDashboardScreen() {
     .filter((appointment) => ['confirmed', 'pending_payment', 'pending_confirmation'].includes(appointment.status))
     .sort((first, second) => first.startDateTime.localeCompare(second.startDateTime))
     .slice(0, 3);
+  const activeOwnerPage =
+    OWNER_WORKSPACE_NAV_ITEMS.find((item) => item.id === activeOwnerPageId) ?? OWNER_WORKSPACE_NAV_ITEMS[0];
   const ownerSetupTitle = ownerSpace && checklistDone
     ? 'Seu consultório está pronto para atender'
     : 'Meu consultório ainda não está pronto';
@@ -615,6 +748,28 @@ export function OwnerDashboardScreen() {
     setRemoteDashboard(null);
     setRemoteError(null);
     setProfileMenuOpen(false);
+  }
+
+  function openOwnerWorkspacePage(item: OwnerWorkspaceNavItem) {
+    setProfileMenuOpen(false);
+
+    if (shellNavigation) {
+      setActiveOwnerPageId(item.id);
+      return;
+    }
+
+    router.push(item.route);
+  }
+
+  function openOwnerRoute(route: Href, shellPageId?: OwnerWorkspacePageId) {
+    setProfileMenuOpen(false);
+
+    if (shellNavigation && shellPageId) {
+      setActiveOwnerPageId(shellPageId);
+      return;
+    }
+
+    router.push(route);
   }
 
   async function handleDeleteAccount() {
@@ -646,7 +801,7 @@ export function OwnerDashboardScreen() {
     }
 
     if (checklistDone) {
-      router.push('/owner-agenda');
+      openOwnerRoute('/owner-agenda', 'agenda');
       return;
     }
 
@@ -721,18 +876,15 @@ export function OwnerDashboardScreen() {
             </View>
 
             <View style={styles.ownerNavList}>
-              <OwnerNavItem icon="home-outline" label="Painel" selected onPress={() => undefined} />
-              <OwnerNavItem icon="calendar-outline" label="Agenda" onPress={() => router.push('/owner-agenda')} />
-              <OwnerNavItem icon="sparkles-outline" label="Consultas" onPress={() => router.push('/manage-services')} />
-              <OwnerNavItem icon="people-outline" label="Pacientes" onPress={() => router.push('/owner-agenda')} />
-              <OwnerNavItem icon="list-outline" label="Tarefas clínicas" onPress={() => router.push('/clinical-integration')} />
-              <OwnerNavItem icon="shield-checkmark-outline" label="Check-ins" onPress={() => router.push('/clinical-integration')} />
-              <OwnerNavItem icon="document-lock-outline" label="Plano terapêutico" onPress={() => router.push('/clinical-integration')} />
-              <OwnerNavItem icon="file-tray-full-outline" label="Recursos" onPress={() => router.push('/clinical-integration')} />
-              <OwnerNavItem icon="cash-outline" label="Financeiro" onPress={() => router.push('/payment-settings')} />
-              <OwnerNavItem icon="mail-outline" label="Mensagens" onPress={() => router.push('/notification-settings')} />
-              <OwnerNavItem icon="bar-chart-outline" label="Relatórios" onPress={() => router.push('/owner-dashboard')} />
-              <OwnerNavItem icon="settings-outline" label="Configurações" onPress={() => router.push('/space-settings')} />
+              {OWNER_WORKSPACE_NAV_ITEMS.map((item) => (
+                <OwnerNavItem
+                  key={item.id}
+                  icon={item.icon}
+                  label={item.label}
+                  selected={activeOwnerPageId === item.id}
+                  onPress={() => openOwnerWorkspacePage(item)}
+                />
+              ))}
             </View>
 
             <Pressable
@@ -762,10 +914,10 @@ export function OwnerDashboardScreen() {
                   </View>
                 </View>
               )}
-              <Text style={styles.ownerTitle}>Painel da psicóloga</Text>
-              {compactLayout && (
+              <Text style={styles.ownerTitle}>{activeOwnerPage.title}</Text>
+              {(compactLayout || shellNavigation) && (
                 <Text style={styles.ownerSubtitle}>
-                  Acompanhe agenda, equipe e configuração sem misturar prontuário ou memória clínica.
+                  {activeOwnerPage.subtitle}
                 </Text>
               )}
             </View>
@@ -870,6 +1022,7 @@ export function OwnerDashboardScreen() {
             />
           )}
 
+          {activeOwnerPageId === 'dashboard' ? (
           <View style={[styles.ownerDashboardGrid, compactLayout && styles.ownerDashboardGridMobile]}>
             <View style={[styles.ownerPrimaryColumn, compactLayout && styles.ownerPrimaryColumnMobile]}>
               <View style={[styles.ownerHeroRow, compactLayout && styles.ownerHeroRowMobile]}>
@@ -921,7 +1074,7 @@ export function OwnerDashboardScreen() {
                       <Pressable
                         accessibilityRole="button"
                         accessibilityLabel="Abrir agenda"
-                        onPress={() => router.push('/owner-agenda')}
+                        onPress={() => openOwnerRoute('/owner-agenda', 'agenda')}
                         style={({ pressed }) => [styles.ownerInlineAction, pressed && styles.pressed]}>
                         <Ionicons name="calendar-outline" size={18} color={UI.primary} />
                       </Pressable>
@@ -953,7 +1106,7 @@ export function OwnerDashboardScreen() {
                           label="Ver agenda completa"
                           icon="calendar-outline"
                           variant="secondary"
-                          onPress={() => router.push('/owner-agenda')}
+                          onPress={() => openOwnerRoute('/owner-agenda', 'agenda')}
                         />
                       </View>
                     )}
@@ -979,7 +1132,7 @@ export function OwnerDashboardScreen() {
                       icon="business-outline"
                       title="Configure seu consultório"
                       text="Inicie completando as informações básicas do seu consultório."
-                      onPress={() => router.push(ownerSpace ? '/space-settings' : '/create-space')}
+                      onPress={() => (ownerSpace ? openOwnerRoute('/space-settings', 'settings') : router.push('/create-space'))}
                     />
                     <OwnerSuggestedAction
                       icon="time-outline"
@@ -991,7 +1144,7 @@ export function OwnerDashboardScreen() {
                       icon="folder-outline"
                       title="Adicione recursos clínicos"
                       text="Questionários, escalas e materiais para suas sessões."
-                      onPress={() => router.push('/clinical-integration')}
+                      onPress={() => openOwnerRoute('/clinical-integration', 'resources')}
                     />
                     <OwnerSuggestedAction
                       icon="person-add-outline"
@@ -1014,7 +1167,7 @@ export function OwnerDashboardScreen() {
                       label="Ver todas as tarefas"
                       icon="list-outline"
                       variant="secondary"
-                      onPress={() => router.push('/clinical-integration')}
+                      onPress={() => openOwnerRoute('/clinical-integration', 'tasks')}
                     />
                   </View>
                 </Animated.View>
@@ -1077,7 +1230,7 @@ export function OwnerDashboardScreen() {
                 </View>
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => router.push('/notification-settings')}
+                  onPress={() => openOwnerRoute('/notification-settings', 'messages')}
                   style={({ pressed }) => [styles.ownerTextAction, pressed && styles.pressed]}>
                   <Text style={styles.ownerTextActionLabel}>Ver todos os avisos</Text>
                 </Pressable>
@@ -1086,14 +1239,31 @@ export function OwnerDashboardScreen() {
               <Animated.View entering={FadeInUp.delay(220).duration(260)} layout={LinearTransition.duration(220)} style={styles.ownerSideCard}>
                 <Text style={styles.ownerCardTitle}>Ações rápidas</Text>
                 <View style={styles.ownerCompactActions}>
-                  <OwnerCompactAction icon="calendar-outline" label="Nova consulta" onPress={() => router.push('/manage-services')} />
-                  <OwnerCompactAction icon="person-add-outline" label="Novo paciente" onPress={() => router.push('/owner-agenda')} />
-                  <OwnerCompactAction icon="checkbox-outline" label="Nova tarefa" onPress={() => router.push('/clinical-integration')} />
-                  <OwnerCompactAction icon="happy-outline" label="Novo check-in" onPress={() => router.push('/clinical-integration')} />
+                  <OwnerCompactAction icon="calendar-outline" label="Nova consulta" onPress={() => openOwnerRoute('/manage-services', 'services')} />
+                  <OwnerCompactAction icon="person-add-outline" label="Novo paciente" onPress={() => openOwnerRoute('/owner-agenda', 'patients')} />
+                  <OwnerCompactAction icon="checkbox-outline" label="Nova tarefa" onPress={() => openOwnerRoute('/clinical-integration', 'tasks')} />
+                  <OwnerCompactAction icon="happy-outline" label="Novo check-in" onPress={() => openOwnerRoute('/clinical-integration', 'checkins')} />
                 </View>
               </Animated.View>
             </View>
           </View>
+          ) : (
+            <OwnerWorkspaceMiddlePage
+              key={activeOwnerPage.id}
+              page={activeOwnerPage}
+              ownerSpace={ownerSpace}
+              metrics={metrics}
+              services={spaceServices}
+              professionals={spaceProfessionals}
+              appointments={upcomingAppointments}
+              patientsCount={patientsCount}
+              checklistPreview={checklistPreview}
+              completedChecklistCount={completedChecklistCount}
+              remoteError={remoteError}
+              onNavigate={openOwnerRoute}
+              onOpenAppointment={(appointmentId) => router.push({ pathname: '/owner-appointment-details', params: { appointmentId } })}
+            />
+          )}
         </View>
       </Animated.View>
     </ScreenScaffold>
@@ -1109,6 +1279,445 @@ function getInitials(value: string) {
     .join('');
 
   return initials || 'PS';
+}
+
+function OwnerWorkspaceMiddlePage({
+  page,
+  ownerSpace,
+  metrics,
+  services,
+  professionals,
+  appointments,
+  patientsCount,
+  checklistPreview,
+  completedChecklistCount,
+  remoteError,
+  onNavigate,
+  onOpenAppointment,
+}: {
+  page: OwnerWorkspaceNavItem;
+  ownerSpace?: Space | null;
+  metrics: OwnerWorkspaceMetrics;
+  services: Service[];
+  professionals: Professional[];
+  appointments: Appointment[];
+  patientsCount: number;
+  checklistPreview: OnboardingItem[];
+  completedChecklistCount: number;
+  remoteError: string | null;
+  onNavigate: (route: Href, shellPageId?: OwnerWorkspacePageId) => void;
+  onOpenAppointment: (appointmentId: string) => void;
+}) {
+  const checklistTotal = Math.max(checklistPreview.length, 1);
+  const setupProgress = Math.round((completedChecklistCount / checklistTotal) * 100);
+  const clinicalCopy = getOwnerClinicalWorkspaceCopy(page.id);
+
+  function renderPrimaryContent() {
+    if (page.id === 'agenda') {
+      return (
+        <View style={styles.ownerWorkspaceCard}>
+          <View style={styles.ownerWorkspaceCardHeader}>
+            <View>
+              <Text style={styles.ownerCardTitle}>Próximas consultas</Text>
+              <Text style={styles.ownerCardText}>A lista muda dentro do painel, mantendo o menu sempre disponível.</Text>
+            </View>
+            <PrimaryButton label="Abrir agenda" icon="calendar-outline" variant="secondary" onPress={() => onNavigate('/owner-agenda', 'agenda')} />
+          </View>
+          {appointments.length > 0 ? (
+            <View style={styles.ownerAppointmentList}>
+              {appointments.map((appointment, index) => (
+                <OwnerAppointmentRow
+                  key={appointment.id}
+                  appointment={appointment}
+                  services={services}
+                  professionals={professionals}
+                  isFirst={index === 0}
+                  onPress={() => onOpenAppointment(appointment.id)}
+                />
+              ))}
+            </View>
+          ) : (
+            <OwnerWorkspaceEmpty
+              icon="calendar-outline"
+              title="Nenhuma consulta agendada para hoje"
+              text="A agenda está livre. Use esta área para acompanhar confirmações, reagendamentos e teleconsultas."
+            />
+          )}
+        </View>
+      );
+    }
+
+    if (page.id === 'services') {
+      return (
+        <View style={styles.ownerWorkspaceCard}>
+          <View style={styles.ownerWorkspaceCardHeader}>
+            <View>
+              <Text style={styles.ownerCardTitle}>Consultas configuradas</Text>
+              <Text style={styles.ownerCardText}>Valores, duração e disponibilidade ficam separados do conteúdo clínico.</Text>
+            </View>
+            <PrimaryButton label="Editar consultas" icon="sparkles-outline" variant="secondary" onPress={() => onNavigate('/manage-services', 'services')} />
+          </View>
+          {services.length > 0 ? (
+            <View style={styles.ownerWorkspaceList}>
+              {services.slice(0, 5).map((service, index) => (
+                <OwnerWorkspaceDataRow
+                  key={service.id}
+                  icon={service.onlineBooking ? 'checkmark-circle-outline' : 'remove-circle-outline'}
+                  title={service.name}
+                  text={`${service.durationMinutes} min · ${formatCurrency(service.price)} · ${service.active ? 'Ativa' : 'Inativa'}`}
+                  isFirst={index === 0}
+                  onPress={() => onNavigate('/manage-services', 'services')}
+                />
+              ))}
+            </View>
+          ) : metrics.servicesCount > 0 ? (
+            <View style={styles.ownerWorkspaceList}>
+              <OwnerWorkspaceDataRow
+                icon="checkmark-circle-outline"
+                title={`${metrics.servicesCount} consulta ativa no consultório`}
+                text="Os detalhes vieram do painel remoto. Abra a edição para revisar duração, valor e publicação."
+                isFirst
+                onPress={() => onNavigate('/manage-services', 'services')}
+              />
+            </View>
+          ) : (
+            <OwnerWorkspaceEmpty
+              icon="sparkles-outline"
+              title="Nenhuma consulta criada"
+              text="Cadastre os tipos de atendimento antes de abrir a agenda para pacientes."
+            />
+          )}
+        </View>
+      );
+    }
+
+    if (page.id === 'patients') {
+      return (
+        <View style={styles.ownerWorkspaceCard}>
+          <View style={styles.ownerWorkspaceCardHeader}>
+            <View>
+              <Text style={styles.ownerCardTitle}>Pacientes em acompanhamento</Text>
+              <Text style={styles.ownerCardText}>Visão operacional baseada em consultas, sem expor prontuário privado.</Text>
+            </View>
+            <PrimaryButton label="Ver agenda" icon="calendar-outline" variant="secondary" onPress={() => onNavigate('/owner-agenda', 'agenda')} />
+          </View>
+          <View style={styles.ownerWorkspacePatientSummary}>
+            <View style={styles.ownerWorkspaceSummaryIcon}>
+              <Ionicons name="people-outline" size={24} color={UI.primary} />
+            </View>
+            <View style={styles.ownerWorkspaceSummaryCopy}>
+              <Text style={styles.ownerWorkspaceSummaryValue}>{patientsCount}</Text>
+              <Text style={styles.ownerWorkspaceSummaryText}>pacientes identificados nas consultas do consultório.</Text>
+            </View>
+          </View>
+          <View style={styles.ownerWorkspaceList}>
+            <OwnerWorkspaceDataRow
+              icon="lock-closed-outline"
+              title="Conteúdo clínico protegido"
+              text="Admin operacional não vê prontuário, rascunho ou memória clínica por padrão."
+              isFirst
+              onPress={() => onNavigate('/clinical-integration', 'patients')}
+            />
+            <OwnerWorkspaceDataRow
+              icon="calendar-outline"
+              title="Histórico por consulta"
+              text="Use a agenda para localizar atendimentos e decisões administrativas."
+              onPress={() => onNavigate('/owner-agenda', 'agenda')}
+            />
+          </View>
+        </View>
+      );
+    }
+
+    if (page.id === 'finance') {
+      return (
+        <View style={styles.ownerWorkspaceCard}>
+          <Text style={styles.ownerCardTitle}>Resumo financeiro</Text>
+          <View style={styles.ownerMetricGrid}>
+            <OwnerMetricCard icon="calendar-outline" label="Atendimentos" value={String(metrics.appointmentsCount)} detail="este mês" />
+            <OwnerMetricCard icon="logo-usd" label="Receita estimada" value={formatCurrency(metrics.revenue)} detail="este mês" />
+          </View>
+          <View style={styles.ownerWorkspaceList}>
+            <OwnerWorkspaceDataRow
+              icon="card-outline"
+              title="Formas de pagamento"
+              text="Pix, cartão, pagamento no local e regras de reserva."
+              isFirst
+              onPress={() => onNavigate('/payment-settings')}
+            />
+            <OwnerWorkspaceDataRow
+              icon="return-up-back-outline"
+              title="Cancelamento e remarcação"
+              text="Prazos, multa por cancelamento tardio e política pública."
+              onPress={() => onNavigate('/cancellation-policy')}
+            />
+          </View>
+        </View>
+      );
+    }
+
+    if (page.id === 'messages') {
+      return (
+        <View style={styles.ownerWorkspaceCard}>
+          <Text style={styles.ownerCardTitle}>Avisos operacionais</Text>
+          <View style={styles.ownerAlertBox}>
+            <View style={styles.ownerAlertIcon}>
+              <Ionicons name="alert-circle-outline" size={18} color={UI.warning} />
+            </View>
+            <View style={styles.ownerAlertCopy}>
+              <Text style={styles.ownerAlertTitle}>{remoteError ? 'Consulta indisponível' : 'Painel em configuração'}</Text>
+              <Text style={styles.ownerAlertText}>
+                {remoteError ?? 'Complete o checklist para publicar o consultório com segurança.'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={UI.textMuted} />
+          </View>
+          <View style={styles.ownerWorkspaceList}>
+            <OwnerWorkspaceDataRow
+              icon="notifications-outline"
+              title="Preferências de notificação"
+              text="Configure canais de avisos administrativos e lembretes."
+              isFirst
+              onPress={() => onNavigate('/notification-settings')}
+            />
+          </View>
+        </View>
+      );
+    }
+
+    if (page.id === 'reports') {
+      return (
+        <View style={styles.ownerWorkspaceCard}>
+          <Text style={styles.ownerCardTitle}>Indicadores administrativos</Text>
+          <View style={styles.ownerMetricGrid}>
+            <OwnerMetricCard icon="calendar-outline" label="Atendimentos" value={String(metrics.appointmentsCount)} detail="este mês" />
+            <OwnerMetricCard icon="sparkles-outline" label="Consultas" value={String(metrics.servicesCount)} detail="ativas" />
+            <OwnerMetricCard icon="people-circle-outline" label="Pacientes" value={String(patientsCount)} detail="em acompanhamento" />
+            <OwnerMetricCard icon="logo-usd" label="Receita estimada" value={formatCurrency(metrics.revenue)} detail="este mês" />
+          </View>
+          <Text style={styles.ownerWorkspaceNote}>
+            Relatórios clínicos sensíveis ficam fora deste painel operacional.
+          </Text>
+        </View>
+      );
+    }
+
+    if (page.id === 'settings') {
+      return (
+        <View style={styles.ownerWorkspaceCard}>
+          <View style={styles.ownerWorkspaceCardHeader}>
+            <View>
+              <Text style={styles.ownerCardTitle}>Configuração do consultório</Text>
+              <Text style={styles.ownerCardText}>{completedChecklistCount} de {checklistPreview.length} etapas concluídas.</Text>
+            </View>
+            <PrimaryButton label="Editar dados" icon="settings-outline" variant="secondary" onPress={() => onNavigate('/space-settings')} />
+          </View>
+          <View style={styles.ownerProgressRail}>
+            <View style={[styles.ownerProgressFill, { width: `${setupProgress}%` }]} />
+          </View>
+          <View style={styles.ownerChecklistPreview}>
+            {checklistPreview.slice(0, 5).map((item, index) => (
+              <OwnerChecklistItem
+                key={item.id}
+                item={item}
+                isFirst={index === 0}
+                onPress={() => onNavigate(getOnboardingRoute(item.id))}
+              />
+            ))}
+          </View>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.ownerWorkspaceCard}>
+        <View style={styles.ownerWorkspaceClinicalHeader}>
+          <View style={styles.ownerWorkspaceClinicalIcon}>
+            <Ionicons name={clinicalCopy.icon} size={25} color={UI.primary} />
+          </View>
+          <View style={styles.ownerWorkspaceClinicalCopy}>
+            <Text style={styles.ownerCardTitle}>{clinicalCopy.title}</Text>
+            <Text style={styles.ownerCardText}>{clinicalCopy.text}</Text>
+          </View>
+        </View>
+        <View style={styles.ownerWorkspaceList}>
+          <OwnerWorkspaceDataRow
+            icon="create-outline"
+            title="Rascunho separado"
+            text="IA pode sugerir rascunhos, mas nunca aprova prontuário automaticamente."
+            isFirst
+            onPress={() => onNavigate('/clinical-integration', page.id)}
+          />
+          <OwnerWorkspaceDataRow
+            icon="shield-checkmark-outline"
+            title="Consentimento obrigatório"
+            text="Sem consentimento válido, nada de IA, transcrição ou gravação."
+            onPress={() => onNavigate('/clinical-integration', page.id)}
+          />
+          <OwnerWorkspaceDataRow
+            icon="document-lock-outline"
+            title="Prontuário versionado"
+            text="A psicóloga revisa e aprova manualmente cada conteúdo clínico."
+            onPress={() => onNavigate('/clinical-integration', page.id)}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <Animated.View
+      entering={FadeInUp.duration(220)}
+      layout={LinearTransition.duration(180)}
+      style={styles.ownerWorkspacePage}>
+      <View style={styles.ownerWorkspaceHeader}>
+        <View style={styles.ownerWorkspaceHeaderIcon}>
+          <Ionicons name={page.icon} size={24} color={UI.primary} />
+        </View>
+        <View style={styles.ownerWorkspaceHeaderCopy}>
+          <Text style={styles.ownerWorkspaceEyebrow}>Workspace do consultório</Text>
+          <Text style={styles.ownerWorkspaceTitle}>{page.title}</Text>
+          <Text style={styles.ownerWorkspaceText}>{page.subtitle}</Text>
+        </View>
+        <View style={styles.ownerWorkspaceStatus}>
+          <View style={[styles.ownerWorkspaceStatusDot, ownerSpace?.published && styles.ownerWorkspaceStatusDotLive]} />
+          <Text style={styles.ownerWorkspaceStatusText}>
+            {ownerSpace?.published ? 'Publicado' : ownerSpace ? 'Em configuração' : 'Sem consultório'}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.ownerWorkspaceGrid}>
+        <View style={styles.ownerWorkspacePrimary}>{renderPrimaryContent()}</View>
+        <View style={styles.ownerWorkspaceSide}>
+          <View style={styles.ownerWorkspaceCard}>
+            <Text style={styles.ownerCardTitle}>Ações rápidas</Text>
+            <View style={styles.ownerWorkspaceList}>
+              <OwnerWorkspaceDataRow
+                icon="calendar-outline"
+                title="Agenda"
+                text="Consultar horários, reservas e teleconsultas."
+                isFirst
+                onPress={() => onNavigate('/owner-agenda', 'agenda')}
+              />
+              <OwnerWorkspaceDataRow
+                icon="sparkles-outline"
+                title="Consultas"
+                text="Editar serviços, duração e preços."
+                onPress={() => onNavigate('/manage-services', 'services')}
+              />
+              <OwnerWorkspaceDataRow
+                icon="settings-outline"
+                title="Configurações"
+                text="Publicação, horários e regras do consultório."
+                onPress={() => onNavigate('/space-settings', 'settings')}
+              />
+            </View>
+          </View>
+
+          <View style={styles.ownerWorkspaceCard}>
+            <Text style={styles.ownerCardTitle}>Checklist</Text>
+            <Text style={styles.ownerCardText}>
+              {completedChecklistCount} de {checklistPreview.length} etapas concluídas para publicar com segurança.
+            </Text>
+            <View style={styles.ownerProgressRail}>
+              <View style={[styles.ownerProgressFill, { width: `${setupProgress}%` }]} />
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => onNavigate('/owner-onboarding-checklist')}
+              style={({ pressed }) => [styles.ownerTextAction, pressed && styles.pressed]}>
+              <Text style={styles.ownerTextActionLabel}>Ver checklist completo</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
+
+function OwnerWorkspaceEmpty({
+  icon,
+  title,
+  text,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  text: string;
+}) {
+  return (
+    <View style={styles.ownerWorkspaceEmpty}>
+      <View style={styles.ownerTaskEmptyIcon}>
+        <Ionicons name={icon} size={30} color={UI.primary} />
+      </View>
+      <Text style={styles.ownerEmptyTitle}>{title}</Text>
+      <Text style={styles.ownerEmptyText}>{text}</Text>
+    </View>
+  );
+}
+
+function OwnerWorkspaceDataRow({
+  icon,
+  title,
+  text,
+  isFirst,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  text: string;
+  isFirst?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.ownerWorkspaceRow,
+        isFirst && styles.ownerWorkspaceRowFirst,
+        pressed && styles.pressed,
+      ]}>
+      <View style={styles.ownerSuggestedIcon}>
+        <Ionicons name={icon} size={20} color={UI.primary} />
+      </View>
+      <View style={styles.ownerSuggestedCopy}>
+        <Text numberOfLines={1} style={styles.ownerSuggestedTitle}>{title}</Text>
+        <Text numberOfLines={2} style={styles.ownerSuggestedText}>{text}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={UI.textMuted} />
+    </Pressable>
+  );
+}
+
+function getOwnerClinicalWorkspaceCopy(pageId: OwnerWorkspacePageId) {
+  switch (pageId) {
+    case 'checkins':
+      return {
+        icon: 'happy-outline' as const,
+        title: 'Check-ins com consentimento',
+        text: 'Acompanhe sinais objetivos sem transformar respostas em prontuário aprovado.',
+      };
+    case 'treatment':
+      return {
+        icon: 'git-branch-outline' as const,
+        title: 'Plano terapêutico versionado',
+        text: 'Organize objetivos e intervenções com revisão manual e histórico de alterações.',
+      };
+    case 'resources':
+      return {
+        icon: 'folder-open-outline' as const,
+        title: 'Recursos compartilháveis',
+        text: 'Materiais podem ser publicados para o paciente sem expor memória clínica privada.',
+      };
+    case 'tasks':
+    default:
+      return {
+        icon: 'clipboard-outline' as const,
+        title: 'Tarefas clínicas',
+        text: 'Priorize pendências clínicas mantendo rascunho, prontuário e memória em trilhas separadas.',
+      };
+  }
 }
 
 function getDefaultOwnerChecklistPreview(created: boolean): OnboardingItem[] {
@@ -2632,6 +3241,198 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 17,
     fontWeight: '500',
+  },
+  ownerWorkspacePage: {
+    gap: 12,
+  },
+  ownerWorkspaceHeader: {
+    minHeight: 104,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
+    backgroundColor: UI.surface,
+    ...cardShadow,
+  },
+  ownerWorkspaceHeaderIcon: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: UI.primarySoft,
+  },
+  ownerWorkspaceHeaderCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  ownerWorkspaceEyebrow: {
+    color: UI.textMuted,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '600',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  ownerWorkspaceTitle: {
+    color: UI.text,
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '600',
+  },
+  ownerWorkspaceText: {
+    maxWidth: 720,
+    color: UI.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '400',
+  },
+  ownerWorkspaceStatus: {
+    minHeight: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 11,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: UI.border,
+    backgroundColor: UI.surfaceMuted,
+  },
+  ownerWorkspaceStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: UI.warning,
+  },
+  ownerWorkspaceStatusDotLive: {
+    backgroundColor: UI.success,
+  },
+  ownerWorkspaceStatusText: {
+    color: UI.text,
+    fontSize: 12.5,
+    lineHeight: 17,
+    fontWeight: '500',
+  },
+  ownerWorkspaceGrid: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  ownerWorkspacePrimary: {
+    flex: 1,
+    minWidth: 420,
+  },
+  ownerWorkspaceSide: {
+    width: 324,
+    minWidth: 300,
+    gap: 12,
+  },
+  ownerWorkspaceCard: {
+    gap: 12,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
+    backgroundColor: UI.surface,
+    ...cardShadow,
+  },
+  ownerWorkspaceCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  ownerWorkspaceList: {
+    overflow: 'hidden',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: UI.border,
+    backgroundColor: UI.surface,
+  },
+  ownerWorkspaceRow: {
+    minHeight: 66,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: UI.border,
+  },
+  ownerWorkspaceRowFirst: {
+    borderTopWidth: 0,
+  },
+  ownerWorkspaceEmpty: {
+    minHeight: 238,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingHorizontal: 24,
+  },
+  ownerWorkspacePatientSummary: {
+    minHeight: 116,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 14,
+    borderRadius: 8,
+    backgroundColor: UI.primarySoft,
+  },
+  ownerWorkspaceSummaryIcon: {
+    width: 46,
+    height: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: UI.surface,
+  },
+  ownerWorkspaceSummaryCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  ownerWorkspaceSummaryValue: {
+    color: UI.text,
+    fontSize: 28,
+    lineHeight: 32,
+    fontWeight: '600',
+  },
+  ownerWorkspaceSummaryText: {
+    color: UI.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '400',
+  },
+  ownerWorkspaceClinicalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 14,
+    borderRadius: 8,
+    backgroundColor: UI.primarySoft,
+  },
+  ownerWorkspaceClinicalIcon: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: UI.surface,
+  },
+  ownerWorkspaceClinicalCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  ownerWorkspaceNote: {
+    color: UI.textMuted,
+    fontSize: 12.5,
+    lineHeight: 18,
+    fontWeight: '400',
   },
   ownerMobileTabs: {
     flexDirection: 'row',
