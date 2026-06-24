@@ -6,13 +6,15 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v55.0.0/ before 
 
 Current Cloudflare Tunnel routes:
 
-- `https://api.felicio.app` routes to the backend API at `http://localhost:3001`.
+- `https://api.felicio.app` routes to the backend API at `http://localhost:3001` and must work at the domain root.
 - `https://psi.felicio.app` routes to the Expo web app at `http://localhost:8081`.
 
-The app must treat `/api` as part of the API root. In production, configure the API origin as
-`EXPO_PUBLIC_API_URL=https://api.felicio.app` or rely on the built-in default; the app appends
-`/api` automatically when building request URLs. Do not send API requests to root paths such as
-`https://api.felicio.app/auth/...`, because those skip the backend's `/api` route prefix.
+The app must not use `/api` under `https://psi.felicio.app` and must not append `/api` to the
+production API origin. In production, configure the API origin as
+`EXPO_PUBLIC_API_URL=https://api.felicio.app` or rely on the built-in default; request paths are
+root-relative on the API domain, such as `https://api.felicio.app/auth/login` and
+`https://api.felicio.app/health`. `/api` backend aliases may exist only for backward compatibility,
+but new code and documentation should use the root API paths.
 
 # Web and mobile visual design standard
 

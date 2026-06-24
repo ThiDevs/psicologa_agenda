@@ -17,14 +17,14 @@ O sistema é dividido em:
 - Persistência PostgreSQL via Entity Framework Core.
 - Dados locais de demonstração em `src/data/initial-owner-config.ts`.
 
-Em produção, o frontend web usa `https://psi.felicio.app` e o app usa `https://api.felicio.app/api` como raiz da API. O prefixo `/api` faz parte da raiz e não deve ser removido. As páginas legais públicas do backend ficam em `https://api.felicio.app/privacy`, `/terms` e `/support`.
+Em produção, o frontend web usa `https://psi.felicio.app` e o app usa `https://api.felicio.app` como raiz da API. O app não deve chamar `/api` em `psi.felicio.app` nem acrescentar `/api` ao domínio da API. As páginas legais públicas do backend ficam em `https://api.felicio.app/privacy`, `/terms` e `/support`.
 
 ```mermaid
 flowchart LR
   User["Cliente / psicóloga / profissional"] --> App["Expo app"]
   App --> Contexts["Auth + OwnerConfig + Booking"]
   Contexts --> Client["api-client.ts"]
-  Client --> Api["ASP.NET Core API /api"]
+  Client --> Api["ASP.NET Core API raiz"]
   Api --> Db["PostgreSQL"]
   Api --> Static["/privacy /terms /support /uploads"]
   Contexts --> Demo["fallback local inicial"]
@@ -56,16 +56,16 @@ O app guarda `access_token` e `refresh_token` em:
 - `SecureStore` no nativo.
 - `localStorage` na web.
 
-Na abertura do app, `restoreAuthSession()` chama `GET /api/auth/me`. Se o access token expirar, o cliente tenta `POST /api/auth/refresh-token` uma vez e repete a chamada original. Se a renovação falhar, limpa a sessão e dispara o aviso de sessão expirada.
+Na abertura do app, `restoreAuthSession()` chama `GET /auth/me`. Se o access token expirar, o cliente tenta `POST /auth/refresh-token` uma vez e repete a chamada original. Se a renovação falhar, limpa a sessão e dispara o aviso de sessão expirada.
 
 Fluxos disponíveis:
 
-- Cadastro de cliente: `POST /api/auth/register/customer`.
-- Cadastro de psicóloga dona/admin: `POST /api/auth/register/space-admin`.
-- Cadastro de profissional vinculada: `POST /api/auth/register/professional`.
-- Login: `POST /api/auth/login`.
-- Logout: `POST /api/auth/logout` e limpeza local.
-- Excluir conta: `DELETE /api/auth/me`.
+- Cadastro de cliente: `POST /auth/register/customer`.
+- Cadastro de psicóloga dona/admin: `POST /auth/register/space-admin`.
+- Cadastro de profissional vinculada: `POST /auth/register/professional`.
+- Login: `POST /auth/login`.
+- Logout: `POST /auth/logout` e limpeza local.
+- Excluir conta: `DELETE /auth/me`.
 
 Depois do cadastro:
 
@@ -90,8 +90,8 @@ Visitante web sem sessão vê `LandingScreen`, com CTAs para:
 
 `HomeScreen` carrega:
 
-- Consultórios publicados por `GET /api/public/spaces`.
-- Agendamentos da cliente por `GET /api/customers/me/appointments`, se houver usuário.
+- Consultórios publicados por `GET /public/spaces`.
+- Agendamentos da cliente por `GET /customers/me/appointments`, se houver usuário.
 
 Se a localização for autorizada, envia latitude/longitude para ordenar por distância. A busca filtra por nome, bairro, cidade e serviços. Favoritos ficam apenas no estado local do app.
 
@@ -103,7 +103,7 @@ Ao abrir um consultório, o app:
 
 1. Salva o `spaceId` no `BookingContext`.
 2. Vai para `/space-details`.
-3. Busca detalhes em `GET /api/public/spaces/{spaceId}`.
+3. Busca detalhes em `GET /public/spaces/{spaceId}`.
 4. Sincroniza fotos, serviços, profissionais, horários, pagamento e política.
 
 A tela exibe abas de sobre, fotos, consultas, psicólogas e avaliações. O botão "Agendar agora" limpa serviços escolhidos e vai para `/service-selection`.
@@ -130,7 +130,7 @@ Se o consultório permite qualquer profissional, aparece a opção "Qualquer psi
 
 ### Escolha de horário
 
-Em `/calendar-selection`, o app mostra 5 dias e chama `POST /api/availability/search`.
+Em `/calendar-selection`, o app mostra 5 dias e chama `POST /availability/search`.
 
 Se a API falha, tenta calcular localmente com os dados do contexto. Esse fallback considera funcionamento, agenda da profissional, pausa, bloqueios locais e agendamentos locais.
 
@@ -163,7 +163,7 @@ A forma de pagamento vem das configurações do consultório:
 
 Hoje o pagamento é combinado. Não há integração real com provedor financeiro, Pix, cartão ou webhook.
 
-Na confirmação, o app chama `POST /api/appointments/reserve`. Se a API falha, tenta criar uma reserva local de demonstração. Se conseguir, segue para sucesso mesmo sem persistir na API.
+Na confirmação, o app chama `POST /appointments/reserve`. Se a API falha, tenta criar uma reserva local de demonstração. Se conseguir, segue para sucesso mesmo sem persistir na API.
 
 ### Resultado da reserva
 
@@ -187,7 +187,7 @@ As ações rápidas "Adicionar", "Compartilhar" e "Contato" aparecem na tela de 
 
 Na aba "Meus agendamentos" ou nos próximos agendamentos, a cliente abre `/appointment-details`.
 
-Essa tela chama `GET /api/customers/me/appointments/{appointmentId}` e permite:
+Essa tela chama `GET /customers/me/appointments/{appointmentId}` e permite:
 
 - Entrar na sala online se o status for `confirmed` e existir `onlineRoomUrl`.
 - Reagendar se o status estiver em `confirmed`, `pending_payment` ou `pending_confirmation`.
@@ -196,7 +196,7 @@ Essa tela chama `GET /api/customers/me/appointments/{appointmentId}` e permite:
 
 Cancelamento:
 
-- Chama `POST /api/customers/me/appointments/{id}/cancel`.
+- Chama `POST /customers/me/appointments/{id}/cancel`.
 - Só funciona se a política permitir cancelamento pela cliente.
 - Não permite alterar agendamentos cancelados, expirados, concluídos, falta ou recusados.
 - Não permite alterar agendamentos passados.
@@ -204,7 +204,7 @@ Cancelamento:
 
 Reagendamento:
 
-- Chama `POST /api/customers/me/appointments/{id}/reschedule`.
+- Chama `POST /customers/me/appointments/{id}/reschedule`.
 - Só funciona se a política permitir reagendamento.
 - Recalcula disponibilidade para os mesmos serviços.
 - Atualiza profissional, data e horário.
@@ -212,7 +212,7 @@ Reagendamento:
 
 Avaliação:
 
-- Chama `POST /api/customers/me/appointments/{id}/review`.
+- Chama `POST /customers/me/appointments/{id}/review`.
 - Nota de 1 a 5.
 - Só depois de `completed`.
 - Apenas uma avaliação por agendamento.
@@ -233,7 +233,7 @@ A conta `space_admin` entra em `/create-space`. A tela coleta:
 
 O CEP usa ViaCEP. A localização usa `expo-location`.
 
-Ao salvar, chama `POST /api/spaces`. O backend:
+Ao salvar, chama `POST /spaces`. O backend:
 
 - Cria o consultório ativo, ainda não publicado.
 - Vincula a usuária como `SpaceAdmin`.
@@ -257,7 +257,7 @@ O checklist exigido para publicação é:
 7. Forma de pagamento configurada.
 8. Política de cancelamento.
 
-Enquanto faltam itens, o botão principal leva para a próxima tela necessária. Quando todos completam, `finishOwnerSetup()` chama `POST /api/spaces/{spaceId}/starter-setup`.
+Enquanto faltam itens, o botão principal leva para a próxima tela necessária. Quando todos completam, `finishOwnerSetup()` chama `POST /spaces/{spaceId}/starter-setup`.
 
 Ao finalizar:
 
@@ -273,8 +273,8 @@ O backend também roda `SyncPublicationAsync` em algumas atualizações: se o ch
 
 O painel (`OwnerDashboardScreen`) carrega:
 
-- Consultórios por `GET /api/spaces/my`, se ainda não houver um selecionado.
-- Métricas por `GET /api/spaces/{spaceId}/dashboard`.
+- Consultórios por `GET /spaces/my`, se ainda não houver um selecionado.
+- Métricas por `GET /spaces/{spaceId}/dashboard`.
 
 Ele mostra:
 
@@ -288,22 +288,22 @@ Ele mostra:
 
 Telas de gestão e chamadas principais:
 
-- Consultas: `GET/POST /api/spaces/{spaceId}/services`.
-- Psicólogas: `GET/POST /api/spaces/{spaceId}/professionals`.
-- Funcionamento: `GET/PUT /api/spaces/{spaceId}/opening-hours`.
-- Agenda da psicóloga: `GET/PUT /api/spaces/{spaceId}/professionals/{professionalId}/schedule`.
-- Configurações de agendamento: `GET/PUT /api/spaces/{spaceId}/booking-settings`.
-- Pagamento: `GET/PUT /api/spaces/{spaceId}/payment-settings`.
-- Política de cancelamento: `GET/PUT /api/spaces/{spaceId}/cancellation-policy`.
-- Bloqueios: `GET/POST/DELETE /api/spaces/{spaceId}/blocked-times`.
-- Fotos: `GET/POST/POST upload/DELETE /api/spaces/{spaceId}/photos`.
-- Notificações: `GET/PUT /api/spaces/{spaceId}/notification-settings`.
+- Consultas: `GET/POST /spaces/{spaceId}/services`.
+- Psicólogas: `GET/POST /spaces/{spaceId}/professionals`.
+- Funcionamento: `GET/PUT /spaces/{spaceId}/opening-hours`.
+- Agenda da psicóloga: `GET/PUT /spaces/{spaceId}/professionals/{professionalId}/schedule`.
+- Configurações de agendamento: `GET/PUT /spaces/{spaceId}/booking-settings`.
+- Pagamento: `GET/PUT /spaces/{spaceId}/payment-settings`.
+- Política de cancelamento: `GET/PUT /spaces/{spaceId}/cancellation-policy`.
+- Bloqueios: `GET/POST/DELETE /spaces/{spaceId}/blocked-times`.
+- Fotos: `GET/POST/POST upload/DELETE /spaces/{spaceId}/photos`.
+- Notificações: `GET/PUT /spaces/{spaceId}/notification-settings`.
 
 As telas carregam da API, sincronizam o contexto local e exibem mensagem quando a API falha. A maior parte da gestão não tem fallback local completo para persistência.
 
 ### Agenda da dona/admin
 
-`/owner-agenda` chama `GET /api/spaces/{spaceId}/appointments`, mostra calendário por dia, semana ou mês e calcula:
+`/owner-agenda` chama `GET /spaces/{spaceId}/appointments`, mostra calendário por dia, semana ou mês e calcula:
 
 - Receita do período.
 - Reservas aguardando pagamento.
@@ -355,11 +355,11 @@ O acesso depende de a usuária existir e o e-mail dela estar vinculado a uma pro
 A tela:
 
 - Ativa localmente o perfil de atendimento se ainda não estiver ativo.
-- Carrega `GET /api/professionals/me/appointments`.
+- Carrega `GET /professionals/me/appointments`.
 - Filtra os atendimentos do dia selecionado.
 - Permite abrir a sala se o agendamento estiver `confirmed` e tiver `onlineRoomUrl`.
 - Permite concluir ou registrar falta.
-- Permite criar bloqueio em sua agenda por `POST /api/professionals/me/blocked-times`.
+- Permite criar bloqueio em sua agenda por `POST /professionals/me/blocked-times`.
 - Permite logout, páginas legais e exclusão de conta.
 
 Profissional não confirma nem recusa pedidos. Pedidos `pending_confirmation` precisam de ação da dona/admin.
@@ -414,15 +414,15 @@ São criadas para:
 
 Endpoints:
 
-- `GET /api/notifications`.
-- `POST /api/notifications/{notificationId}/read`.
+- `GET /notifications`.
+- `POST /notifications/{notificationId}/read`.
 
 ## Fotos e arquivos
 
 Fotos do consultório podem ser:
 
 - Criadas por URL.
-- Enviadas como multipart em `/api/spaces/{spaceId}/photos/upload`.
+- Enviadas como multipart em `/spaces/{spaceId}/photos/upload`.
 
 Upload aceita JPG, PNG e WEBP até 8 MB. O backend salva em `wwwroot/uploads/spaces/{spaceId}` e gera uma URL pública com base no host da requisição.
 
@@ -487,7 +487,7 @@ Relações centrais:
 - `src/screens/OwnerScreens.tsx`: criação de consultório, checklist e painel.
 - `src/screens/OwnerManagementScreens.tsx`: gestão operacional do consultório.
 - `src/screens/ProfessionalScreens.tsx`: agenda da profissional vinculada.
-- `backend/src/PsiAgenda.Api/Program.cs`: middleware, CORS, auth, `/api/health` e endpoints.
+- `backend/src/PsiAgenda.Api/Program.cs`: middleware, CORS, auth, `/health` e endpoints.
 - `backend/src/PsiAgenda.Api/Endpoints/AuthEndpoints.cs`: autenticação.
 - `backend/src/PsiAgenda.Api/Endpoints/SpaceEndpoints.cs`: consultórios, público, agendamentos, profissional e notificações.
 - `backend/src/PsiAgenda.Infrastructure/Services/AuthService.cs`: regras de sessão e conta.

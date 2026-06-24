@@ -190,7 +190,7 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Catálogo versionado de termos valida versões ativas e mostra resumo/política no workspace e no portal.',
       'Consentimentos vencidos por prazo são materializados como expirados antes de liberar permissões ou conteúdo.',
       'Job dedicado expira consentimentos vencidos em segundo plano com auditoria de sistema.',
-      'API base mantém /api em produção.',
+      'API de produção usa a raiz https://api.felicio.app sem acrescentar /api.',
     ],
     missing: [
       'Auditoria clínica completa.',

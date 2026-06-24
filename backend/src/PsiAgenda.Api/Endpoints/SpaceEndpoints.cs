@@ -26,56 +26,59 @@ public static class SpaceEndpoints
 
     public static IEndpointRouteBuilder MapSpaceEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/spaces")
-            .WithTags("Spaces")
-            .RequireAuthorization();
+        foreach (var prefix in new[] { string.Empty, "/api" })
+        {
+            var group = app.MapGroup($"{prefix}/spaces")
+                .WithTags("Spaces")
+                .RequireAuthorization();
 
-        group.MapPost("/", CreateSpaceAsync);
-        group.MapPut("/{spaceId:guid}", UpdateSpaceAsync);
-        group.MapGet("/my", GetMySpacesAsync);
-        group.MapPost("/{spaceId:guid}/starter-setup", CompleteStarterSetupAsync);
-        group.MapGet("/{spaceId:guid}/onboarding-checklist", GetOnboardingChecklistAsync);
-        group.MapGet("/{spaceId:guid}/dashboard", GetDashboardAsync);
-        group.MapGet("/{spaceId:guid}/categories", GetServiceCategoriesAsync);
-        group.MapPost("/{spaceId:guid}/categories", CreateServiceCategoryAsync);
-        group.MapGet("/{spaceId:guid}/services", GetServicesAsync);
-        group.MapPost("/{spaceId:guid}/services", CreateServiceAsync);
-        group.MapPut("/{spaceId:guid}/services/{serviceId:guid}", UpdateServiceAsync);
-        group.MapGet("/{spaceId:guid}/professionals", GetProfessionalsAsync);
-        group.MapPost("/{spaceId:guid}/professionals", CreateProfessionalAsync);
-        group.MapPut("/{spaceId:guid}/professionals/{professionalId:guid}", UpdateProfessionalAsync);
-        group.MapGet("/{spaceId:guid}/opening-hours", GetOpeningHoursAsync);
-        group.MapPut("/{spaceId:guid}/opening-hours", UpdateOpeningHoursAsync);
-        group.MapGet("/{spaceId:guid}/professionals/{professionalId:guid}/schedule", GetProfessionalScheduleAsync);
-        group.MapPut("/{spaceId:guid}/professionals/{professionalId:guid}/schedule", UpdateProfessionalScheduleAsync);
-        group.MapGet("/{spaceId:guid}/blocked-times", GetBlockedTimesAsync);
-        group.MapPost("/{spaceId:guid}/blocked-times", CreateBlockedTimeAsync);
-        group.MapDelete("/{spaceId:guid}/blocked-times/{blockedTimeId:guid}", DeleteBlockedTimeAsync);
-        group.MapGet("/{spaceId:guid}/booking-settings", GetBookingSettingsAsync);
-        group.MapPut("/{spaceId:guid}/booking-settings", UpdateBookingSettingsAsync);
-        group.MapGet("/{spaceId:guid}/payment-settings", GetPaymentSettingsAsync);
-        group.MapPut("/{spaceId:guid}/payment-settings", UpdatePaymentSettingsAsync);
-        group.MapGet("/{spaceId:guid}/cancellation-policy", GetCancellationPolicyAsync);
-        group.MapPut("/{spaceId:guid}/cancellation-policy", UpdateCancellationPolicyAsync);
-        group.MapGet("/{spaceId:guid}/appointments", GetSpaceAppointmentsAsync);
-        group.MapGet("/{spaceId:guid}/appointments/{appointmentId:guid}", GetSpaceAppointmentDetailsAsync);
-        group.MapPost("/{spaceId:guid}/appointments/{appointmentId:guid}/confirm", ConfirmSpaceAppointmentAsync);
-        group.MapPost("/{spaceId:guid}/appointments/{appointmentId:guid}/reject", RejectSpaceAppointmentAsync);
-        group.MapPost("/{spaceId:guid}/appointments/{appointmentId:guid}/complete", CompleteSpaceAppointmentAsync);
-        group.MapPost("/{spaceId:guid}/appointments/{appointmentId:guid}/no-show", MarkSpaceAppointmentNoShowAsync);
-        group.MapGet("/{spaceId:guid}/photos", GetSpacePhotosAsync);
-        group.MapPost("/{spaceId:guid}/photos", CreateSpacePhotoAsync);
-        group.MapPost("/{spaceId:guid}/photos/upload", UploadSpacePhotoAsync)
-            .DisableAntiforgery();
-        group.MapDelete("/{spaceId:guid}/photos/{photoId:guid}", DeleteSpacePhotoAsync);
-        group.MapGet("/{spaceId:guid}/notification-settings", GetNotificationSettingsAsync);
-        group.MapPut("/{spaceId:guid}/notification-settings", UpdateNotificationSettingsAsync);
+            group.MapPost("/", CreateSpaceAsync);
+            group.MapPut("/{spaceId:guid}", UpdateSpaceAsync);
+            group.MapGet("/my", GetMySpacesAsync);
+            group.MapPost("/{spaceId:guid}/starter-setup", CompleteStarterSetupAsync);
+            group.MapGet("/{spaceId:guid}/onboarding-checklist", GetOnboardingChecklistAsync);
+            group.MapGet("/{spaceId:guid}/dashboard", GetDashboardAsync);
+            group.MapGet("/{spaceId:guid}/categories", GetServiceCategoriesAsync);
+            group.MapPost("/{spaceId:guid}/categories", CreateServiceCategoryAsync);
+            group.MapGet("/{spaceId:guid}/services", GetServicesAsync);
+            group.MapPost("/{spaceId:guid}/services", CreateServiceAsync);
+            group.MapPut("/{spaceId:guid}/services/{serviceId:guid}", UpdateServiceAsync);
+            group.MapGet("/{spaceId:guid}/professionals", GetProfessionalsAsync);
+            group.MapPost("/{spaceId:guid}/professionals", CreateProfessionalAsync);
+            group.MapPut("/{spaceId:guid}/professionals/{professionalId:guid}", UpdateProfessionalAsync);
+            group.MapGet("/{spaceId:guid}/opening-hours", GetOpeningHoursAsync);
+            group.MapPut("/{spaceId:guid}/opening-hours", UpdateOpeningHoursAsync);
+            group.MapGet("/{spaceId:guid}/professionals/{professionalId:guid}/schedule", GetProfessionalScheduleAsync);
+            group.MapPut("/{spaceId:guid}/professionals/{professionalId:guid}/schedule", UpdateProfessionalScheduleAsync);
+            group.MapGet("/{spaceId:guid}/blocked-times", GetBlockedTimesAsync);
+            group.MapPost("/{spaceId:guid}/blocked-times", CreateBlockedTimeAsync);
+            group.MapDelete("/{spaceId:guid}/blocked-times/{blockedTimeId:guid}", DeleteBlockedTimeAsync);
+            group.MapGet("/{spaceId:guid}/booking-settings", GetBookingSettingsAsync);
+            group.MapPut("/{spaceId:guid}/booking-settings", UpdateBookingSettingsAsync);
+            group.MapGet("/{spaceId:guid}/payment-settings", GetPaymentSettingsAsync);
+            group.MapPut("/{spaceId:guid}/payment-settings", UpdatePaymentSettingsAsync);
+            group.MapGet("/{spaceId:guid}/cancellation-policy", GetCancellationPolicyAsync);
+            group.MapPut("/{spaceId:guid}/cancellation-policy", UpdateCancellationPolicyAsync);
+            group.MapGet("/{spaceId:guid}/appointments", GetSpaceAppointmentsAsync);
+            group.MapGet("/{spaceId:guid}/appointments/{appointmentId:guid}", GetSpaceAppointmentDetailsAsync);
+            group.MapPost("/{spaceId:guid}/appointments/{appointmentId:guid}/confirm", ConfirmSpaceAppointmentAsync);
+            group.MapPost("/{spaceId:guid}/appointments/{appointmentId:guid}/reject", RejectSpaceAppointmentAsync);
+            group.MapPost("/{spaceId:guid}/appointments/{appointmentId:guid}/complete", CompleteSpaceAppointmentAsync);
+            group.MapPost("/{spaceId:guid}/appointments/{appointmentId:guid}/no-show", MarkSpaceAppointmentNoShowAsync);
+            group.MapGet("/{spaceId:guid}/photos", GetSpacePhotosAsync);
+            group.MapPost("/{spaceId:guid}/photos", CreateSpacePhotoAsync);
+            group.MapPost("/{spaceId:guid}/photos/upload", UploadSpacePhotoAsync)
+                .DisableAntiforgery();
+            group.MapDelete("/{spaceId:guid}/photos/{photoId:guid}", DeleteSpacePhotoAsync);
+            group.MapGet("/{spaceId:guid}/notification-settings", GetNotificationSettingsAsync);
+            group.MapPut("/{spaceId:guid}/notification-settings", UpdateNotificationSettingsAsync);
 
-        var publicGroup = app.MapGroup("/api/public/spaces")
-            .WithTags("Public Spaces");
-        publicGroup.MapGet("/", GetPublishedSpacesAsync);
-        publicGroup.MapGet("/{spaceId:guid}", GetPublishedSpaceDetailsAsync);
-        publicGroup.MapGet("/{spaceId:guid}/professionals/compatible", GetCompatibleProfessionalsAsync);
+            var publicGroup = app.MapGroup($"{prefix}/public/spaces")
+                .WithTags("Public Spaces");
+            publicGroup.MapGet("/", GetPublishedSpacesAsync);
+            publicGroup.MapGet("/{spaceId:guid}", GetPublishedSpaceDetailsAsync);
+            publicGroup.MapGet("/{spaceId:guid}/professionals/compatible", GetCompatibleProfessionalsAsync);
+        }
 
         MapOperationalEndpoints(app.MapGroup("/api"));
         MapOperationalEndpoints(app);

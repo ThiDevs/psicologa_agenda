@@ -12,9 +12,12 @@ public static class VideoCallEndpoints
 
     public static IEndpointRouteBuilder MapVideoCallEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/video-call/signaling/{room}", HandleSignalingAsync)
-            .AllowAnonymous()
-            .WithTags("Video Calls");
+        foreach (var prefix in new[] { string.Empty, "/api" })
+        {
+            app.MapGet($"{prefix}/video-call/signaling/{{room}}", HandleSignalingAsync)
+                .AllowAnonymous()
+                .WithTags("Video Calls");
+        }
 
         return app;
     }

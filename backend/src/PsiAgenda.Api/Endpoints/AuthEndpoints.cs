@@ -8,16 +8,19 @@ public static class AuthEndpoints
 {
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/auth").WithTags("Auth");
+        foreach (var prefix in new[] { string.Empty, "/api" })
+        {
+            var group = app.MapGroup($"{prefix}/auth").WithTags("Auth");
 
-        group.MapPost("/register/customer", RegisterCustomerAsync).RequireRateLimiting("Sensitive");
-        group.MapPost("/register/space-admin", RegisterSpaceAdminAsync).RequireRateLimiting("Sensitive");
-        group.MapPost("/register/professional", RegisterProfessionalAsync).RequireRateLimiting("Sensitive");
-        group.MapPost("/login", LoginAsync).RequireRateLimiting("Sensitive");
-        group.MapPost("/refresh-token", RefreshAsync).RequireRateLimiting("Sensitive");
-        group.MapPost("/logout", LogoutAsync);
-        group.MapGet("/me", GetMeAsync).RequireAuthorization();
-        group.MapDelete("/me", DeleteMeAsync).RequireAuthorization().RequireRateLimiting("Sensitive");
+            group.MapPost("/register/customer", RegisterCustomerAsync).RequireRateLimiting("Sensitive");
+            group.MapPost("/register/space-admin", RegisterSpaceAdminAsync).RequireRateLimiting("Sensitive");
+            group.MapPost("/register/professional", RegisterProfessionalAsync).RequireRateLimiting("Sensitive");
+            group.MapPost("/login", LoginAsync).RequireRateLimiting("Sensitive");
+            group.MapPost("/refresh-token", RefreshAsync).RequireRateLimiting("Sensitive");
+            group.MapPost("/logout", LogoutAsync);
+            group.MapGet("/me", GetMeAsync).RequireAuthorization();
+            group.MapDelete("/me", DeleteMeAsync).RequireAuthorization().RequireRateLimiting("Sensitive");
+        }
 
         return app;
     }

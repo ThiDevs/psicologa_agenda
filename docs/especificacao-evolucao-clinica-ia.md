@@ -19,7 +19,7 @@ O sistema atual ja possui:
 - Banco PostgreSQL via Entity Framework Core.
 - Fluxos de autenticacao, agenda, consulta online, profissional, cliente, consultorio e paginas legais.
 
-Em producao, o frontend web usa `https://psi.felicio.app` e a raiz da API e `https://api.felicio.app/api`. O prefixo `/api` faz parte da raiz e nao deve ser removido.
+Em producao, o frontend web usa `https://psi.felicio.app` e a raiz da API e `https://api.felicio.app`. O app nao deve chamar `/api` em `psi.felicio.app` nem acrescentar `/api` ao dominio da API.
 
 ## Objetivo do produto
 
@@ -376,13 +376,13 @@ Campos:
 
 ### APIs sugeridas
 
-- `POST /api/clinical/sessions/{sessionId}/drafts`
-- `POST /api/clinical/drafts/{draftId}/generate-ai`
-- `GET /api/clinical/drafts/{draftId}`
-- `PATCH /api/clinical/drafts/{draftId}`
-- `POST /api/clinical/drafts/{draftId}/approve`
-- `POST /api/clinical/records/{recordId}/rectifications`
-- `GET /api/clinical/patients/{patientId}/records`
+- `POST /clinical/sessions/{sessionId}/drafts`
+- `POST /clinical/drafts/{draftId}/generate-ai`
+- `GET /clinical/drafts/{draftId}`
+- `PATCH /clinical/drafts/{draftId}`
+- `POST /clinical/drafts/{draftId}/approve`
+- `POST /clinical/records/{recordId}/rectifications`
+- `GET /clinical/patients/{patientId}/records`
 
 ### Conexoes com outros modulos
 
@@ -514,13 +514,13 @@ Tags sensiveis:
 
 ### APIs sugeridas
 
-- `GET /api/clinical/tags`
-- `POST /api/clinical/tags`
-- `PATCH /api/clinical/tags/{tagId}`
-- `DELETE /api/clinical/tags/{tagId}`
-- `POST /api/clinical/sessions/{sessionId}/tags`
-- `DELETE /api/clinical/applied-tags/{appliedTagId}`
-- `GET /api/clinical/patients/{patientId}/tags`
+- `GET /clinical/tags`
+- `POST /clinical/tags`
+- `PATCH /clinical/tags/{tagId}`
+- `DELETE /clinical/tags/{tagId}`
+- `POST /clinical/sessions/{sessionId}/tags`
+- `DELETE /clinical/applied-tags/{appliedTagId}`
+- `GET /clinical/patients/{patientId}/tags`
 
 ### Conexoes com outros modulos
 
@@ -613,12 +613,12 @@ Oferecer uma visao cronologica, filtravel e clinicamente util da historia do pac
 
 ### APIs sugeridas
 
-- `GET /api/clinical/patients/{patientId}/timeline`
-- `POST /api/clinical/patients/{patientId}/timeline`
-- `GET /api/clinical/timeline/{itemId}`
-- `PATCH /api/clinical/timeline/{itemId}`
-- `POST /api/clinical/timeline/{itemId}/archive`
-- `GET /api/clinical/patients/{patientId}/timeline/search`
+- `GET /clinical/patients/{patientId}/timeline`
+- `POST /clinical/patients/{patientId}/timeline`
+- `GET /clinical/timeline/{itemId}`
+- `PATCH /clinical/timeline/{itemId}`
+- `POST /clinical/timeline/{itemId}/archive`
+- `GET /clinical/patients/{patientId}/timeline/search`
 
 ### Conexoes com outros modulos
 
@@ -733,14 +733,14 @@ Campos de objetivo:
 
 ### APIs sugeridas
 
-- `GET /api/clinical/patients/{patientId}/treatment-plan`
-- `POST /api/clinical/patients/{patientId}/treatment-plan`
-- `PATCH /api/clinical/treatment-plans/{planId}`
-- `POST /api/clinical/treatment-plans/{planId}/goals`
-- `PATCH /api/clinical/treatment-goals/{goalId}`
-- `POST /api/clinical/treatment-plans/{planId}/ai-suggestions`
-- `POST /api/clinical/treatment-plan-suggestions/{suggestionId}/accept`
-- `POST /api/clinical/treatment-plan-suggestions/{suggestionId}/dismiss`
+- `GET /clinical/patients/{patientId}/treatment-plan`
+- `POST /clinical/patients/{patientId}/treatment-plan`
+- `PATCH /clinical/treatment-plans/{planId}`
+- `POST /clinical/treatment-plans/{planId}/goals`
+- `PATCH /clinical/treatment-goals/{goalId}`
+- `POST /clinical/treatment-plans/{planId}/ai-suggestions`
+- `POST /clinical/treatment-plan-suggestions/{suggestionId}/accept`
+- `POST /clinical/treatment-plan-suggestions/{suggestionId}/dismiss`
 
 ### Conexoes com outros modulos
 
@@ -844,11 +844,11 @@ Gerar um briefing privado, curto e util antes da consulta, reunindo informacoes 
 
 ### APIs sugeridas
 
-- `POST /api/clinical/sessions/{sessionId}/briefing`
-- `GET /api/clinical/sessions/{sessionId}/briefing`
-- `PATCH /api/clinical/briefings/{briefingId}`
-- `POST /api/clinical/briefings/{briefingId}/archive`
-- `POST /api/clinical/briefings/{briefingId}/pin-item`
+- `POST /clinical/sessions/{sessionId}/briefing`
+- `GET /clinical/sessions/{sessionId}/briefing`
+- `PATCH /clinical/briefings/{briefingId}`
+- `POST /clinical/briefings/{briefingId}/archive`
+- `POST /clinical/briefings/{briefingId}/pin-item`
 
 ### Conexoes com outros modulos
 
@@ -958,13 +958,13 @@ Conteudo compartilhavel:
 
 ### APIs sugeridas
 
-- `GET /api/clinical/patients/{patientId}/layers`
-- `POST /api/clinical/drafts/{draftId}/convert-to-record`
-- `POST /api/clinical/memory-items`
-- `PATCH /api/clinical/memory-items/{itemId}`
-- `POST /api/clinical/shareable-items/{itemId}/share`
-- `POST /api/clinical/shareable-items/{itemId}/unshare`
-- `POST /api/clinical/patients/{patientId}/exports`
+- `GET /clinical/patients/{patientId}/layers`
+- `POST /clinical/drafts/{draftId}/convert-to-record`
+- `POST /clinical/memory-items`
+- `PATCH /clinical/memory-items/{itemId}`
+- `POST /clinical/shareable-items/{itemId}/share`
+- `POST /clinical/shareable-items/{itemId}/unshare`
+- `POST /clinical/patients/{patientId}/exports`
 
 ### Conexoes com outros modulos
 
@@ -1087,15 +1087,15 @@ Oferecer ao paciente um espaco seguro para acessar agenda, tarefas combinadas, m
 
 ### APIs sugeridas
 
-- `GET /api/patients/me/care`
-- `GET /api/patients/me/tasks`
-- `POST /api/patients/me/tasks/{taskId}/complete`
-- `GET /api/patients/me/materials`
-- `POST /api/clinical/patients/{patientId}/tasks`
-- `PATCH /api/clinical/tasks/{taskId}`
-- `POST /api/clinical/tasks/{taskId}/share`
-- `POST /api/clinical/materials`
-- `POST /api/clinical/materials/{materialId}/share`
+- `GET /patients/me/care`
+- `GET /patients/me/tasks`
+- `POST /patients/me/tasks/{taskId}/complete`
+- `GET /patients/me/materials`
+- `POST /clinical/patients/{patientId}/tasks`
+- `PATCH /clinical/tasks/{taskId}`
+- `POST /clinical/tasks/{taskId}/share`
+- `POST /clinical/materials`
+- `POST /clinical/materials/{materialId}/share`
 
 ### Conexoes com outros modulos
 
@@ -1242,14 +1242,14 @@ Check-in de crise, com muito cuidado:
 
 ### APIs sugeridas
 
-- `GET /api/clinical/checkin-templates`
-- `POST /api/clinical/checkin-templates`
-- `POST /api/clinical/patients/{patientId}/checkin-schedules`
-- `PATCH /api/clinical/checkin-schedules/{scheduleId}`
-- `GET /api/patients/me/checkins`
-- `POST /api/patients/me/checkins/{checkinId}/responses`
-- `GET /api/clinical/patients/{patientId}/checkin-responses`
-- `POST /api/clinical/patients/{patientId}/checkin-summary`
+- `GET /clinical/checkin-templates`
+- `POST /clinical/checkin-templates`
+- `POST /clinical/patients/{patientId}/checkin-schedules`
+- `PATCH /clinical/checkin-schedules/{scheduleId}`
+- `GET /patients/me/checkins`
+- `POST /patients/me/checkins/{checkinId}/responses`
+- `GET /clinical/patients/{patientId}/checkin-responses`
+- `POST /clinical/patients/{patientId}/checkin-summary`
 
 ### Conexoes com outros modulos
 
@@ -1385,13 +1385,13 @@ Formato a evitar:
 
 ### APIs sugeridas
 
-- `GET /api/clinical/alerts`
-- `GET /api/clinical/patients/{patientId}/alerts`
-- `POST /api/clinical/alerts`
-- `PATCH /api/clinical/alerts/{alertId}`
-- `POST /api/clinical/alerts/{alertId}/confirm`
-- `POST /api/clinical/alerts/{alertId}/dismiss`
-- `POST /api/clinical/alerts/{alertId}/resolve`
+- `GET /clinical/alerts`
+- `GET /clinical/patients/{patientId}/alerts`
+- `POST /clinical/alerts`
+- `PATCH /clinical/alerts/{alertId}`
+- `POST /clinical/alerts/{alertId}/confirm`
+- `POST /clinical/alerts/{alertId}/dismiss`
+- `POST /clinical/alerts/{alertId}/resolve`
 
 ### Conexoes com outros modulos
 
@@ -1527,14 +1527,14 @@ Tipos:
 
 ### APIs sugeridas
 
-- `GET /api/patients/me/consents`
-- `POST /api/patients/me/consents`
-- `POST /api/patients/me/consents/{consentId}/revoke`
-- `GET /api/clinical/patients/{patientId}/consents`
-- `POST /api/clinical/patients/{patientId}/request-consent`
-- `GET /api/audit/clinical`
-- `POST /api/clinical/patients/{patientId}/exports`
-- `GET /api/clinical/security/policies`
+- `GET /patients/me/consents`
+- `POST /patients/me/consents`
+- `POST /patients/me/consents/{consentId}/revoke`
+- `GET /clinical/patients/{patientId}/consents`
+- `POST /clinical/patients/{patientId}/request-consent`
+- `GET /audit/clinical`
+- `POST /clinical/patients/{patientId}/exports`
+- `GET /clinical/security/policies`
 
 ### Conexoes com outros modulos
 
@@ -1571,35 +1571,35 @@ Atualizacao da quarta entrega: o backend agora possui `PatientConsent`, consenti
 
 Atualizacao da quinta entrega: o backend agora possui `ClinicalSession` vinculada ao agendamento, cria a sessao clinica ao abrir o workspace, permite iniciar/finalizar a sessao pelo fluxo da psicologa e registra memoria/auditoria dessas transicoes. Ainda nao existe portal do paciente, plano terapeutico persistido, check-ins, alertas, IA, retificacao, exportacao ou gravacao/transcricao.
 
-Atualizacao da sexta entrega: o backend agora permite criar rascunho de retificacao a partir de `ClinicalRecord` aprovado por `POST /api/clinical/records/{recordId}/rectifications`. A aprovacao desse rascunho cria uma nova versao com `recordType = rectification` e `previousRecordId`, sem sobrescrever a evolucao anterior. Ainda nao existe portal do paciente, plano terapeutico persistido, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
+Atualizacao da sexta entrega: o backend agora permite criar rascunho de retificacao a partir de `ClinicalRecord` aprovado por `POST /clinical/records/{recordId}/rectifications`. A aprovacao desse rascunho cria uma nova versao com `recordType = rectification` e `previousRecordId`, sem sobrescrever a evolucao anterior. Ainda nao existe portal do paciente, plano terapeutico persistido, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
 
-Atualizacao da setima entrega: o backend agora possui `TreatmentPlan` persistido por paciente/profissional, exibido no workspace clinico e atualizado por `POST /api/clinical/appointments/{appointmentId}/treatment-plan`. A atualizacao cria memoria na timeline e auditoria sem copiar formulacao, objetivos ou estrategias para metadata. Ainda nao existe historico versionado do plano, portal do paciente, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
+Atualizacao da setima entrega: o backend agora possui `TreatmentPlan` persistido por paciente/profissional, exibido no workspace clinico e atualizado por `POST /clinical/appointments/{appointmentId}/treatment-plan`. A atualizacao cria memoria na timeline e auditoria sem copiar formulacao, objetivos ou estrategias para metadata. Ainda nao existe historico versionado do plano, portal do paciente, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
 
-Atualizacao da oitava entrega: o backend agora possui `PatientTask` e `SharedMaterial`, exibidos no workspace clinico e criados como conteudo privado por `POST /api/clinical/appointments/{appointmentId}/tasks` e `POST /api/clinical/appointments/{appointmentId}/materials`. O compartilhamento e o recolhimento sao acoes explicitas da psicologa, exigem consentimento ativo quando aplicavel e registram timeline/auditoria sem copiar conteudo clinico sensivel para metadata. Ainda nao existe area do paciente para consumir tarefas/materiais, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
+Atualizacao da oitava entrega: o backend agora possui `PatientTask` e `SharedMaterial`, exibidos no workspace clinico e criados como conteudo privado por `POST /clinical/appointments/{appointmentId}/tasks` e `POST /clinical/appointments/{appointmentId}/materials`. O compartilhamento e o recolhimento sao acoes explicitas da psicologa, exigem consentimento ativo quando aplicavel e registram timeline/auditoria sem copiar conteudo clinico sensivel para metadata. Ainda nao existe area do paciente para consumir tarefas/materiais, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
 
-Atualizacao da nona entrega: o paciente agora possui a area "Meu acompanhamento" em `/patient-care`, alimentada por `GET /api/patients/me/care`. Esse endpoint retorna apenas `PatientTask` compartilhada/concluida e `SharedMaterial` com `status = shared`, validando consentimento ativo de portal e, para materiais, consentimento de materiais. A rota nao retorna rascunhos, prontuarios, tags privadas, plano terapeutico ou timeline interna. Ainda nao existe resposta/conclusao de tarefa pelo paciente, consentimento direto pelo portal, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
+Atualizacao da nona entrega: o paciente agora possui a area "Meu acompanhamento" em `/patient-care`, alimentada por `GET /patients/me/care`. Esse endpoint retorna apenas `PatientTask` compartilhada/concluida e `SharedMaterial` com `status = shared`, validando consentimento ativo de portal e, para materiais, consentimento de materiais. A rota nao retorna rascunhos, prontuarios, tags privadas, plano terapeutico ou timeline interna. Ainda nao existe resposta/conclusao de tarefa pelo paciente, consentimento direto pelo portal, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
 
-Atualizacao da decima entrega: o paciente agora pode concluir uma tarefa compartilhada por `POST /api/patients/me/tasks/{taskId}/complete`, enviando uma resposta opcional quando a tarefa aceita resposta. A conclusao muda a tarefa para `completed`, registra `responseText`, `responseSubmittedAt` e `completedAt`, e cria memoria/timeline privada para revisao da psicologa sem copiar a resposta para metadata de auditoria. Ainda nao existe consentimento direto pelo portal, reabertura/edicao de tarefa, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
+Atualizacao da decima entrega: o paciente agora pode concluir uma tarefa compartilhada por `POST /patients/me/tasks/{taskId}/complete`, enviando uma resposta opcional quando a tarefa aceita resposta. A conclusao muda a tarefa para `completed`, registra `responseText`, `responseSubmittedAt` e `completedAt`, e cria memoria/timeline privada para revisao da psicologa sem copiar a resposta para metadata de auditoria. Ainda nao existe consentimento direto pelo portal, reabertura/edicao de tarefa, check-ins, alertas, IA, exportacao ou gravacao/transcricao.
 
-Atualizacao da decima primeira entrega: o paciente agora ve consentimentos do proprio acompanhamento em `/patient-care` e pode conceder ou revogar diretamente `portal`, `materials`, `checkins` e `notifications` por `POST /api/patients/me/consents/{professionalId}/{consentType}`. O backend valida conta de paciente ativa, vinculo por atendimento com a profissional e bloqueia consentimentos sensiveis (`ai_analysis`, `recording`, `transcription`) nesse fluxo simples. A atualizacao cria memoria/timeline e auditoria sem copiar conteudo clinico para metadata. Ainda nao existe fluxo especifico para consentimentos sensiveis de IA, gravacao ou transcricao, reabertura/edicao de tarefa, check-ins, alertas, exportacao ou gravacao/transcricao.
+Atualizacao da decima primeira entrega: o paciente agora ve consentimentos do proprio acompanhamento em `/patient-care` e pode conceder ou revogar diretamente `portal`, `materials`, `checkins` e `notifications` por `POST /patients/me/consents/{professionalId}/{consentType}`. O backend valida conta de paciente ativa, vinculo por atendimento com a profissional e bloqueia consentimentos sensiveis (`ai_analysis`, `recording`, `transcription`) nesse fluxo simples. A atualizacao cria memoria/timeline e auditoria sem copiar conteudo clinico para metadata. Ainda nao existe fluxo especifico para consentimentos sensiveis de IA, gravacao ou transcricao, reabertura/edicao de tarefa, check-ins, alertas, exportacao ou gravacao/transcricao.
 
-Atualizacao da decima segunda entrega: o backend agora possui `PatientCheckIn`, persistido por paciente/profissional e criado como privado por `POST /api/clinical/appointments/{appointmentId}/check-ins`. A psicologa pode compartilhar ou recolher check-ins por endpoints explicitos, com validacao de consentimentos `portal` e `checkins`. O paciente ve check-ins compartilhados em `/patient-care` e responde por `POST /api/patients/me/check-ins/{checkInId}/respond`, usando escala de 1 a 5 e observacao opcional. A resposta cria memoria privada para revisao da psicologa e auditoria sem copiar a resposta para metadata. Ainda nao existe agenda recorrente de check-ins, templates editaveis, graficos longitudinais, alertas, IA, exportacao ou gravacao/transcricao.
+Atualizacao da decima segunda entrega: o backend agora possui `PatientCheckIn`, persistido por paciente/profissional e criado como privado por `POST /clinical/appointments/{appointmentId}/check-ins`. A psicologa pode compartilhar ou recolher check-ins por endpoints explicitos, com validacao de consentimentos `portal` e `checkins`. O paciente ve check-ins compartilhados em `/patient-care` e responde por `POST /patients/me/check-ins/{checkInId}/respond`, usando escala de 1 a 5 e observacao opcional. A resposta cria memoria privada para revisao da psicologa e auditoria sem copiar a resposta para metadata. Ainda nao existe agenda recorrente de check-ins, templates editaveis, graficos longitudinais, alertas, IA, exportacao ou gravacao/transcricao.
 
-Atualizacao da decima terceira entrega: a timeline clinica ganhou consulta longitudinal por paciente em `GET /api/clinical/patients/{patientId}/timeline`, restrita a profissional vinculada por atendimento nao expirado/rejeitado. O endpoint aceita filtros de camada, origem, periodo, busca textual e limite, retornando eventos reais de sessao, rascunhos, prontuario, tags, consentimentos, plano, tarefas, materiais e check-ins quando existirem. A tela clinica passou a ter busca e chips de filtro, mostrando vazio real quando nenhum evento corresponde, sem expor timeline interna no portal do paciente. A auditoria da consulta nao grava termo de busca nem conteudo clinico em metadata. Ainda nao existe detalhe/arquivamento de item da timeline, filtro por tag aplicada/severidade, alertas, IA, exportacao ou gravacao/transcricao.
+Atualizacao da decima terceira entrega: a timeline clinica ganhou consulta longitudinal por paciente em `GET /clinical/patients/{patientId}/timeline`, restrita a profissional vinculada por atendimento nao expirado/rejeitado. O endpoint aceita filtros de camada, origem, periodo, busca textual e limite, retornando eventos reais de sessao, rascunhos, prontuario, tags, consentimentos, plano, tarefas, materiais e check-ins quando existirem. A tela clinica passou a ter busca e chips de filtro, mostrando vazio real quando nenhum evento corresponde, sem expor timeline interna no portal do paciente. A auditoria da consulta nao grava termo de busca nem conteudo clinico em metadata. Ainda nao existe detalhe/arquivamento de item da timeline, filtro por tag aplicada/severidade, alertas, IA, exportacao ou gravacao/transcricao.
 
-Atualizacao da decima quarta entrega: a timeline agora possui detalhe auditado em `GET /api/clinical/timeline/{itemId}`. A rota valida profissional vinculada ao paciente, retorna o item, dados operacionais do atendimento e metadados seguros da origem, como status, tipo e versao quando aplicavel, sem copiar `ContentText` de rascunho/prontuario, resposta livre de paciente ou conteudo clinico sensivel para fora do modulo correto. A tela clinica permite abrir o detalhe a partir de eventos reais e mostra nota de acesso por camada. A auditoria usa `clinical.timeline_item.viewed` sem metadata sensivel. Ainda nao existe arquivamento controlado de itens nao oficiais, filtro por tag aplicada/severidade, alertas, IA, exportacao ou gravacao/transcricao.
+Atualizacao da decima quarta entrega: a timeline agora possui detalhe auditado em `GET /clinical/timeline/{itemId}`. A rota valida profissional vinculada ao paciente, retorna o item, dados operacionais do atendimento e metadados seguros da origem, como status, tipo e versao quando aplicavel, sem copiar `ContentText` de rascunho/prontuario, resposta livre de paciente ou conteudo clinico sensivel para fora do modulo correto. A tela clinica permite abrir o detalhe a partir de eventos reais e mostra nota de acesso por camada. A auditoria usa `clinical.timeline_item.viewed` sem metadata sensivel. Ainda nao existe arquivamento controlado de itens nao oficiais, filtro por tag aplicada/severidade, alertas, IA, exportacao ou gravacao/transcricao.
 
-Atualizacao da decima quinta entrega: a timeline agora permite arquivar item nao oficial por `POST /api/clinical/timeline/{itemId}/archive`, com motivo opcional e auditoria `clinical.timeline_item.archived` sem metadata sensivel. Itens arquivados saem da timeline ativa e do workspace, mas permanecem preservados para detalhe e rastreabilidade. Itens de prontuario aprovado continuam bloqueados para arquivamento pela timeline e devem seguir por retificacao formal. Ainda nao existe filtro por tag aplicada/severidade, alertas, IA, exportacao ou gravacao/transcricao.
+Atualizacao da decima quinta entrega: a timeline agora permite arquivar item nao oficial por `POST /clinical/timeline/{itemId}/archive`, com motivo opcional e auditoria `clinical.timeline_item.archived` sem metadata sensivel. Itens arquivados saem da timeline ativa e do workspace, mas permanecem preservados para detalhe e rastreabilidade. Itens de prontuario aprovado continuam bloqueados para arquivamento pela timeline e devem seguir por retificacao formal. Ainda nao existe filtro por tag aplicada/severidade, alertas, IA, exportacao ou gravacao/transcricao.
 
-Atualizacao da decima sexta entrega: a consulta longitudinal da timeline passou a aceitar filtros `tag` e `severity` em `GET /api/clinical/patients/{patientId}/timeline`, usando `AppliedClinicalTag` do atendimento para selecionar eventos associados a uma tag ou ao tom clinico `neutral`, `attention` ou `risk`. A tela clinica ganhou chips de tag aplicada e severidade no painel de filtros, preservando loading, vazio real e erro sem registrar esses parametros em metadata de auditoria. Ainda nao existem eventos reais de alertas, IA, exportacao ou gravacao/transcricao.
+Atualizacao da decima sexta entrega: a consulta longitudinal da timeline passou a aceitar filtros `tag` e `severity` em `GET /clinical/patients/{patientId}/timeline`, usando `AppliedClinicalTag` do atendimento para selecionar eventos associados a uma tag ou ao tom clinico `neutral`, `attention` ou `risk`. A tela clinica ganhou chips de tag aplicada e severidade no painel de filtros, preservando loading, vazio real e erro sem registrar esses parametros em metadata de auditoria. Ainda nao existem eventos reais de alertas, IA, exportacao ou gravacao/transcricao.
 
-Atualizacao da decima setima entrega: o backend agora possui `ClinicalAlert`, criado manualmente por atendimento em `POST /api/clinical/appointments/{appointmentId}/alerts`, listado por paciente em `GET /api/clinical/patients/{patientId}/alerts` e revisado por acoes humanas de confirmar, acompanhar, descartar ou resolver. O workspace clinico exibe um painel compacto de alertas responsaveis, registra timeline/auditoria sem conteudo clinico sensivel em metadata e reforca que alerta nao e diagnostico nem dispara mensagem automatica ao paciente. Ainda nao existe motor automatico de alertas por tags/check-ins, destaque de alerta alto no briefing, IA, exportacao ou gravacao/transcricao.
+Atualizacao da decima setima entrega: o backend agora possui `ClinicalAlert`, criado manualmente por atendimento em `POST /clinical/appointments/{appointmentId}/alerts`, listado por paciente em `GET /clinical/patients/{patientId}/alerts` e revisado por acoes humanas de confirmar, acompanhar, descartar ou resolver. O workspace clinico exibe um painel compacto de alertas responsaveis, registra timeline/auditoria sem conteudo clinico sensivel em metadata e reforca que alerta nao e diagnostico nem dispara mensagem automatica ao paciente. Ainda nao existe motor automatico de alertas por tags/check-ins, destaque de alerta alto no briefing, IA, exportacao ou gravacao/transcricao.
 
 Atualizacao da decima oitava entrega: o briefing da proxima sessao no workspace clinico deixou de ser apenas conceitual e passou a usar dados reais ja carregados no atendimento: alertas ativos, tarefas, check-ins, tags aplicadas e objetivos do plano terapeutico. Alertas ativos de severidade `alto` aparecem em uma area de atencao prioritaria, com linguagem neutra, sem diagnostico automatico, sem prontuario e sem notificar o paciente. Ainda nao existe entidade `SessionBriefing` persistida, job automatico, itens fixados, IA, exportacao ou gravacao/transcricao.
 
 Atualizacao da decima nona entrega: o backend agora possui um motor inicial de alertas responsaveis por regras seguras. Tags clinicas com tom `risk` criam ou reutilizam alerta pendente de severidade `alto` por atendimento, e respostas de check-in com escala 1 ou 2 criam alerta pendente `alto` ou `medio` vinculado a resposta. A regra nao usa IA, nao diagnostica, nao envia mensagem automatica ao paciente, nao cria prontuario e audita a criacao sem metadata sensivel. Ainda nao existe configuracao visual das regras, agenda recorrente de check-ins, graficos longitudinais, aprendizado de falso positivo, IA, exportacao ou gravacao/transcricao.
 
-Atualizacao da vigesima entrega: o backend agora exporta prontuarios aprovados por paciente em `GET /api/clinical/patients/{patientId}/records/export`, validando vinculo profissional-paciente e retornando somente `ClinicalRecord` com `status = approved`. A exportacao inclui aviso de escopo, texto consolidado e metadados das versoes aprovadas, deixando fora rascunhos, memoria clinica, alertas, check-ins, tarefas, materiais compartilhaveis e timeline interna. A consulta gera auditoria `clinical.records.exported` sem gravar conteudo clinico em metadata. A tela clinica ganhou painel de exportacao aprovada com resultado selecionavel. Ainda nao existe exportacao seletiva de outras camadas, politica completa de retencao, matriz formal de permissoes, IA, gravacao ou transcricao.
+Atualizacao da vigesima entrega: o backend agora exporta prontuarios aprovados por paciente em `GET /clinical/patients/{patientId}/records/export`, validando vinculo profissional-paciente e retornando somente `ClinicalRecord` com `status = approved`. A exportacao inclui aviso de escopo, texto consolidado e metadados das versoes aprovadas, deixando fora rascunhos, memoria clinica, alertas, check-ins, tarefas, materiais compartilhaveis e timeline interna. A consulta gera auditoria `clinical.records.exported` sem gravar conteudo clinico em metadata. A tela clinica ganhou painel de exportacao aprovada com resultado selecionavel. Ainda nao existe exportacao seletiva de outras camadas, politica completa de retencao, matriz formal de permissoes, IA, gravacao ou transcricao.
 
 Atualizacao da vigesima primeira entrega: o workspace clinico agora devolve `ClinicalAccessPolicy`, uma matriz efetiva de permissoes calculada a partir do papel profissional, vinculo paciente-profissional e consentimentos granulares. A UI exibe o que esta liberado ou bloqueado, separando permissoes por vinculo clinico, portal/check-ins/materiais e capacidades sensiveis de IA, gravacao e transcricao. IA, gravacao e transcricao continuam bloqueadas sem consentimento sensivel ativo e a matriz nao inclui conteudo clinico em metadata de auditoria. Ainda nao existe fluxo juridicamente revisado para captar consentimentos sensiveis, politica completa de retencao, IA real, gravacao ou transcricao.
 
@@ -1623,7 +1623,7 @@ Atualizacao da trigesima entrega: os novos textos clinicos sensiveis passaram a 
 
 Atualizacao da trigesima primeira entrega: o painel web da psicologa foi redesenhado para seguir a linguagem visual atual da home do paciente, com shell operacional compacto, sidebar clara, cards baixos, agenda em lista, checklist de publicacao, avisos de sigilo e acoes rapidas. A tela agora separa indicadores administrativos de conteudo clinico privado, evita expor rascunho/prontuario/memoria no painel operacional e usa animacoes discretas de entrada/layout com Reanimated. Este ciclo nao adicionou IA, gravacao, transcricao, novas permissoes clinicas ou acesso do admin operacional a conteudo privado. Ainda faltam testes visuais automatizados, ajustes finos em telas legadas fora do painel e evoluir as pendencias clinicas ja listadas.
 
-Atualizacao da trigesima segunda entrega: `GET /api/clinical/patients/{patientId}/alerts` agora aceita filtros de severidade, status, origem, somente ativos e limite. O workspace clinico ganhou painel compacto de triagem de alertas responsaveis, com chips e animacao discreta, para priorizar revisao humana sem diagnostico automatico, sem envio de mensagem ao paciente e sem metadata sensivel na auditoria. Ainda faltam configuracao visual das regras, aprendizado de falso positivo, tendencias longitudinais, politica especifica de retencao/exportacao para alertas, IA, gravacao e transcricao.
+Atualizacao da trigesima segunda entrega: `GET /clinical/patients/{patientId}/alerts` agora aceita filtros de severidade, status, origem, somente ativos e limite. O workspace clinico ganhou painel compacto de triagem de alertas responsaveis, com chips e animacao discreta, para priorizar revisao humana sem diagnostico automatico, sem envio de mensagem ao paciente e sem metadata sensivel na auditoria. Ainda faltam configuracao visual das regras, aprendizado de falso positivo, tendencias longitudinais, politica especifica de retencao/exportacao para alertas, IA, gravacao e transcricao.
 
 Arquivos criados ou alterados:
 
@@ -1679,15 +1679,15 @@ Feito agora:
 2. Cada atendimento da agenda profissional ganhou o botao "Acompanhamento clinico".
 3. A rota `/clinical-integration` mostra o status dos 10 modulos, separando feito e falta.
 4. A rota `/clinical-patient` abre o espaco clinico inicial do atendimento.
-5. A tela clinica busca o detalhe real do atendimento profissional por `GET /api/professionals/me/appointments/{appointmentId}` quando existe `appointmentId`.
-6. A tela clinica carrega o workspace clinico por `GET /api/clinical/appointments/{appointmentId}/workspace`.
-7. Tags rapidas podem ser salvas por `POST /api/clinical/appointments/{appointmentId}/tags`.
-8. Rascunhos manuais podem ser salvos por `POST /api/clinical/appointments/{appointmentId}/drafts`.
+5. A tela clinica busca o detalhe real do atendimento profissional por `GET /professionals/me/appointments/{appointmentId}` quando existe `appointmentId`.
+6. A tela clinica carrega o workspace clinico por `GET /clinical/appointments/{appointmentId}/workspace`.
+7. Tags rapidas podem ser salvas por `POST /clinical/appointments/{appointmentId}/tags`.
+8. Rascunhos manuais podem ser salvos por `POST /clinical/appointments/{appointmentId}/drafts`.
 9. O backend criou `ClinicalDraft`, `AppliedClinicalTag` e `PatientTimelineItem`.
 10. A migration `20260623013000_AddClinicalWorkspaceTables` cria as tabelas clinicas iniciais.
 11. O backend criou `ClinicalRecord` para evolucao aprovada manualmente.
 12. A migration `20260623020000_AddClinicalRecords` cria a tabela de prontuario aprovado.
-13. Rascunhos podem ser aprovados por `POST /api/clinical/drafts/{draftId}/approve`.
+13. Rascunhos podem ser aprovados por `POST /clinical/drafts/{draftId}/approve`.
 14. A aprovacao marca o rascunho como `converted_to_record`, cria item de timeline com camada `prontuario` e gera auditoria.
 15. Acoes clinicas geram `AuditLog` sem incluir conteudo clinico sensivel no `metadata_json`.
 16. Endpoints clinicos validam que a profissional autenticada esta vinculada ao atendimento antes de ler ou salvar dados.
@@ -1712,30 +1712,30 @@ Feito agora:
 35. Compartilhamento de tarefa exige consentimento ativo para portal; compartilhamento de material exige consentimento ativo para portal e materiais.
 36. Criacao, compartilhamento e recolhimento entram na timeline com camadas `memoria` ou `compartilhado` e auditoria sem conteudo clinico no metadata.
 37. Paciente acessa `/patient-care` a partir da home e ve apenas tarefas e materiais ja compartilhados.
-38. `GET /api/patients/me/care` filtra conteudo por paciente autenticado, status compartilhado e consentimentos ativos.
+38. `GET /patients/me/care` filtra conteudo por paciente autenticado, status compartilhado e consentimentos ativos.
 39. Portal do paciente nao retorna rascunho, prontuario, memoria interna, tags privadas nem plano terapeutico.
-40. Paciente pode concluir tarefa compartilhada por `POST /api/patients/me/tasks/{taskId}/complete`.
+40. Paciente pode concluir tarefa compartilhada por `POST /patients/me/tasks/{taskId}/complete`.
 41. Resposta opcional de tarefa fica visivel para paciente e psicologa, mas nao entra em metadata de auditoria.
 42. Conclusao de tarefa cria memoria privada na timeline para revisao da psicologa.
-43. `GET /api/patients/me/care` retorna consentimentos nao sensiveis do acompanhamento do paciente.
-44. Paciente pode conceder ou revogar `portal`, `materials`, `checkins` e `notifications` por `POST /api/patients/me/consents/{professionalId}/{consentType}`.
+43. `GET /patients/me/care` retorna consentimentos nao sensiveis do acompanhamento do paciente.
+44. Paciente pode conceder ou revogar `portal`, `materials`, `checkins` e `notifications` por `POST /patients/me/consents/{professionalId}/{consentType}`.
 45. O portal bloqueia consentimentos sensiveis de IA, gravacao e transcricao nesse fluxo direto.
 46. Atualizacao de consentimento pelo paciente cria memoria e auditoria sem conteudo clinico sensivel no metadata.
 47. `PatientCheckIn` e persistido por paciente/profissional e carregado no workspace clinico.
 48. Psicologa pode criar check-in privado, revisar a previa e compartilhar ou recolher por endpoints explicitos.
 49. Compartilhar check-in exige consentimento ativo para portal e check-ins.
-50. Paciente pode responder check-in compartilhado por `POST /api/patients/me/check-ins/{checkInId}/respond`.
+50. Paciente pode responder check-in compartilhado por `POST /patients/me/check-ins/{checkInId}/respond`.
 51. Resposta de check-in cria memoria privada na timeline e auditoria sem armazenar resposta no metadata.
-52. Psicologa pode consultar timeline longitudinal por paciente em `GET /api/clinical/patients/{patientId}/timeline`.
+52. Psicologa pode consultar timeline longitudinal por paciente em `GET /clinical/patients/{patientId}/timeline`.
 53. A consulta longitudinal valida vinculo paciente-profissional por atendimento ativo antes de retornar itens.
 54. Timeline aceita filtros por camada, origem, periodo, busca textual e limite seguro.
 55. Tela clinica ganhou painel de filtros e estados de loading, vazio real e erro para timeline.
 56. Visual da timeline foi refinado para separar rascunho, prontuario, memoria e compartilhado com chips e cards compactos.
-57. Psicologa pode abrir detalhe auditado de item por `GET /api/clinical/timeline/{itemId}`.
+57. Psicologa pode abrir detalhe auditado de item por `GET /clinical/timeline/{itemId}`.
 58. Detalhe valida vinculo profissional-paciente antes de retornar qualquer dado.
 59. Detalhe retorna metadados seguros da origem sem expor texto de prontuario, rascunho ou respostas livres.
 60. A tela clinica exibe nota de acesso por camada e registra loading/erro do detalhe.
-61. Psicologa pode arquivar item nao oficial por `POST /api/clinical/timeline/{itemId}/archive`.
+61. Psicologa pode arquivar item nao oficial por `POST /clinical/timeline/{itemId}/archive`.
 62. Arquivamento bloqueia itens de prontuario aprovado e orienta usar retificacao formal.
 63. Itens arquivados saem da timeline ativa, mas ficam preservados para detalhe auditado e rastreabilidade.
 64. A tela clinica exibe acao de arquivamento no detalhe com motivo opcional, loading, erro e sucesso.
@@ -1757,7 +1757,7 @@ Feito agora:
 80. Respostas de check-in com escala 1 ou 2 criam alerta responsavel pendente de severidade `alto` ou `medio`, deduplicado por check-in respondido.
 81. Alertas por regra criam memoria na timeline e auditoria `clinical.alert.rule_created` sem copiar resposta, nota ou conteudo clinico para metadata.
 82. A UI identifica alertas originados de resposta de check-in com label clinico claro.
-83. Psicologa pode exportar prontuarios aprovados por `GET /api/clinical/patients/{patientId}/records/export`.
+83. Psicologa pode exportar prontuarios aprovados por `GET /clinical/patients/{patientId}/records/export`.
 84. Exportacao valida vinculo profissional-paciente, retorna somente `ClinicalRecord` aprovado e exclui rascunho, memoria, alertas, check-ins, tarefas, materiais e timeline interna.
 85. Exportacao cria auditoria `clinical.records.exported` sem armazenar conteudo clinico no metadata.
 86. A tela clinica mostra painel de exportacao aprovada com texto selecionavel e aviso de escopo.
@@ -1765,7 +1765,7 @@ Feito agora:
 88. Permissoes de portal, materiais e check-ins sao liberadas somente quando os consentimentos aplicaveis estao ativos.
 89. Permissoes sensiveis de IA, gravacao e transcricao aparecem bloqueadas ate consentimento especifico ativo.
 90. Tela clinica exibe matriz de permissoes sem misturar rascunho, prontuario, memoria ou conteudo compartilhavel.
-91. Psicologa solicita consentimentos sensiveis por `POST /api/clinical/appointments/{appointmentId}/sensitive-consents/request`.
+91. Psicologa solicita consentimentos sensiveis por `POST /clinical/appointments/{appointmentId}/sensitive-consents/request`.
 92. Portal do paciente lista pedidos sensiveis separadamente e permite conceder ou recusar cada finalidade.
 93. Backend bloqueia concessao direta de `ai_analysis`, `recording` e `transcription` pela profissional.
 94. Solicitar ou decidir consentimento sensivel cria timeline e auditoria sem conteudo clinico sensivel.
@@ -1808,7 +1808,7 @@ Status por modulo:
 | --- | --- | --- | --- |
 | Registro pos-consulta com IA | Parcial | `ClinicalSession`, `ClinicalDraft` manual, `ClinicalRecord` aprovado manualmente, retificacao versionada por atendimento e exportacao auditada de prontuarios aprovados | IA e edicao assistida |
 | Botoes rapidos e tags clinicas | Parcial | Tags salvas em `AppliedClinicalTag` por atendimento; historico longitudinal filtra por tag aplicada | Biblioteca de tags e personalizacao |
-| Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags, consentimentos, plano, tarefas, materiais, check-ins e alertas revisados; `GET /api/clinical/patients/{patientId}/timeline` com filtros de camada, origem, periodo, busca, tag, severidade e limite; detalhe auditado por `GET /api/clinical/timeline/{itemId}`; arquivamento controlado por `POST /api/clinical/timeline/{itemId}/archive`; UI com vazio/loading/erro; alertas por regra entram como memoria privada; alertas do paciente filtram por severidade, status, origem e somente ativos | Politicas de retencao/exportacao para alertas e timeline |
+| Linha do tempo do paciente | Parcial | `PatientTimelineItem` criado para sessao, rascunhos, tags, consentimentos, plano, tarefas, materiais, check-ins e alertas revisados; `GET /clinical/patients/{patientId}/timeline` com filtros de camada, origem, periodo, busca, tag, severidade e limite; detalhe auditado por `GET /clinical/timeline/{itemId}`; arquivamento controlado por `POST /clinical/timeline/{itemId}/archive`; UI com vazio/loading/erro; alertas por regra entram como memoria privada; alertas do paciente filtram por severidade, status, origem e somente ativos | Politicas de retencao/exportacao para alertas e timeline |
 | Plano terapeutico vivo | Parcial | `TreatmentPlan` persistido e editavel no workspace clinico | Historico versionado, revisao periodica e sugestoes por IA |
 | Preparacao da proxima sessao | Parcial | Briefing no workspace usa fontes reais ja carregadas: alertas ativos, tarefas, check-ins, tags e plano; alertas altos aparecem em area prioritaria; perguntas neutras nao viram prontuario | `SessionBriefing` persistido, job automatico, itens fixados, arquivamento e IA somente com consentimento |
 | Separar rascunho, prontuario e memoria | Parcial | Rascunho, memoria, prontuario aprovado e retificacao versionada aparecem como camadas separadas; exportacao aprovada exclui rascunhos, memoria, alertas, check-ins e compartilhaveis | Exportacao seletiva de outras camadas e politicas de retencao |

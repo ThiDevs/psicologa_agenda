@@ -35,7 +35,7 @@ flowchart TD
   ChooseAuth -- "Entrar" --> Login["/login"]
   ChooseAuth -- "Criar conta" --> RoleSelection["/register-role-selection"]
 
-  Login --> LoginApi["POST /api/auth/login"]
+  Login --> LoginApi["POST /auth/login"]
   LoginApi --> LoginOk{"Login OK?"}
   LoginOk -- "Sim" --> SaveTokens["Salva access + refresh token"]
   LoginOk -- "Não" --> LoginError["Mostra erro"]
@@ -45,9 +45,9 @@ flowchart TD
   Role -- "Psicóloga dona/admin" --> OwnerRegister["/space-owner-register"]
   Role -- "Profissional vinculada" --> ProfessionalRegister["/professional-register"]
 
-  CustomerRegister --> RegisterCustomer["POST /api/auth/register/customer"]
-  OwnerRegister --> RegisterOwner["POST /api/auth/register/space-admin"]
-  ProfessionalRegister --> RegisterProfessional["POST /api/auth/register/professional"]
+  CustomerRegister --> RegisterCustomer["POST /auth/register/customer"]
+  OwnerRegister --> RegisterOwner["POST /auth/register/space-admin"]
+  ProfessionalRegister --> RegisterProfessional["POST /auth/register/professional"]
 
   RegisterCustomer --> RegisterOk{"Cadastro OK?"}
   RegisterOwner --> RegisterOk
@@ -62,7 +62,7 @@ flowchart TD
 
   ApiCall["Chamada autenticada"] --> Unauthorized{"401?"}
   Unauthorized -- "Não" --> ApiResult["Segue fluxo"]
-  Unauthorized -- "Sim" --> Refresh["POST /api/auth/refresh-token"]
+  Unauthorized -- "Sim" --> Refresh["POST /auth/refresh-token"]
   Refresh --> RefreshOk{"Refresh OK?"}
   RefreshOk -- "Sim" --> Retry["Repete chamada original"]
   RefreshOk -- "Não" --> Expire["Limpa sessão e avisa expiração"]
@@ -72,14 +72,14 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  Catalog["Home / catálogo"] --> PublicApi["GET /api/public/spaces"]
+  Catalog["Home / catálogo"] --> PublicApi["GET /public/spaces"]
   PublicApi --> CatalogOk{"Catálogo carregou?"}
   CatalogOk -- "Não" --> LocalCatalog["Mostra erro e usa dados locais se existirem"]
   CatalogOk -- "Sim" --> SpaceList["Lista consultórios publicados"]
   LocalCatalog --> SpaceList
 
   SpaceList --> OpenSpace["Cliente abre consultório"]
-  OpenSpace --> DetailsApi["GET /api/public/spaces/{spaceId}"]
+  OpenSpace --> DetailsApi["GET /public/spaces/{spaceId}"]
   DetailsApi --> DetailsOk{"Detalhes carregaram?"}
   DetailsOk -- "Não" --> DetailsFallback["Mostra detalhes locais disponíveis"]
   DetailsOk -- "Sim" --> SpaceDetails["Detalhe do consultório"]
@@ -97,7 +97,7 @@ flowchart TD
   ChooseProfessional -- "Profissional específica" --> Calendar["Selecionar data e horário"]
   ChooseProfessional -- "Qualquer profissional" --> Calendar
 
-  Calendar --> AvailabilityApi["POST /api/availability/search"]
+  Calendar --> AvailabilityApi["POST /availability/search"]
   AvailabilityApi --> AvailabilityOk{"API retornou horários?"}
   AvailabilityOk -- "Não" --> LocalAvailability["Calcula disponibilidade local"]
   LocalAvailability --> HasLocalSlots{"Há horários locais?"}
@@ -110,7 +110,7 @@ flowchart TD
   Payment --> Auth{"Cliente autenticada?"}
   Auth -- "Não" --> LoginOrRegister["Entrar ou criar conta"]
   LoginOrRegister --> Payment
-  Auth -- "Sim" --> ReserveApi["POST /api/appointments/reserve"]
+  Auth -- "Sim" --> ReserveApi["POST /appointments/reserve"]
 
   ReserveApi --> ReserveOk{"Reserva na API OK?"}
   ReserveOk -- "Não" --> LocalReserve["Tenta reserva local de demonstração"]
@@ -132,7 +132,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  Appointment["Cliente abre detalhe do agendamento"] --> Details["GET /api/customers/me/appointments/{id}"]
+  Appointment["Cliente abre detalhe do agendamento"] --> Details["GET /customers/me/appointments/{id}"]
   Details --> Status{"Status atual"}
 
   Status -- "confirmed" --> ConfirmedActions["Entrar na sala / reagendar / cancelar"]
@@ -143,8 +143,8 @@ flowchart TD
 
   ConfirmedActions --> CustomerChange{"Cliente altera?"}
   WaitingActions --> CustomerChange
-  CustomerChange -- "Cancelar" --> CancelApi["POST /api/customers/me/appointments/{id}/cancel"]
-  CustomerChange -- "Reagendar" --> RescheduleApi["POST /api/customers/me/appointments/{id}/reschedule"]
+  CustomerChange -- "Cancelar" --> CancelApi["POST /customers/me/appointments/{id}/cancel"]
+  CustomerChange -- "Reagendar" --> RescheduleApi["POST /customers/me/appointments/{id}/reschedule"]
   CustomerChange -- "Não" --> Details
 
   CancelApi --> CancelRules{"Política permite e não é passado/fechado?"}
@@ -155,7 +155,7 @@ flowchart TD
   RescheduleRules -- "Sim" --> Rescheduled["Atualiza data/profissional + notificações"]
   RescheduleRules -- "Não" --> ChangeError
 
-  Review -- "Não" --> ReviewApi["POST /api/customers/me/appointments/{id}/review"]
+  Review -- "Não" --> ReviewApi["POST /customers/me/appointments/{id}/review"]
   Review -- "Sim" --> ReviewDone["Mostra avaliação enviada"]
   ReviewApi --> ReviewOk{"Nota válida e ainda sem avaliação?"}
   ReviewOk -- "Sim" --> ReviewCreated["Avaliação salva + notifica dona/admin"]
@@ -174,7 +174,7 @@ flowchart TD
   ManualAddress --> Location{"Usar localização atual?"}
   Location -- "Sim" --> ExpoLocation["expo-location salva coordenadas"]
   Location -- "Não" --> SubmitSpace
-  ExpoLocation --> SubmitSpace["POST /api/spaces"]
+  ExpoLocation --> SubmitSpace["POST /spaces"]
 
   SubmitSpace --> SpaceOk{"Consultório criado?"}
   SpaceOk -- "Não" --> SpaceError["Mostra erro"]
@@ -197,7 +197,7 @@ flowchart TD
   PaymentSettings --> Checklist
   CancellationPolicy --> Checklist
 
-  Complete -- "Sim" --> StarterSetup["POST /api/spaces/{spaceId}/starter-setup"]
+  Complete -- "Sim" --> StarterSetup["POST /spaces/{spaceId}/starter-setup"]
   StarterSetup --> PublishOk{"Publicação OK?"}
   PublishOk -- "Não" --> PublishError["Mostra erro e continua no checklist"]
   PublishOk -- "Sim" --> Published["published + onboardingCompleted"]
@@ -254,7 +254,7 @@ flowchart TD
   ProfessionalAgenda --> LinkCheck["Backend procura Professional.Email == User.Email"]
   LinkCheck --> Linked{"Profissional ativa encontrada?"}
   Linked -- "Não" --> LinkError["Mostra erro: e-mail ainda não vinculado"]
-  Linked -- "Sim" --> LoadAppointments["GET /api/professionals/me/appointments"]
+  Linked -- "Sim" --> LoadAppointments["GET /professionals/me/appointments"]
 
   LoadAppointments --> DayList["Lista atendimentos do dia"]
   DayList --> Appointment{"Status do atendimento"}
@@ -265,11 +265,11 @@ flowchart TD
 
   ProfessionalActions --> Action{"Ação"}
   Action -- "Entrar na sala" --> Room["Abre onlineRoomUrl"]
-  Action -- "Concluir" --> Complete["POST /api/professionals/me/appointments/{id}/complete"]
-  Action -- "Falta" --> NoShow["POST /api/professionals/me/appointments/{id}/no-show"]
+  Action -- "Concluir" --> Complete["POST /professionals/me/appointments/{id}/complete"]
+  Action -- "Falta" --> NoShow["POST /professionals/me/appointments/{id}/no-show"]
 
   ProfessionalAgenda --> Block["Criar bloqueio"]
-  Block --> BlockApi["POST /api/professionals/me/blocked-times"]
+  Block --> BlockApi["POST /professionals/me/blocked-times"]
   BlockApi --> Availability["Novo bloqueio passa a afetar disponibilidade"]
 ```
 

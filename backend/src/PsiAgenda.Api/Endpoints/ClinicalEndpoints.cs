@@ -7,84 +7,87 @@ public static class ClinicalEndpoints
 {
     public static IEndpointRouteBuilder MapClinicalEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/clinical")
-            .WithTags("Clinical")
-            .RequireAuthorization();
+        foreach (var prefix in new[] { string.Empty, "/api" })
+        {
+            var group = app.MapGroup($"{prefix}/clinical")
+                .WithTags("Clinical")
+                .RequireAuthorization();
 
-        group.MapGet("/appointments/{appointmentId:guid}/workspace", GetAppointmentWorkspaceAsync);
-        group.MapGet("/patients/{patientId:guid}/alerts", GetPatientAlertsAsync);
-        group.MapGet("/patients/{patientId:guid}/records/export", ExportPatientRecordsAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapGet("/patients/{patientId:guid}/timeline", GetPatientTimelineAsync);
-        group.MapGet("/timeline/{itemId:guid}", GetTimelineItemDetailAsync);
-        group.MapPost("/timeline/{itemId:guid}/archive", ArchiveTimelineItemAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/appointments/{appointmentId:guid}/session/start", StartAppointmentSessionAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/appointments/{appointmentId:guid}/session/complete", CompleteAppointmentSessionAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/appointments/{appointmentId:guid}/drafts", CreateAppointmentDraftAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/appointments/{appointmentId:guid}/tags", ApplyAppointmentTagsAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/appointments/{appointmentId:guid}/consents/{consentType}", UpdateAppointmentConsentAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/appointments/{appointmentId:guid}/sensitive-consents/request", RequestAppointmentSensitiveConsentsAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/appointments/{appointmentId:guid}/treatment-plan", UpdateAppointmentTreatmentPlanAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/appointments/{appointmentId:guid}/tasks", CreateAppointmentTaskAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/tasks/{taskId:guid}/share", ShareTaskAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/tasks/{taskId:guid}/unshare", UnshareTaskAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/appointments/{appointmentId:guid}/materials", CreateAppointmentMaterialAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/materials/{materialId:guid}/share", ShareMaterialAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/materials/{materialId:guid}/unshare", UnshareMaterialAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/appointments/{appointmentId:guid}/check-ins", CreateAppointmentCheckInAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/check-ins/{checkInId:guid}/share", ShareCheckInAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/check-ins/{checkInId:guid}/unshare", UnshareCheckInAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/appointments/{appointmentId:guid}/alerts", CreateAppointmentAlertAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/alerts/{alertId:guid}/confirm", ConfirmAlertAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/alerts/{alertId:guid}/dismiss", DismissAlertAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/alerts/{alertId:guid}/monitor", MonitorAlertAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/alerts/{alertId:guid}/resolve", ResolveAlertAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/drafts/{draftId:guid}/approve", ApproveDraftAsync)
-            .RequireRateLimiting("Sensitive");
-        group.MapPost("/records/{recordId:guid}/rectifications", CreateRecordRectificationDraftAsync)
-            .RequireRateLimiting("Sensitive");
+            group.MapGet("/appointments/{appointmentId:guid}/workspace", GetAppointmentWorkspaceAsync);
+            group.MapGet("/patients/{patientId:guid}/alerts", GetPatientAlertsAsync);
+            group.MapGet("/patients/{patientId:guid}/records/export", ExportPatientRecordsAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapGet("/patients/{patientId:guid}/timeline", GetPatientTimelineAsync);
+            group.MapGet("/timeline/{itemId:guid}", GetTimelineItemDetailAsync);
+            group.MapPost("/timeline/{itemId:guid}/archive", ArchiveTimelineItemAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/appointments/{appointmentId:guid}/session/start", StartAppointmentSessionAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/appointments/{appointmentId:guid}/session/complete", CompleteAppointmentSessionAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/appointments/{appointmentId:guid}/drafts", CreateAppointmentDraftAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/appointments/{appointmentId:guid}/tags", ApplyAppointmentTagsAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/appointments/{appointmentId:guid}/consents/{consentType}", UpdateAppointmentConsentAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/appointments/{appointmentId:guid}/sensitive-consents/request", RequestAppointmentSensitiveConsentsAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/appointments/{appointmentId:guid}/treatment-plan", UpdateAppointmentTreatmentPlanAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/appointments/{appointmentId:guid}/tasks", CreateAppointmentTaskAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/tasks/{taskId:guid}/share", ShareTaskAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/tasks/{taskId:guid}/unshare", UnshareTaskAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/appointments/{appointmentId:guid}/materials", CreateAppointmentMaterialAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/materials/{materialId:guid}/share", ShareMaterialAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/materials/{materialId:guid}/unshare", UnshareMaterialAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/appointments/{appointmentId:guid}/check-ins", CreateAppointmentCheckInAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/check-ins/{checkInId:guid}/share", ShareCheckInAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/check-ins/{checkInId:guid}/unshare", UnshareCheckInAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/appointments/{appointmentId:guid}/alerts", CreateAppointmentAlertAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/alerts/{alertId:guid}/confirm", ConfirmAlertAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/alerts/{alertId:guid}/dismiss", DismissAlertAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/alerts/{alertId:guid}/monitor", MonitorAlertAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/alerts/{alertId:guid}/resolve", ResolveAlertAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/drafts/{draftId:guid}/approve", ApproveDraftAsync)
+                .RequireRateLimiting("Sensitive");
+            group.MapPost("/records/{recordId:guid}/rectifications", CreateRecordRectificationDraftAsync)
+                .RequireRateLimiting("Sensitive");
 
-        app.MapGet("/api/patients/me/care", GetPatientCarePortalAsync)
-            .WithTags("Clinical")
-            .RequireAuthorization();
-        app.MapPost("/api/patients/me/tasks/{taskId:guid}/complete", CompletePatientTaskAsync)
-            .WithTags("Clinical")
-            .RequireAuthorization()
-            .RequireRateLimiting("Sensitive");
-        app.MapPost("/api/patients/me/check-ins/{checkInId:guid}/respond", RespondPatientCheckInAsync)
-            .WithTags("Clinical")
-            .RequireAuthorization()
-            .RequireRateLimiting("Sensitive");
-        app.MapPost("/api/patients/me/consents/{professionalId:guid}/{consentType}", UpdatePatientPortalConsentAsync)
-            .WithTags("Clinical")
-            .RequireAuthorization()
-            .RequireRateLimiting("Sensitive");
-        app.MapPost("/api/patients/me/sensitive-consents/{professionalId:guid}/{consentType}", UpdatePatientSensitiveConsentAsync)
-            .WithTags("Clinical")
-            .RequireAuthorization()
-            .RequireRateLimiting("Sensitive");
+            app.MapGet($"{prefix}/patients/me/care", GetPatientCarePortalAsync)
+                .WithTags("Clinical")
+                .RequireAuthorization();
+            app.MapPost($"{prefix}/patients/me/tasks/{{taskId:guid}}/complete", CompletePatientTaskAsync)
+                .WithTags("Clinical")
+                .RequireAuthorization()
+                .RequireRateLimiting("Sensitive");
+            app.MapPost($"{prefix}/patients/me/check-ins/{{checkInId:guid}}/respond", RespondPatientCheckInAsync)
+                .WithTags("Clinical")
+                .RequireAuthorization()
+                .RequireRateLimiting("Sensitive");
+            app.MapPost($"{prefix}/patients/me/consents/{{professionalId:guid}}/{{consentType}}", UpdatePatientPortalConsentAsync)
+                .WithTags("Clinical")
+                .RequireAuthorization()
+                .RequireRateLimiting("Sensitive");
+            app.MapPost($"{prefix}/patients/me/sensitive-consents/{{professionalId:guid}}/{{consentType}}", UpdatePatientSensitiveConsentAsync)
+                .WithTags("Clinical")
+                .RequireAuthorization()
+                .RequireRateLimiting("Sensitive");
+        }
 
         return app;
     }
@@ -274,7 +277,7 @@ public static class ClinicalEndpoints
     {
         return await ExecuteAsync(
             () => clinicalService.CreateAppointmentDraftAsync(currentUser.UserIdOrThrow(), appointmentId, request, cancellationToken),
-            draft => Results.Created($"/api/clinical/appointments/{appointmentId}/drafts/{draft.Id}", draft));
+            draft => Results.Created($"/clinical/appointments/{appointmentId}/drafts/{draft.Id}", draft));
     }
 
     private static async Task<IResult> StartAppointmentSessionAsync(
@@ -331,7 +334,7 @@ public static class ClinicalEndpoints
     {
         return await ExecuteAsync(
             () => clinicalService.CreateRecordRectificationDraftAsync(currentUser.UserIdOrThrow(), recordId, cancellationToken),
-            draft => Results.Created($"/api/clinical/records/{recordId}/rectifications/{draft.Id}", draft));
+            draft => Results.Created($"/clinical/records/{recordId}/rectifications/{draft.Id}", draft));
     }
 
     private static async Task<IResult> UpdateAppointmentConsentAsync(
@@ -397,7 +400,7 @@ public static class ClinicalEndpoints
                 appointmentId,
                 request,
                 cancellationToken),
-            task => Results.Created($"/api/clinical/appointments/{appointmentId}/tasks/{task.Id}", task));
+            task => Results.Created($"/clinical/appointments/{appointmentId}/tasks/{task.Id}", task));
     }
 
     private static async Task<IResult> ShareTaskAsync(
@@ -435,7 +438,7 @@ public static class ClinicalEndpoints
                 appointmentId,
                 request,
                 cancellationToken),
-            material => Results.Created($"/api/clinical/appointments/{appointmentId}/materials/{material.Id}", material));
+            material => Results.Created($"/clinical/appointments/{appointmentId}/materials/{material.Id}", material));
     }
 
     private static async Task<IResult> ShareMaterialAsync(
@@ -473,7 +476,7 @@ public static class ClinicalEndpoints
                 appointmentId,
                 request,
                 cancellationToken),
-            checkIn => Results.Created($"/api/clinical/appointments/{appointmentId}/check-ins/{checkIn.Id}", checkIn));
+            checkIn => Results.Created($"/clinical/appointments/{appointmentId}/check-ins/{checkIn.Id}", checkIn));
     }
 
     private static async Task<IResult> CreateAppointmentAlertAsync(
@@ -489,7 +492,7 @@ public static class ClinicalEndpoints
                 appointmentId,
                 request,
                 cancellationToken),
-            alert => Results.Created($"/api/clinical/alerts/{alert.Id}", alert));
+            alert => Results.Created($"/clinical/alerts/{alert.Id}", alert));
     }
 
     private static Task<IResult> ConfirmAlertAsync(

@@ -1854,9 +1854,5 @@ function resolveApiBaseUrl() {
   const baseUrl = configuredUrl || DEFAULT_API_BASE_URL;
   const normalizedUrl = baseUrl.replace(/\/+$/, '');
 
-  if (normalizedUrl.endsWith('/api') || normalizedUrl.includes('/api/')) {
-    return normalizedUrl;
-  }
-
-  return `${normalizedUrl}/api`;
+  return normalizedUrl.replace(/\/api$/i, '');
 }
