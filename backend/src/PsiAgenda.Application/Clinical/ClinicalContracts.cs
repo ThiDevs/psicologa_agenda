@@ -24,7 +24,9 @@ public sealed record ClinicalWorkspaceDto(
 public sealed record ClinicalAccessPolicyDto(
     string ActorRole,
     bool HasProfessionalPatientRelationship,
-    IReadOnlyList<ClinicalPermissionDto> Permissions);
+    IReadOnlyList<ClinicalPermissionDto> Permissions,
+    IReadOnlyList<ClinicalRoleBoundaryDto> RoleBoundaries,
+    IReadOnlyList<ClinicalPolicyGuardrailDto> Guardrails);
 
 public sealed record ClinicalPermissionDto(
     string Key,
@@ -33,6 +35,22 @@ public sealed record ClinicalPermissionDto(
     string Reason,
     bool RequiresConsent,
     string? ConsentType);
+
+public sealed record ClinicalRoleBoundaryDto(
+    string RoleKey,
+    string Label,
+    string AccessLevel,
+    bool ClinicalContentAllowed,
+    bool RequiresFormalAssignment,
+    string Scope,
+    string Reason);
+
+public sealed record ClinicalPolicyGuardrailDto(
+    string Key,
+    string Label,
+    string Status,
+    string Detail,
+    string? RelatedConsentType);
 
 public sealed record PatientCarePortalDto(
     Guid PatientId,

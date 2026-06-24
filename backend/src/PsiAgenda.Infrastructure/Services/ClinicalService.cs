@@ -203,7 +203,7 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             appointment.CustomerId,
             appointment.ProfessionalId,
             appointment.SpaceId,
-            BuildClinicalAccessPolicy(consents),
+            BuildClinicalAccessPolicy(consents, consentHistory),
             ToDto(session),
             drafts.Select(ToDto).ToList(),
             records.Select(ToDto).ToList(),
@@ -220,7 +220,9 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
             timeline.Select(ToDto).ToList());
     }
 
-    private static ClinicalAccessPolicyDto BuildClinicalAccessPolicy(IReadOnlyList<PatientConsentDto> consents)
+    private static ClinicalAccessPolicyDto BuildClinicalAccessPolicy(
+        IReadOnlyList<PatientConsentDto> consents,
+        IReadOnlyList<PatientConsentEventDto> consentHistory)
     {
         var portalGranted = IsConsentGranted(consents, "portal");
         var checkInsGranted = IsConsentGranted(consents, "checkins");
@@ -229,121 +231,262 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext) : IClinicalSer
         var recordingGranted = IsConsentGranted(consents, "recording");
         var transcriptionGranted = IsConsentGranted(consents, "transcription");
 
+        var permissions = new List<ClinicalPermissionDto>
+        {
+            Permission(
+                "clinical_workspace:view",
+                "Acessar workspace clínico",
+                true,
+                "Profissional vinculada ao atendimento.",
+                false,
+                null),
+            Permission(
+                "clinical_notes:write",
+                "Registrar rascunhos e tags",
+                true,
+                "Permitido para a profissional vinculada; rascunho não vira prontuário sem aprovação manual.",
+                false,
+                null),
+            Permission(
+                "clinical_records:approve",
+                "Aprovar prontuário revisado",
+                true,
+                "Aprovação é sempre uma ação humana explícita da psicóloga.",
+                false,
+                null),
+            Permission(
+                "clinical_records:export",
+                "Exportar prontuários aprovados",
+                true,
+                "Exportação inclui somente prontuários aprovados do vínculo clínico.",
+                false,
+                null),
+            Permission(
+                "clinical_timeline:read",
+                "Consultar timeline privada",
+                true,
+                "Timeline interna liberada apenas para a profissional vinculada ao paciente.",
+                false,
+                null),
+            Permission(
+                "treatment_plan:manage",
+                "Gerenciar plano terapêutico",
+                true,
+                "Plano é conteúdo clínico privado da profissional vinculada.",
+                false,
+                null),
+            Permission(
+                "clinical_alerts:manage",
+                "Revisar alertas responsáveis",
+                true,
+                "Alertas exigem revisão humana e não notificam o paciente automaticamente.",
+                false,
+                null),
+            Permission(
+                "consents:manage",
+                "Gerenciar consentimentos",
+                true,
+                "Consentimentos podem ser atualizados sem armazenar conteúdo clínico em auditoria.",
+                false,
+                null),
+            Permission(
+                "patient_portal:share",
+                "Compartilhar no portal do paciente",
+                portalGranted,
+                portalGranted
+                    ? "Consentimento ativo para portal do paciente."
+                    : "Bloqueado até consentimento ativo para portal do paciente.",
+                true,
+                "portal"),
+            Permission(
+                "materials:share",
+                "Compartilhar materiais",
+                portalGranted && materialsGranted,
+                portalGranted && materialsGranted
+                    ? "Consentimentos ativos para portal e materiais compartilhados."
+                    : "Bloqueado até consentimentos ativos para portal e materiais.",
+                true,
+                "materials"),
+            Permission(
+                "checkins:share",
+                "Compartilhar check-ins",
+                portalGranted && checkInsGranted,
+                portalGranted && checkInsGranted
+                    ? "Consentimentos ativos para portal e check-ins."
+                    : "Bloqueado até consentimentos ativos para portal e check-ins.",
+                true,
+                "checkins"),
+            Permission(
+                "ai_analysis:use",
+                "Usar análise por IA",
+                aiAnalysisGranted,
+                aiAnalysisGranted
+                    ? "Consentimento sensível ativo para análise por IA."
+                    : "Bloqueado até consentimento sensível para análise por IA.",
+                true,
+                "ai_analysis"),
+            Permission(
+                "recording:use",
+                "Usar gravação",
+                recordingGranted,
+                recordingGranted
+                    ? "Consentimento sensível ativo para gravação."
+                    : "Bloqueado até consentimento sensível para gravação.",
+                true,
+                "recording"),
+            Permission(
+                "transcription:use",
+                "Usar transcrição",
+                transcriptionGranted,
+                transcriptionGranted
+                    ? "Consentimento sensível ativo para transcrição."
+                    : "Bloqueado até consentimento sensível para transcrição.",
+                true,
+                "transcription")
+        };
+
         return new ClinicalAccessPolicyDto(
             "professional",
             true,
-            [
-                Permission(
-                    "clinical_workspace:view",
-                    "Acessar workspace clínico",
-                    true,
-                    "Profissional vinculada ao atendimento.",
-                    false,
-                    null),
-                Permission(
-                    "clinical_notes:write",
-                    "Registrar rascunhos e tags",
-                    true,
-                    "Permitido para a profissional vinculada; rascunho não vira prontuário sem aprovação manual.",
-                    false,
-                    null),
-                Permission(
-                    "clinical_records:approve",
-                    "Aprovar prontuário revisado",
-                    true,
-                    "Aprovação é sempre uma ação humana explícita da psicóloga.",
-                    false,
-                    null),
-                Permission(
-                    "clinical_records:export",
-                    "Exportar prontuários aprovados",
-                    true,
-                    "Exportação inclui somente prontuários aprovados do vínculo clínico.",
-                    false,
-                    null),
-                Permission(
-                    "clinical_timeline:read",
-                    "Consultar timeline privada",
-                    true,
-                    "Timeline interna liberada apenas para a profissional vinculada ao paciente.",
-                    false,
-                    null),
-                Permission(
-                    "treatment_plan:manage",
-                    "Gerenciar plano terapêutico",
-                    true,
-                    "Plano é conteúdo clínico privado da profissional vinculada.",
-                    false,
-                    null),
-                Permission(
-                    "clinical_alerts:manage",
-                    "Revisar alertas responsáveis",
-                    true,
-                    "Alertas exigem revisão humana e não notificam o paciente automaticamente.",
-                    false,
-                    null),
-                Permission(
-                    "consents:manage",
-                    "Gerenciar consentimentos",
-                    true,
-                    "Consentimentos podem ser atualizados sem armazenar conteúdo clínico em auditoria.",
-                    false,
-                    null),
-                Permission(
-                    "patient_portal:share",
-                    "Compartilhar no portal do paciente",
-                    portalGranted,
-                    portalGranted
-                        ? "Consentimento ativo para portal do paciente."
-                        : "Bloqueado até consentimento ativo para portal do paciente.",
-                    true,
-                    "portal"),
-                Permission(
-                    "materials:share",
-                    "Compartilhar materiais",
-                    portalGranted && materialsGranted,
-                    portalGranted && materialsGranted
-                        ? "Consentimentos ativos para portal e materiais compartilhados."
-                        : "Bloqueado até consentimentos ativos para portal e materiais.",
-                    true,
-                    "materials"),
-                Permission(
-                    "checkins:share",
-                    "Compartilhar check-ins",
-                    portalGranted && checkInsGranted,
-                    portalGranted && checkInsGranted
-                        ? "Consentimentos ativos para portal e check-ins."
-                        : "Bloqueado até consentimentos ativos para portal e check-ins.",
-                    true,
-                    "checkins"),
-                Permission(
-                    "ai_analysis:use",
-                    "Usar análise por IA",
-                    aiAnalysisGranted,
-                    aiAnalysisGranted
-                        ? "Consentimento sensível ativo para análise por IA."
-                        : "Bloqueado até consentimento sensível para análise por IA.",
-                    true,
-                    "ai_analysis"),
-                Permission(
-                    "recording:use",
-                    "Usar gravação",
-                    recordingGranted,
-                    recordingGranted
-                        ? "Consentimento sensível ativo para gravação."
-                        : "Bloqueado até consentimento sensível para gravação.",
-                    true,
-                    "recording"),
-                Permission(
-                    "transcription:use",
-                    "Usar transcrição",
-                    transcriptionGranted,
-                    transcriptionGranted
-                        ? "Consentimento sensível ativo para transcrição."
-                        : "Bloqueado até consentimento sensível para transcrição.",
-                    true,
-                    "transcription")
-            ]);
+            permissions,
+            BuildClinicalRoleBoundaries(aiAnalysisGranted, recordingGranted, transcriptionGranted),
+            BuildClinicalPolicyGuardrails(consents, consentHistory));
+    }
+
+    private static IReadOnlyList<ClinicalRoleBoundaryDto> BuildClinicalRoleBoundaries(
+        bool aiAnalysisGranted,
+        bool recordingGranted,
+        bool transcriptionGranted)
+    {
+        var sensitiveScopes = new List<string>();
+        if (aiAnalysisGranted)
+        {
+            sensitiveScopes.Add("análise por IA");
+        }
+
+        if (recordingGranted)
+        {
+            sensitiveScopes.Add("gravação");
+        }
+
+        if (transcriptionGranted)
+        {
+            sensitiveScopes.Add("transcrição");
+        }
+
+        var systemAiScope = aiAnalysisGranted
+            ? "Somente apoio mínimo e temporário a rascunhos/sugestões revisadas pela psicóloga."
+            : "Bloqueado enquanto não houver consentimento sensível ativo para análise por IA.";
+
+        return
+        [
+            new ClinicalRoleBoundaryDto(
+                "professional",
+                "Psicóloga vinculada",
+                "Conteúdo clínico do próprio vínculo",
+                true,
+                false,
+                "Pode acessar rascunhos, prontuário, memória, plano, alertas, consentimentos e itens compartilháveis deste paciente.",
+                "Acesso liberado porque a profissional autenticada está vinculada ao atendimento."),
+            new ClinicalRoleBoundaryDto(
+                "space_admin",
+                "Admin operacional",
+                "Operação sem conteúdo clínico",
+                false,
+                true,
+                "Pode operar agenda e consultório, mas não acessa rascunho, prontuário, memória, alertas ou plano terapêutico por padrão.",
+                "Conteúdo clínico privado exige papel clínico formal, vínculo e auditoria própria."),
+            new ClinicalRoleBoundaryDto(
+                "clinical_supervisor",
+                "Supervisão clínica",
+                "Bloqueado até designação formal",
+                false,
+                true,
+                "Supervisão ainda não habilitada neste MVP; futura liberação deve ter papel explícito, escopo do paciente e trilha de auditoria.",
+                "Evita acesso clínico indireto por papéis operacionais ou administrativos."),
+            new ClinicalRoleBoundaryDto(
+                "patient",
+                "Paciente",
+                "Portal compartilhável",
+                false,
+                false,
+                "Paciente acessa apenas tarefas, materiais, check-ins e consentimentos liberados no portal.",
+                "Rascunho, prontuário, memória clínica, plano e timeline interna não são retornados pelo portal."),
+            new ClinicalRoleBoundaryDto(
+                "system_ai",
+                "Sistema de IA",
+                sensitiveScopes.Count > 0 ? "Consentimento sensível parcial" : "Bloqueado",
+                false,
+                true,
+                systemAiScope,
+                "IA nunca aprova prontuário, não decide conduta e só pode apoiar rascunhos ou briefings com consentimento e minimização.")
+        ];
+    }
+
+    private static IReadOnlyList<ClinicalPolicyGuardrailDto> BuildClinicalPolicyGuardrails(
+        IReadOnlyList<PatientConsentDto> consents,
+        IReadOnlyList<PatientConsentEventDto> consentHistory)
+    {
+        var revokedTypes = DistinctConsentTypes(consentHistory, "revoked");
+        var expiredTypes = DistinctConsentTypes(consentHistory, "expired");
+        var sensitiveBlockedTypes = SensitiveConsentTypes
+            .Where(consentType => !IsConsentGranted(consents, consentType))
+            .ToList();
+
+        return
+        [
+            new ClinicalPolicyGuardrailDto(
+                "operational_admin_default_denied",
+                "Admin sem conteúdo clínico",
+                "blocked",
+                "Papéis operacionais permanecem fora de rascunhos, prontuário, memória, plano terapêutico e alertas por padrão.",
+                null),
+            new ClinicalPolicyGuardrailDto(
+                "supervision_formal_assignment_required",
+                "Supervisão exige papel formal",
+                "blocked",
+                "Não há acesso de supervisão neste vínculo até existir designação clínica explícita, escopo do paciente e auditoria dedicada.",
+                null),
+            new ClinicalPolicyGuardrailDto(
+                "historical_revocations",
+                "Revogações preservadas",
+                revokedTypes.Count > 0 ? "attention" : "clear",
+                revokedTypes.Count > 0
+                    ? $"Há revogação técnica registrada para {BuildConsentTypeList(revokedTypes)}; novos usos seguem o estado atual do consentimento."
+                    : "Nenhuma revogação técnica recente neste vínculo.",
+                revokedTypes.Count == 1 ? revokedTypes[0] : null),
+            new ClinicalPolicyGuardrailDto(
+                "historical_expirations",
+                "Expirações automáticas",
+                expiredTypes.Count > 0 ? "attention" : "clear",
+                expiredTypes.Count > 0
+                    ? $"Há expiração registrada para {BuildConsentTypeList(expiredTypes)}; permissões sensíveis e compartilháveis são recalculadas antes do uso."
+                    : "Nenhuma expiração materializada recentemente neste vínculo.",
+                expiredTypes.Count == 1 ? expiredTypes[0] : null),
+            new ClinicalPolicyGuardrailDto(
+                "sensitive_capabilities_gate",
+                "Recursos sensíveis",
+                sensitiveBlockedTypes.Count > 0 ? "blocked" : "ready",
+                sensitiveBlockedTypes.Count > 0
+                    ? $"Bloqueados para novos usos sem consentimento ativo: {BuildConsentTypeList(sensitiveBlockedTypes)}."
+                    : "Consentimentos sensíveis ativos; qualquer recurso futuro ainda deve minimizar dados e exigir revisão humana.",
+                sensitiveBlockedTypes.Count == 1 ? sensitiveBlockedTypes[0] : null)
+        ];
+    }
+
+    private static IReadOnlyList<string> DistinctConsentTypes(
+        IReadOnlyList<PatientConsentEventDto> consentHistory,
+        string status)
+    {
+        return consentHistory
+            .Where(consentEvent =>
+                string.Equals(consentEvent.Status, status, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(consentEvent.Action, status, StringComparison.OrdinalIgnoreCase))
+            .Select(consentEvent => consentEvent.ConsentType)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(consentType => AllowedSensitiveConsentTypes.Contains(consentType))
+            .ThenBy(consentType => consentType)
+            .ToList();
     }
 
     private static ClinicalPermissionDto Permission(

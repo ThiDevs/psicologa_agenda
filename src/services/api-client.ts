@@ -480,10 +480,30 @@ export type ApiClinicalPermission = {
   consentType?: string | null;
 };
 
+export type ApiClinicalRoleBoundary = {
+  roleKey: string;
+  label: string;
+  accessLevel: string;
+  clinicalContentAllowed: boolean;
+  requiresFormalAssignment: boolean;
+  scope: string;
+  reason: string;
+};
+
+export type ApiClinicalPolicyGuardrail = {
+  key: string;
+  label: string;
+  status: 'blocked' | 'attention' | 'clear' | 'ready' | string;
+  detail: string;
+  relatedConsentType?: string | null;
+};
+
 export type ApiClinicalAccessPolicy = {
   actorRole: string;
   hasProfessionalPatientRelationship: boolean;
   permissions: ApiClinicalPermission[];
+  roleBoundaries: ApiClinicalRoleBoundary[];
+  guardrails: ApiClinicalPolicyGuardrail[];
 };
 
 export type ApiClinicalSession = {

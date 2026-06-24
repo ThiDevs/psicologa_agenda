@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInUp, LinearTransition } from 'react-native-reanimated';
 
 import {
   EmptyState,
@@ -50,9 +51,11 @@ import {
   type ApiAppointmentDetails,
   type ApiClinicalAlert,
   type ApiClinicalAlertSeverity,
+  type ApiClinicalPolicyGuardrail,
   type ApiClinicalPermission,
   type ApiClinicalRecordExport,
   type ApiClinicalRetentionPolicy,
+  type ApiClinicalRoleBoundary,
   type ApiClinicalSession,
   type ApiClinicalTagInput,
   type ApiClinicalWorkspace,
@@ -428,6 +431,9 @@ export function ClinicalPatientWorkspaceScreen() {
     patientCheckIns.filter(isPatientVisibleStatus).length;
   const accessPolicy = workspace?.accessPolicy ?? null;
   const grantedPermissionCount = accessPolicy?.permissions.filter((permission) => permission.granted).length ?? 0;
+  const activeGuardrailCount = accessPolicy?.guardrails.filter((guardrail) => (
+    guardrail.status === 'blocked' || guardrail.status === 'attention'
+  )).length ?? 0;
   const consentTermByKey = useMemo(() => buildConsentTermMap(workspace?.consentTerms), [workspace?.consentTerms]);
   const retentionPolicyByKey = useMemo(
     () => buildRetentionPolicyMap(workspace?.retentionPolicies),
@@ -1974,13 +1980,13 @@ export function ClinicalPatientWorkspaceScreen() {
 
       <SectionTitle
         appearance="dark"
-        title="Permissões clínicas"
-        actionLabel={accessPolicy ? `${grantedPermissionCount}/${accessPolicy.permissions.length} liberadas` : 'Pendente'}
+        title="Governança de acesso"
+        actionLabel={accessPolicy ? `${activeGuardrailCount} guardrails ativos` : 'Pendente'}
       />
       <View style={styles.card}>
         <Text style={styles.cardText}>
-          Matriz efetiva deste workspace: vínculo profissional-paciente libera o núcleo clínico; portal, IA,
-          gravação e transcrição dependem de consentimentos próprios.
+          Matriz efetiva deste workspace: vínculo profissional-paciente libera o núcleo clínico; papéis
+          operacionais, supervisão e IA seguem limites próprios antes de qualquer acesso sensível.
         </Text>
         {accessPolicy ? (
           <>
@@ -1997,10 +2003,64 @@ export function ClinicalPatientWorkspaceScreen() {
                   {accessPolicy.hasProfessionalPatientRelationship ? 'Confirmado' : 'Bloqueado'}
                 </Text>
               </View>
+              <View style={styles.permissionSummaryItem}>
+                <Text style={styles.kicker}>Permissões</Text>
+                <Text style={styles.permissionSummaryValue}>
+                  {grantedPermissionCount}/{accessPolicy.permissions.length} liberadas
+                </Text>
+              </View>
             </View>
+
+            <View style={styles.policyBlock}>
+              <View style={styles.policyBlockHeader}>
+                <View style={styles.policyBlockIcon}>
+                  <Ionicons name="people-outline" size={17} color={UI.darkPrimary} />
+                </View>
+                <View style={styles.policyBlockTitleWrap}>
+                  <Text style={styles.policyBlockTitle}>Limites por papel</Text>
+                  <Text style={styles.policyBlockText}>
+                    Quem pode ver conteúdo clínico privado e sob qual escopo.
+                  </Text>
+                </View>
+              </View>
+              {accessPolicy.roleBoundaries.map((boundary, index) => (
+                <ClinicalRoleBoundaryRow
+                  key={boundary.roleKey}
+                  boundary={boundary}
+                  index={index}
+                />
+              ))}
+            </View>
+
+            <View style={styles.policyBlock}>
+              <View style={styles.policyBlockHeader}>
+                <View style={styles.policyBlockIcon}>
+                  <Ionicons name="shield-checkmark-outline" size={17} color={UI.darkPrimary} />
+                </View>
+                <View style={styles.policyBlockTitleWrap}>
+                  <Text style={styles.policyBlockTitle}>Guardrails do vínculo</Text>
+                  <Text style={styles.policyBlockText}>
+                    Revogações, expirações e recursos sensíveis recalculados antes do uso.
+                  </Text>
+                </View>
+              </View>
+              {accessPolicy.guardrails.map((guardrail, index) => (
+                <ClinicalGuardrailRow
+                  key={guardrail.key}
+                  guardrail={guardrail}
+                  index={index}
+                />
+              ))}
+            </View>
+
             <View style={styles.permissionList}>
-              {accessPolicy.permissions.map((permission) => (
-                <ClinicalPermissionRow key={permission.key} permission={permission} />
+              <Text style={styles.policyBlockTitle}>Permissões efetivas</Text>
+              {accessPolicy.permissions.map((permission, index) => (
+                <ClinicalPermissionRow
+                  key={permission.key}
+                  permission={permission}
+                  index={index}
+                />
               ))}
             </View>
           </>
@@ -2430,12 +2490,94 @@ type ConsentRowModel = ClinicalConsentItem & {
   expiresAt?: string | null;
 };
 
-function ClinicalPermissionRow({ permission }: { permission: ApiClinicalPermission }) {
+function ClinicalRoleBoundaryRow({
+  boundary,
+  index,
+}: {
+  boundary: ApiClinicalRoleBoundary;
+  index: number;
+}) {
+  const color = boundary.clinicalContentAllowed ? UI.darkPrimary : '#F3C969';
+  const icon: keyof typeof Ionicons.glyphMap = boundary.clinicalContentAllowed
+    ? 'checkmark-circle-outline'
+    : boundary.requiresFormalAssignment
+      ? 'key-outline'
+      : 'lock-closed-outline';
+
+  return (
+    <Animated.View
+      entering={FadeInUp.duration(220).delay(index * 35)}
+      layout={LinearTransition.duration(180)}
+      style={styles.policyRow}>
+      <View style={[styles.consentIcon, boundary.clinicalContentAllowed && styles.consentIconGranted]}>
+        <Ionicons name={icon} size={17} color={color} />
+      </View>
+      <View style={styles.consentCopy}>
+        <View style={styles.consentTitleRow}>
+          <Text style={styles.cardTitle}>{boundary.label}</Text>
+          <View style={[styles.consentStatusPill, { borderColor: color }]}>
+            <Text style={[styles.consentStatusText, { color }]}>
+              {boundary.accessLevel}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.consentDescription}>{boundary.scope}</Text>
+        <Text style={styles.consentMeta}>{boundary.reason}</Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+function ClinicalGuardrailRow({
+  guardrail,
+  index,
+}: {
+  guardrail: ApiClinicalPolicyGuardrail;
+  index: number;
+}) {
+  const color = guardrailStatusColor(guardrail.status);
+
+  return (
+    <Animated.View
+      entering={FadeInUp.duration(220).delay(index * 35)}
+      layout={LinearTransition.duration(180)}
+      style={styles.policyRow}>
+      <View style={[styles.consentIcon, guardrail.status === 'ready' && styles.consentIconGranted]}>
+        <Ionicons name={guardrailStatusIcon(guardrail.status)} size={17} color={color} />
+      </View>
+      <View style={styles.consentCopy}>
+        <View style={styles.consentTitleRow}>
+          <Text style={styles.cardTitle}>{guardrail.label}</Text>
+          <View style={[styles.consentStatusPill, { borderColor: color }]}>
+            <Text style={[styles.consentStatusText, { color }]}>
+              {guardrailStatusLabel(guardrail.status)}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.consentDescription}>{guardrail.detail}</Text>
+        {guardrail.relatedConsentType ? (
+          <Text style={styles.consentMeta}>Consentimento: {consentTypeLabel(guardrail.relatedConsentType)}</Text>
+        ) : null}
+      </View>
+    </Animated.View>
+  );
+}
+
+function ClinicalPermissionRow({
+  permission,
+  index,
+}: {
+  permission: ApiClinicalPermission;
+  index: number;
+}) {
   const icon = permission.granted ? 'checkmark-circle-outline' : 'lock-closed-outline';
   const color = permission.granted ? UI.darkPrimary : '#F3C969';
 
   return (
-    <View style={styles.permissionRow}>
+    <Animated.View
+      entering={FadeInUp.duration(220).delay(index * 25)}
+      layout={LinearTransition.duration(180)}
+      style={styles.permissionRow}>
       <View style={[styles.consentIcon, permission.granted && styles.consentIconGranted]}>
         <Ionicons name={icon} size={17} color={color} />
       </View>
@@ -2455,7 +2597,7 @@ function ClinicalPermissionRow({ permission }: { permission: ApiClinicalPermissi
             : 'Base: vínculo profissional-paciente'}
         </Text>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -3207,6 +3349,51 @@ function consentStatusColor(status: ApiPatientConsentStatus) {
       return '#F3C969';
     case 'pending':
       return UI.darkTextMuted;
+  }
+}
+
+function guardrailStatusLabel(status: string) {
+  switch (status) {
+    case 'blocked':
+      return 'Bloqueado';
+    case 'attention':
+      return 'Atenção';
+    case 'ready':
+      return 'Pronto';
+    case 'clear':
+      return 'Sem evento';
+    default:
+      return status;
+  }
+}
+
+function guardrailStatusIcon(status: string): keyof typeof Ionicons.glyphMap {
+  switch (status) {
+    case 'blocked':
+      return 'lock-closed-outline';
+    case 'attention':
+      return 'alert-circle-outline';
+    case 'ready':
+      return 'checkmark-circle-outline';
+    case 'clear':
+      return 'ellipse-outline';
+    default:
+      return 'shield-checkmark-outline';
+  }
+}
+
+function guardrailStatusColor(status: string) {
+  switch (status) {
+    case 'blocked':
+      return '#F3C969';
+    case 'attention':
+      return '#E0A33D';
+    case 'ready':
+      return UI.darkPrimary;
+    case 'clear':
+      return UI.darkTextMuted;
+    default:
+      return UI.darkPrimary;
   }
 }
 
@@ -4027,9 +4214,59 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: '600',
   },
+  policyBlock: {
+    gap: 10,
+    paddingTop: 14,
+    marginTop: 2,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(237, 247, 242, 0.08)',
+  },
+  policyBlockHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  policyBlockIcon: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(6, 74, 138, 0.18)',
+    backgroundColor: 'rgba(6, 74, 138, 0.08)',
+  },
+  policyBlockTitleWrap: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  policyBlockTitle: {
+    color: UI.darkText,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  policyBlockText: {
+    color: UI.darkTextMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '400',
+  },
+  policyRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(237, 247, 242, 0.06)',
+  },
   permissionList: {
     gap: 0,
-    paddingTop: 2,
+    paddingTop: 14,
+    marginTop: 2,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(237, 247, 242, 0.08)',
   },
   permissionRow: {
     flexDirection: 'row',
