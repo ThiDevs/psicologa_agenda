@@ -125,6 +125,11 @@ public static class ClinicalEndpoints
 
     private static async Task<IResult> GetPatientAlertsAsync(
         Guid patientId,
+        string? severity,
+        string? status,
+        string? sourceType,
+        bool? onlyActive,
+        int? limit,
         ICurrentUserService currentUser,
         IClinicalService clinicalService,
         CancellationToken cancellationToken)
@@ -133,6 +138,7 @@ public static class ClinicalEndpoints
             () => clinicalService.GetPatientAlertsAsync(
                 currentUser.UserIdOrThrow(),
                 patientId,
+                new ClinicalAlertQuery(severity, status, sourceType, onlyActive, limit),
                 cancellationToken),
             Results.Ok);
     }

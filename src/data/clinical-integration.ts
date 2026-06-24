@@ -59,9 +59,10 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Arquivamento controlado remove itens não oficiais da timeline ativa sem apagar rastreabilidade.',
       'Timeline longitudinal filtra por tag aplicada e severidade clínica das tags.',
       'Alertas responsáveis revisados entram como memória clínica na timeline.',
+      'Alertas do paciente podem ser filtrados por prioridade, estado, origem e somente ativos.',
     ],
     missing: [
-      'Filtro avançado de alertas e política de retenção/exportação.',
+      'Política de retenção/exportação para alertas e timeline.',
     ],
   },
   {
@@ -163,6 +164,7 @@ export const clinicalIntegrationModules: ClinicalIntegrationModule[] = [
       'Decisões geram timeline e auditoria sem enviar mensagem automática ao paciente.',
       'Alertas altos ativos aparecem no briefing pré-sessão.',
       'Motor inicial cria alerta pendente por tag de risco e check-in com escala baixa.',
+      'Painel clínico filtra alertas por prioridade, estado e origem antes da revisão humana.',
     ],
     missing: [
       'Configuração visual das regras de alerta.',

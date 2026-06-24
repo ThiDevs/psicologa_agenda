@@ -34,6 +34,7 @@ import {
   exportClinicalPatientRecords,
   getApiErrorMessage,
   getClinicalAppointmentWorkspace,
+  getClinicalPatientAlerts,
   getClinicalPatientTimeline,
   getClinicalTimelineItemDetail,
   getProfessionalAppointmentDetails,
@@ -51,6 +52,7 @@ import {
   type ApiAppointmentDetails,
   type ApiClinicalAlert,
   type ApiClinicalAlertSeverity,
+  type ApiClinicalAlertStatus,
   type ApiClinicalDataProtectionPolicy,
   type ApiClinicalPolicyGuardrail,
   type ApiClinicalPermission,
@@ -77,6 +79,8 @@ import type { ClinicalConsentItem, ClinicalIntegrationStatus, ClinicalQuickTag }
 
 type TimelineLayerFilter = ApiPatientTimelineItem['layer'] | 'all';
 type TimelineSeverityFilter = ApiClinicalTagInput['tone'] | 'all';
+type ClinicalAlertSeverityFilter = ApiClinicalAlertSeverity | 'all';
+type ClinicalAlertStatusFilter = ApiClinicalAlertStatus | 'active' | 'all';
 type ClinicalAlertReviewAction = 'confirm' | 'dismiss' | 'monitor' | 'resolve';
 
 const integrationStatusLabel: Record<ClinicalIntegrationStatus, string> = {
@@ -153,6 +157,31 @@ const alertSeverityOptions: { value: ApiClinicalAlertSeverity; label: string }[]
   { value: 'baixo', label: 'Baixo' },
   { value: 'medio', label: 'Médio' },
   { value: 'alto', label: 'Alto' },
+];
+
+const alertFilterSeverityOptions: { value: ClinicalAlertSeverityFilter; label: string }[] = [
+  { value: 'all', label: 'Todos' },
+  ...alertSeverityOptions,
+];
+
+const alertStatusFilterOptions: { value: ClinicalAlertStatusFilter; label: string }[] = [
+  { value: 'active', label: 'Em revisão' },
+  { value: 'pending', label: 'Pendentes' },
+  { value: 'confirmed', label: 'Confirmados' },
+  { value: 'monitoring', label: 'Acompanhando' },
+  { value: 'dismissed', label: 'Descartados' },
+  { value: 'resolved', label: 'Resolvidos' },
+  { value: 'all', label: 'Todos' },
+];
+
+const alertSourceFilterOptions = [
+  { value: 'all', label: 'Todas' },
+  { value: 'manual', label: 'Manual' },
+  { value: 'tag', label: 'Tag clínica' },
+  { value: 'checkin', label: 'Check-in' },
+  { value: 'checkin_response', label: 'Resposta' },
+  { value: 'transcription', label: 'Transcrição' },
+  { value: 'ai', label: 'IA revisável' },
 ];
 
 const sessionStatusLabels: Record<string, string> = {
@@ -308,6 +337,10 @@ export function ClinicalPatientWorkspaceScreen() {
   const [alertTitle, setAlertTitle] = useState('');
   const [alertDescription, setAlertDescription] = useState('');
   const [alertSeverity, setAlertSeverity] = useState<ApiClinicalAlertSeverity>('medio');
+  const [alertSeverityFilter, setAlertSeverityFilter] = useState<ClinicalAlertSeverityFilter>('all');
+  const [alertStatusFilter, setAlertStatusFilter] = useState<ClinicalAlertStatusFilter>('active');
+  const [alertSourceFilter, setAlertSourceFilter] = useState('all');
+  const [loadingPatientAlerts, setLoadingPatientAlerts] = useState(false);
   const [timelineLayerFilter, setTimelineLayerFilter] = useState<TimelineLayerFilter>('all');
   const [timelineSourceFilter, setTimelineSourceFilter] = useState('all');
   const [timelineSearch, setTimelineSearch] = useState('');
@@ -676,6 +709,34 @@ export function ClinicalPatientWorkspaceScreen() {
     setWorkspace(updated);
     hydrateFromWorkspace(updated);
     setClinicalMessage(successMessage);
+  }
+
+  async function loadPatientAlerts() {
+    const alertsPatientId = workspace?.patientId ?? patientId;
+    if (!workspace || !alertsPatientId || alertsPatientId === 'sem-id') {
+      setClinicalMessage('Carregue um atendimento clínico antes de filtrar alertas responsáveis.');
+      return;
+    }
+
+    setLoadingPatientAlerts(true);
+    setClinicalMessage(null);
+
+    try {
+      const alerts = await getClinicalPatientAlerts(alertsPatientId, {
+        severity: alertSeverityFilter,
+        status: alertStatusFilter === 'active' ? 'all' : alertStatusFilter,
+        sourceType: alertSourceFilter,
+        onlyActive: alertStatusFilter === 'active' ? true : null,
+        limit: 80,
+      });
+
+      setWorkspace((current) => current ? { ...current, alerts } : current);
+      setClinicalMessage('Alertas filtrados carregados para revisão humana. Nenhum paciente foi notificado automaticamente.');
+    } catch (error) {
+      setClinicalMessage(getApiErrorMessage(error));
+    } finally {
+      setLoadingPatientAlerts(false);
+    }
   }
 
   async function loadPatientTimeline() {
@@ -1296,6 +1357,52 @@ export function ClinicalPatientWorkspaceScreen() {
           disabled={!appointmentId || Boolean(savingAlertAction)}
           onPress={createResponsibleAlert}
         />
+        <Animated.View
+          entering={FadeInUp.delay(40).duration(240)}
+          layout={LinearTransition.duration(180)}
+          style={styles.alertReviewPanel}>
+          <View style={styles.alertReviewHeader}>
+            <View style={styles.alertReviewIcon}>
+              <Ionicons name="funnel-outline" size={17} color={UI.darkPrimary} />
+            </View>
+            <View style={styles.alertReviewCopy}>
+              <Text style={styles.cardTitle}>Triagem de alertas</Text>
+              <Text style={styles.alertSafetyText}>
+                Filtre pontos de atenção por prioridade, estado e origem. A decisão continua manual e restrita à psicóloga.
+              </Text>
+            </View>
+            <View style={styles.alertReviewCount}>
+              <Text style={styles.alertReviewCountValue}>{clinicalAlerts.length}</Text>
+              <Text style={styles.alertReviewCountLabel}>vistos</Text>
+            </View>
+          </View>
+          <TimelineFilterGroup
+            label="Prioridade"
+            options={alertFilterSeverityOptions}
+            value={alertSeverityFilter}
+            onChange={setAlertSeverityFilter}
+          />
+          <TimelineFilterGroup
+            label="Estado"
+            options={alertStatusFilterOptions}
+            value={alertStatusFilter}
+            onChange={setAlertStatusFilter}
+          />
+          <TimelineFilterGroup
+            label="Origem"
+            options={alertSourceFilterOptions}
+            value={alertSourceFilter}
+            onChange={setAlertSourceFilter}
+          />
+          <PrimaryButton
+            label="Aplicar triagem"
+            icon="funnel-outline"
+            variant="secondary"
+            loading={loadingPatientAlerts}
+            disabled={!workspace || loadingPatientAlerts}
+            onPress={loadPatientAlerts}
+          />
+        </Animated.View>
         <View style={styles.list}>
           {clinicalAlerts.length ? (
             clinicalAlerts.map((alert) => (
@@ -4041,6 +4148,48 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     fontWeight: '400',
+  },
+  alertReviewPanel: {
+    gap: 11,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(6, 74, 138, 0.18)',
+    backgroundColor: 'rgba(6, 74, 138, 0.07)',
+  },
+  alertReviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  alertReviewIcon: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: 'rgba(6, 74, 138, 0.12)',
+  },
+  alertReviewCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  alertReviewCount: {
+    minWidth: 54,
+    alignItems: 'flex-end',
+    gap: 1,
+  },
+  alertReviewCountValue: {
+    color: UI.darkText,
+    fontSize: 18,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
+  alertReviewCountLabel: {
+    color: UI.darkTextMuted,
+    fontSize: 11,
+    fontWeight: '500',
   },
   briefingIntro: {
     flexDirection: 'row',

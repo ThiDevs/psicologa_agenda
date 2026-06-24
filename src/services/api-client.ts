@@ -376,6 +376,14 @@ export type ApiClinicalAlert = {
   updatedAt: string;
 };
 
+export type ApiClinicalAlertFilters = {
+  severity?: ApiClinicalAlertSeverity | 'all' | null;
+  status?: ApiClinicalAlertStatus | 'all' | null;
+  sourceType?: string | 'all' | null;
+  onlyActive?: boolean | null;
+  limit?: number | null;
+};
+
 export type ApiClinicalTimelineFilters = {
   sourceType?: string | null;
   layer?: ApiPatientTimelineItem['layer'] | 'all' | null;
@@ -1263,8 +1271,34 @@ export async function getClinicalTimelineItemDetail(itemId: string) {
   return request<ApiPatientTimelineItemDetail>(`/clinical/timeline/${itemId}`, { authenticated: true });
 }
 
-export async function getClinicalPatientAlerts(patientId: string) {
-  return request<ApiClinicalAlert[]>(`/clinical/patients/${patientId}/alerts`, { authenticated: true });
+export async function getClinicalPatientAlerts(patientId: string, filters: ApiClinicalAlertFilters = {}) {
+  const params = new URLSearchParams();
+
+  if (filters.severity && filters.severity !== 'all') {
+    params.set('severity', filters.severity);
+  }
+
+  if (filters.status && filters.status !== 'all') {
+    params.set('status', filters.status);
+  }
+
+  if (filters.sourceType && filters.sourceType !== 'all') {
+    params.set('sourceType', filters.sourceType);
+  }
+
+  if (filters.onlyActive != null) {
+    params.set('onlyActive', String(filters.onlyActive));
+  }
+
+  if (filters.limit) {
+    params.set('limit', String(filters.limit));
+  }
+
+  const query = params.toString();
+  return request<ApiClinicalAlert[]>(
+    `/clinical/patients/${patientId}/alerts${query ? `?${query}` : ''}`,
+    { authenticated: true },
+  );
 }
 
 export async function exportClinicalPatientRecords(patientId: string) {

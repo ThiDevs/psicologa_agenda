@@ -607,18 +607,47 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext, IClinicalTextP
     public async Task<IReadOnlyList<ClinicalAlertDto>> GetPatientAlertsAsync(
         Guid professionalUserId,
         Guid patientId,
+        ClinicalAlertQuery query,
         CancellationToken cancellationToken)
     {
         var relationship = await EnsureProfessionalPatientRelationshipAsync(professionalUserId, patientId, cancellationToken);
-        var alerts = await dbContext.ClinicalAlerts
+        var severity = NormalizeAlertSeverityFilter(query.Severity);
+        var status = NormalizeAlertStatusFilter(query.Status);
+        var sourceType = NormalizeAlertSourceType(query.SourceType);
+        var onlyActive = query.OnlyActive ?? false;
+        var limit = NormalizeAlertLimit(query.Limit);
+
+        var alertsQuery = dbContext.ClinicalAlerts
             .AsNoTracking()
             .Where(alert =>
                 alert.PatientId == patientId &&
-                alert.ProfessionalId == relationship.ProfessionalId)
+                alert.ProfessionalId == relationship.ProfessionalId);
+
+        if (severity is not null)
+        {
+            alertsQuery = alertsQuery.Where(alert => alert.Severity == severity);
+        }
+
+        if (status is not null)
+        {
+            alertsQuery = alertsQuery.Where(alert => alert.Status == status);
+        }
+
+        if (sourceType is not null)
+        {
+            alertsQuery = alertsQuery.Where(alert => alert.SourceType == sourceType);
+        }
+
+        if (onlyActive)
+        {
+            alertsQuery = alertsQuery.Where(alert => alert.Status != "resolved" && alert.Status != "dismissed");
+        }
+
+        var alerts = await alertsQuery
             .OrderBy(alert => alert.Status == "resolved" || alert.Status == "dismissed")
             .ThenByDescending(alert => alert.Severity == "alto")
             .ThenByDescending(alert => alert.CreatedAt)
-            .Take(80)
+            .Take(limit)
             .ToListAsync(cancellationToken);
 
         await AddClinicalAuditAsync(
@@ -3756,6 +3785,49 @@ public sealed class ClinicalService(PsiAgendaDbContext dbContext, IClinicalTextP
         }
 
         return normalized;
+    }
+
+    private static string? NormalizeAlertSeverityFilter(string? severity)
+    {
+        var normalized = NormalizeOptionalText(severity, 20, "Severidade do alerta")?.ToLowerInvariant();
+        if (normalized is null || normalized == "all")
+        {
+            return null;
+        }
+
+        if (!AllowedAlertSeverities.Contains(normalized))
+        {
+            throw new InvalidOperationException("Severidade do alerta inválida.");
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeAlertStatusFilter(string? status)
+    {
+        var normalized = NormalizeOptionalText(status, 20, "Status do alerta")?.ToLowerInvariant();
+        if (normalized is null || normalized == "all")
+        {
+            return null;
+        }
+
+        if (!AllowedAlertStatuses.Contains(normalized))
+        {
+            throw new InvalidOperationException("Status do alerta inválido.");
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeAlertSourceType(string? sourceType)
+    {
+        var normalized = NormalizeOptionalText(sourceType, 80, "Origem do alerta")?.ToLowerInvariant();
+        return normalized == "all" ? null : normalized;
+    }
+
+    private static int NormalizeAlertLimit(int? limit)
+    {
+        return Math.Clamp(limit ?? 80, 1, 120);
     }
 
     private static string AlertSeverityLabel(string severity)

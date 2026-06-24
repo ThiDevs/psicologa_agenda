@@ -402,6 +402,13 @@ public sealed record CreateClinicalAlertRequest(
 public sealed record ReviewClinicalAlertRequest(
     string? ReviewNote);
 
+public sealed record ClinicalAlertQuery(
+    string? Severity,
+    string? Status,
+    string? SourceType,
+    bool? OnlyActive,
+    int? Limit);
+
 public sealed record PatientTimelineQuery(
     string? SourceType,
     string? Layer,
@@ -419,7 +426,7 @@ public interface IClinicalService
 {
     Task<int> ExpireDuePatientConsentsAsync(CancellationToken cancellationToken);
     Task<ClinicalWorkspaceDto> GetAppointmentWorkspaceAsync(Guid professionalUserId, Guid appointmentId, CancellationToken cancellationToken);
-    Task<IReadOnlyList<ClinicalAlertDto>> GetPatientAlertsAsync(Guid professionalUserId, Guid patientId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<ClinicalAlertDto>> GetPatientAlertsAsync(Guid professionalUserId, Guid patientId, ClinicalAlertQuery query, CancellationToken cancellationToken);
     Task<IReadOnlyList<PatientTimelineItemDto>> GetPatientTimelineAsync(Guid professionalUserId, Guid patientId, PatientTimelineQuery query, CancellationToken cancellationToken);
     Task<PatientTimelineItemDetailDto> GetTimelineItemDetailAsync(Guid professionalUserId, Guid itemId, CancellationToken cancellationToken);
     Task<PatientTimelineItemDetailDto> ArchiveTimelineItemAsync(Guid professionalUserId, Guid itemId, ArchiveTimelineItemRequest request, CancellationToken cancellationToken);
