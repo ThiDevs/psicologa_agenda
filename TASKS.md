@@ -21,6 +21,7 @@ Data: 2026-05-29
 - [x] O timezone de negocio passou a vir de `BusinessClock` (`TimeZoneId` + `UtcOffset`) com padrao `America/Sao_Paulo`/`-03:00`.
 - [x] O login por perfil agora valida o perfil real retornado pela API e limpa a sessao quando a escolha nao bate.
 - [x] `backend/README.md` foi atualizado para o escopo da fase 5, endpoints atuais, Docker, migrations, healthcheck e limites sem Pix financeiro.
+- [x] A fundacao clinica ganhou o primeiro teste automatizado de protecao em repouso para `ClinicalTextProtector`, cobrindo envelope `enc:v1`, leitura de legado, idempotencia e falha com chave diferente.
 
 ## P0 - reduzir risco imediato
 
@@ -49,6 +50,7 @@ Data: 2026-05-29
 - [ ] Criar a primeira base de testes automatizados.
   - Frontend: funcoes de formato, fluxo de `BookingContext`, mensagens/erros do `api-client`.
   - Backend: autenticacao, refresh token, disponibilidade, reserva, cancelamento/reagendamento.
+  - Parcial clinico entregue: `npm run backend:test` cobre o contrato de protecao em repouso do `ClinicalTextProtector`.
   - Aceite: os testes entram no fluxo de verificacao local e cobrem pelo menos um caminho feliz e um erro por area critica.
 
 - [ ] Padronizar contrato de erro e status HTTP entre endpoints.
@@ -97,6 +99,9 @@ Data: 2026-05-29
 
 - [ ] Adicionar teste de configuracao do `BusinessClock` no backend.
   - Aceite: validar que `America/Sao_Paulo` e fallback `-03:00` sao aplicados no calculo de horarios passados.
+
+- [x] Adicionar teste automatizado do envelope clinico `enc:v1`.
+  - Aceite: proteger/desproteger texto sensivel, preservar leitura de legado, evitar dupla cifragem, falhar com chave diferente e declarar fallback de desenvolvimento na politica.
 
 - [ ] Criar teste manual guiado para sessao expirada no app.
   - Aceite: checklist cobre app aberto com access token expirado, refresh token valido, refresh token invalido e API offline.

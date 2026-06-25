@@ -12,7 +12,8 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "verify": "npm run lint && npm run typecheck",
-    "backend:build": "dotnet build backend/src/PsiAgenda.Api/PsiAgenda.Api.csproj"
+    "backend:build": "dotnet build backend/src/PsiAgenda.Api/PsiAgenda.Api.csproj",
+    "backend:test": "dotnet run --project backend/tests/PsiAgenda.Infrastructure.Tests/PsiAgenda.Infrastructure.Tests.csproj"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

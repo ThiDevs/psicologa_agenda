@@ -2606,7 +2606,7 @@ type ConsentRowModel = ClinicalConsentItem & {
 function ClinicalDataProtectionPanel({ policy }: { policy: ApiClinicalDataProtectionPolicy }) {
   const isConfigured = policy.keySource === 'configured';
   const color = isConfigured ? UI.darkPrimary : '#F3C969';
-  const visibleFields = policy.protectedFields.slice(0, 4);
+  const visibleFields = policy.protectedFields.slice(0, 6);
   const extraCount = Math.max(0, policy.protectedFields.length - visibleFields.length);
 
   return (
@@ -2632,6 +2632,25 @@ function ClinicalDataProtectionPanel({ policy }: { policy: ApiClinicalDataProtec
           </Text>
         </View>
       </View>
+      <View style={styles.dataProtectionSummary}>
+        <View style={styles.dataProtectionSummaryItem}>
+          <Text style={styles.kicker}>Novo conteúdo</Text>
+          <Text style={styles.dataProtectionSummaryValue}>{policy.enabled ? 'Cifrado' : 'Bloqueado'}</Text>
+          <Text style={styles.dataProtectionSummaryText}>{policy.algorithm}</Text>
+        </View>
+        <View style={styles.dataProtectionSummaryItem}>
+          <Text style={styles.kicker}>Legado</Text>
+          <Text style={styles.dataProtectionSummaryValue}>
+            {policy.legacyPlainTextReadable ? 'Leitura controlada' : 'Sem leitura'}
+          </Text>
+          <Text style={styles.dataProtectionSummaryText}>Apenas para migração transparente.</Text>
+        </View>
+        <View style={styles.dataProtectionSummaryItem}>
+          <Text style={styles.kicker}>Campos</Text>
+          <Text style={styles.dataProtectionSummaryValue}>{policy.protectedFields.length} protegidos</Text>
+          <Text style={styles.dataProtectionSummaryText}>Rascunho, prontuário, memória e alertas.</Text>
+        </View>
+      </View>
       <View style={styles.protectedFieldList}>
         {visibleFields.map((field) => (
           <View key={field} style={styles.protectedFieldPill}>
@@ -2645,7 +2664,10 @@ function ClinicalDataProtectionPanel({ policy }: { policy: ApiClinicalDataProtec
           </View>
         ) : null}
       </View>
-      <Text style={styles.consentMeta}>{policy.rotationNotice}</Text>
+      <View style={styles.dataProtectionNotice}>
+        <Ionicons name="key-outline" size={15} color={color} />
+        <Text style={styles.consentMeta}>{policy.rotationNotice}</Text>
+      </View>
     </Animated.View>
   );
 }
@@ -4489,6 +4511,33 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(68, 139, 116, 0.22)',
     backgroundColor: 'rgba(68, 139, 116, 0.10)',
   },
+  dataProtectionSummary: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  dataProtectionSummaryItem: {
+    flex: 1,
+    minWidth: 150,
+    gap: 3,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(68, 139, 116, 0.16)',
+    backgroundColor: 'rgba(68, 139, 116, 0.07)',
+  },
+  dataProtectionSummaryValue: {
+    color: UI.darkText,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  dataProtectionSummaryText: {
+    color: UI.darkTextMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '400',
+  },
   protectedFieldList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -4511,6 +4560,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     fontWeight: '500',
+  },
+  dataProtectionNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 7,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(237, 247, 242, 0.08)',
+    backgroundColor: UI.darkSurface,
   },
   policyRow: {
     flexDirection: 'row',

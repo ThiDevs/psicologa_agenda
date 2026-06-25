@@ -1627,6 +1627,8 @@ Atualizacao da trigesima segunda entrega: `GET /clinical/patients/{patientId}/al
 
 Atualizacao da trigesima terceira entrega: a teleconsulta web e nativa foi refinada para seguir a linguagem visual clara e compacta do app, com controles mais explicitos, animacoes discretas e copy clinica responsavel. A area de anotacao da chamada agora se identifica como rascunho local, sem virar prontuario e sem compartilhamento automatico. Este ciclo nao adicionou gravacao, transcricao, IA ou novo acesso a conteudo clinico sensivel.
 
+Atualizacao da trigesima quarta entrega: a protecao em repouso dos textos clinicos ganhou a primeira base automatizada de teste para o envelope `enc:v1`, cobrindo cifragem, leitura transparente de legado, idempotencia, falha com chave diferente e politica de fallback de desenvolvimento. O workspace clinico tambem refinou o painel de protecao de dados para destacar conteudo novo cifrado, leitura controlada de legado, campos protegidos e aviso de rotacao de chave. Ainda faltam chave produtiva definitiva, rotacao planejada, migracao dos registros legados armazenados antes da protecao e revisao juridica final dos textos sensiveis.
+
 Arquivos criados ou alterados:
 
 - `src/app/patient-care.tsx`
@@ -1657,6 +1659,9 @@ Arquivos criados ou alterados:
 - `backend/src/PsiAgenda.Infrastructure/Services/IClinicalTextProtector.cs`
 - `backend/src/PsiAgenda.Infrastructure/Services/ClinicalTextProtector.cs`
 - `backend/src/PsiAgenda.Infrastructure/Services/ClinicalDataProtectionOptions.cs`
+- `backend/tests/PsiAgenda.Infrastructure.Tests/PsiAgenda.Infrastructure.Tests.csproj`
+- `backend/tests/PsiAgenda.Infrastructure.Tests/Program.cs`
+- `backend/PsiAgenda.Backend.sln`
 - `backend/src/PsiAgenda.Api/Endpoints/ClinicalEndpoints.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623013000_AddClinicalWorkspaceTables.cs`
 - `backend/src/PsiAgenda.Infrastructure/Persistence/Migrations/20260623020000_AddClinicalRecords.cs`
@@ -1674,6 +1679,7 @@ Arquivos criados ou alterados:
 - `backend/src/PsiAgenda.Infrastructure/Persistence/PsiAgendaDbContext.cs`
 - `backend/src/PsiAgenda.Infrastructure/DependencyInjection.cs`
 - `backend/src/PsiAgenda.Api/Program.cs`
+- `package.json`
 
 Feito agora:
 
@@ -1793,6 +1799,8 @@ Feito agora:
 114. Teleconsulta web usa controle explicito de legendas, botoes acessiveis e nota local separada de prontuario.
 115. Teleconsulta nativa usa WebView/Jitsi como sala funcional em mobile, com estados de loading/erro e entrada animada discreta.
 116. Copy da teleconsulta reforca que o app nao grava conteudo clinico e que anotacoes locais nao sao compartilhadas automaticamente.
+117. `ClinicalTextProtector` agora possui teste automatizado cobrindo envelope `enc:v1`, leitura de legado, idempotencia, erro com chave diferente e politica de fallback.
+118. Painel de protecao de dados no workspace clinico exibe resumo compacto de conteudo cifrado, legado controlado, campos protegidos e aviso de rotacao.
 
 Falta para virar produto clinico real:
 
@@ -1805,7 +1813,7 @@ Falta para virar produto clinico real:
 7. Refinar alertas responsaveis com configuracao de regras, aprendizagem de falso positivo e tendencias longitudinais.
 8. Adicionar testes de contrato da API e testes de tela.
 9. Ajustar copy legal/clinica com revisao profissional.
-10. Configurar chave produtiva de `ClinicalDataProtection`, definir rotacao, migrar registros legados e testar o envelope cifrado.
+10. Configurar chave produtiva de `ClinicalDataProtection`, definir rotacao e migrar registros legados armazenados antes da protecao.
 
 Status por modulo:
 
@@ -1820,7 +1828,7 @@ Status por modulo:
 | Portal do paciente com cuidado | Parcial | Tarefas, materiais e check-ins privados no workspace; previa antes de compartilhar; share/unshare com consentimento; `/patient-care` para itens liberados, conclusao/resposta de tarefa, resposta de check-in e consentimento direto nao sensivel | Reabertura/edicao de tarefas, historico de visualizacao e refinamento de materiais |
 | Check-ins entre sessoes | Parcial | `PatientCheckIn` persistido, compartilhamento com consentimento e resposta pelo portal com escala/observacao | Agenda recorrente, templates editaveis, graficos e tendencias |
 | Alertas responsaveis | Parcial | `ClinicalAlert`, criacao manual por atendimento, motor inicial por tags `risk` e check-ins com escala 1 ou 2, painel no workspace com triagem por severidade/status/origem, acoes de confirmar/acompanhar/descartar/resolver, timeline, auditoria sem mensagem automatica ao paciente e destaque de alerta alto no briefing | Configuracao de regras, aprendizado de falso positivo e tendencias longitudinais |
-| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, `PatientConsentEvent` com historico tecnico/versionado, `PatientConsentTerm` com catalogo versionado e validacao de versao ativa, politica operacional de retencao/revogacao calculada no workspace e portal, expiracao materializada por `expiresAt`, job dedicado de expiracao, shareables com consentimento, consentimento direto nao sensivel no portal, solicitacao/decisao de consentimentos sensiveis, exportacao aprovada auditada, matriz efetiva de permissoes com limites por papel/guardrails, protecao em repouso dos novos textos clinicos sensiveis com envelope `enc:v1` e auditoria sem conteudo clinico | Revisao juridica dos textos sensiveis, formalizacao operacional fora do app, papel real de supervisao clinica, chave produtiva/rotacao e migracao dos registros legados |
+| Privacidade e seguranca | Parcial | Rotas autenticadas, validacao profissional-atendimento, `PatientConsent` persistido, `PatientConsentEvent` com historico tecnico/versionado, `PatientConsentTerm` com catalogo versionado e validacao de versao ativa, politica operacional de retencao/revogacao calculada no workspace e portal, expiracao materializada por `expiresAt`, job dedicado de expiracao, shareables com consentimento, consentimento direto nao sensivel no portal, solicitacao/decisao de consentimentos sensiveis, exportacao aprovada auditada, matriz efetiva de permissoes com limites por papel/guardrails, protecao em repouso dos novos textos clinicos sensiveis com envelope `enc:v1`, teste automatizado do envelope e auditoria sem conteudo clinico | Revisao juridica dos textos sensiveis, formalizacao operacional fora do app, papel real de supervisao clinica, chave produtiva/rotacao e migracao dos registros legados |
 
 ### Navegacao profissional sugerida
 
